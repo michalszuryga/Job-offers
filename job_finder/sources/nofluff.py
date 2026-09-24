@@ -28,6 +28,9 @@ class NoFluffSource(JobSource):
                     continue
                 if "/job/" not in href_l:
                     continue
+                # Search/listing pages are not job records.
+                if href_l.rstrip("/").endswith(("/qa", "/testing", "/job")):
+                    continue
 
                 title = clean(a.get_text(" ", strip=True))
                 if len(title) < 4 or title.lower() in {"apply", "save", "see more offers"}:

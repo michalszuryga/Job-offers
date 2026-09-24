@@ -27,6 +27,8 @@ def main():
 
     cfg = load_config()
     store = JobStore()
+    # Remove the old V1/V1.1 demo records so they never pollute the live dashboard.
+    store.delete_source("demo")
     all_jobs = store.list(0)
 
     if not all_jobs:
@@ -66,6 +68,8 @@ def main():
                 }
                 for r in results
             ]
+            st.success("Live offers fetched. Dashboard refreshed.")
+            st.rerun()
 
     with c2:
         if st.button("Reload"):

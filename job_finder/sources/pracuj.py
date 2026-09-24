@@ -19,7 +19,16 @@ class PracujSource(JobSource):
             soup = get_soup(url)
             for a in soup.find_all("a", href=True):
                 href = absolute(url, a["href"])
-                if "pracuj.pl/praca/" not in href.lower():
+                href_l = href.lower()
+                if "pracuj.pl/praca/" not in href_l:
+                    continue
+                # Never store the search page itself as a job.
+                if href_l.rstrip("/") in {
+                    "https://www.pracuj.pl/praca/tester%20-%20qa%20engineer%3bkw",
+                    "https://www.pracuj.pl/praca/qa%20tester%3bkw",
+                }:
+                    continue
+                if href_l.endswith(";kw") or "%3bkw" in href_l:
                     continue
                 title = clean(a.get_text(" ", strip=True))
                 if len(title) < 5:

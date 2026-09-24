@@ -71,3 +71,10 @@ phrases are also rejected before insertion into the job database.
 
 Rejected offers are counted in live-fetch diagnostics but are not inserted into
 the active offers list.
+
+
+### V1.2.4 fixes
+- Dashboard reruns immediately after live fetch, so counters and table show fresh DB data.
+- Legacy demo records are removed automatically.
+- Search/listing URLs are filtered out by Pracuj and No Fluff adapters.
+- Score calculation now correctly reads the nested candidate technology configuration.
