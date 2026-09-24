@@ -8,8 +8,8 @@ class PracujSource(JobSource):
 
     def __init__(self, queries=None):
         self.queries = queries or [
-            "https://www.pracuj.pl/praca/qa%20engineer%3Bkw",
-            "https://www.pracuj.pl/praca/tester%20qa%20engineer%3Bkw",
+            "https://www.pracuj.pl/praca/tester%20-%20qa%20engineer%3Bkw",
+            "https://www.pracuj.pl/praca/qa%20tester%3Bkw",
         ]
 
     def fetch(self):

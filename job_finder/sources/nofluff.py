@@ -11,8 +11,8 @@ class NoFluffSource(JobSource):
 
     def __init__(self, queries=None):
         self.queries = queries or [
-            "https://nofluffjobs.com/pl/search?criteria=testing",
-            "https://nofluffjobs.com/pl/API",
+            "https://nofluffjobs.com/pl/qa",
+            "https://nofluffjobs.com/pl/testing",
         ]
 
     def fetch(self):

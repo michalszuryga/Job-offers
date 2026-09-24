@@ -55,3 +55,9 @@ Always respect each site's terms, robots rules, rate limits, and application pol
 After deployment, click **Fetch live jobs**. The dashboard keeps the result on screen
 and reports each source independently, including number of offers found, number newly
 inserted, elapsed time, exception type and exception message.
+
+\n## V1.2.2 fixes\n
+- Fixed SQLite upsert placeholder mismatch that caused `22 values for 21 columns`.
+- Updated JustJoin.IT listing URLs to current public testing listings.
+- Updated Pracuj.pl QA search URLs.
+- Added a storage regression test.

@@ -49,7 +49,7 @@ class JobStore:
                 """INSERT INTO jobs (external_id,title,company,url,source,description,location,remote,contract,
                     salary_min,salary_max,salary_currency,seniority,published_at,score,recency_score,
                     matched_keywords,penalties,application_status,first_seen_at,last_seen_at)
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)
                     ON CONFLICT(external_id) DO UPDATE SET
                     title=excluded.title, company=excluded.company, description=excluded.description,
                     location=excluded.location, remote=excluded.remote, contract=excluded.contract,
