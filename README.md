@@ -48,3 +48,10 @@ require adapter maintenance, so the dashboard reports per-source errors instead
 of silently failing.
 
 Always respect each site's terms, robots rules, rate limits, and application policies.
+
+
+## Live source diagnostics
+
+After deployment, click **Fetch live jobs**. The dashboard keeps the result on screen
+and reports each source independently, including number of offers found, number newly
+inserted, elapsed time, exception type and exception message.

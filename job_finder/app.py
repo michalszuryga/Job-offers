@@ -53,15 +53,37 @@ def main():
         if st.button("Fetch live jobs", type="primary"):
             with st.spinner("Fetching No Fluff Jobs, Pracuj.pl and JustJoin.IT..."):
                 results = collect_live_jobs()
-            for result in results:
-                if result.error:
-                    st.error(f"{result.name}: {result.error}")
-                else:
-                    st.success(f"{result.name}: {result.count} found, {result.inserted} new")
-            st.rerun()
+
+            st.session_state["last_fetch_results"] = [
+                {
+                    "name": r.name,
+                    "count": r.count,
+                    "inserted": r.inserted,
+                    "seconds": round(r.seconds, 2),
+                    "error": r.error,
+                    "error_type": r.error_type,
+                }
+                for r in results
+            ]
+
     with c2:
         if st.button("Reload"):
             st.rerun()
+
+    if "last_fetch_results" in st.session_state:
+        st.subheader("Live fetch diagnostics")
+        for result in st.session_state["last_fetch_results"]:
+            if result["error"]:
+                st.error(
+                    f'{result["name"]}: FAILED '
+                    f'[{result["error_type"]}] {result["error"]} '
+                    f'({result["seconds"]}s)'
+                )
+            else:
+                st.success(
+                    f'{result["name"]}: {result["count"]} found, '
+                    f'{result["inserted"]} new ({result["seconds"]}s)'
+                )
 
     st.divider()
 
