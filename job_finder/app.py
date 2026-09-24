@@ -1,5 +1,4 @@
 import json
-
 import pandas as pd
 import streamlit as st
 
@@ -16,9 +15,23 @@ st.set_page_config(page_title="Michal Job Finder", layout="wide")
 def load_demo_data(store, cfg):
     created = 0
     for job in SampleSource().fetch():
-        if store.upsert(score_job(job, cfg)):
+        scored = score_job(job, cfg)
+        if not scored.rejected and store.upsert(scored):
             created += 1
     return created
+
+
+def get_stats(store, cfg):
+    jobs = store.list(0)
+    return {
+        "jobs": jobs,
+        "offers": len(jobs),
+        "high_match": sum(
+            float(j.get("score") or 0) >= cfg["filters"]["high_match_threshold"]
+            for j in jobs
+        ),
+        "new": sum(j.get("application_status", "NEW") == "NEW" for j in jobs),
+    }
 
 
 def main():
@@ -27,53 +40,60 @@ def main():
 
     cfg = load_config()
     store = JobStore()
-    # Remove the old V1/V1.1 demo records so they never pollute the live dashboard.
+
+    # Remove legacy demo records automatically. This is safe because only the
+    # dedicated "demo" source is deleted; live sources are untouched.
     store.delete_source("demo")
-    all_jobs = store.list(0)
 
-    if not all_jobs:
-        st.info("The database is empty. Load demo data to verify that the application works.")
-        if st.button("Load demo data", type="primary"):
-            created = load_demo_data(store, cfg)
-            st.success(f"Loaded {created} demo offers.")
-            st.rerun()
-        st.stop()
+    stats = get_stats(store, cfg)
 
+    # Counters are always calculated from the current database state.
     col1, col2, col3 = st.columns(3)
-    col1.metric("Offers", len(all_jobs))
-    col2.metric(
-        "High match",
-        sum(j["score"] >= cfg["filters"]["high_match_threshold"] for j in all_jobs),
-    )
-    col3.metric(
-        "New",
-        sum(j.get("application_status", "NEW") == "NEW" for j in all_jobs),
-    )
+    col1.metric("Offers", stats["offers"])
+    col2.metric("High match", stats["high_match"])
+    col3.metric("New", stats["new"])
 
-    c1, c2 = st.columns(2)
+    c1, c2, c3 = st.columns(3)
+
     with c1:
-        if st.button("Fetch live jobs", type="primary"):
-            with st.spinner("Fetching No Fluff Jobs, Pracuj.pl and JustJoin.IT..."):
-                results = collect_live_jobs()
-
-            st.session_state["last_fetch_results"] = [
-                {
-                    "name": r.name,
-                    "count": r.count,
-                    "inserted": r.inserted,
-                    "rejected": r.rejected,
-                    "seconds": round(r.seconds, 2),
-                    "error": r.error,
-                    "error_type": r.error_type,
-                }
-                for r in results
-            ]
-            st.success("Live offers fetched. Dashboard refreshed.")
-            st.rerun()
+        fetch_clicked = st.button("Fetch live jobs", type="primary", use_container_width=True)
 
     with c2:
-        if st.button("Reload"):
+        demo_clicked = st.button("Load demo data", use_container_width=True)
+
+    with c3:
+        if st.button("Reload", use_container_width=True):
             st.rerun()
+
+    if fetch_clicked:
+        with st.spinner("Fetching No Fluff Jobs, Pracuj.pl and JustJoin.IT..."):
+            results = collect_live_jobs()
+
+        st.session_state["last_fetch_results"] = [
+            {
+                "name": r.name,
+                "count": r.count,
+                "inserted": r.inserted,
+                "rejected": r.rejected,
+                "seconds": round(r.seconds, 2),
+                "error": r.error,
+                "error_type": r.error_type,
+            }
+            for r in results
+        ]
+
+        # Explicitly re-read the database after collection before rerunning.
+        # This makes the next render use the newly inserted rows.
+        st.success("Live offers fetched.")
+        st.rerun()
+
+    if demo_clicked:
+        created = load_demo_data(store, cfg)
+        st.session_state["demo_message"] = f"Loaded {created} demo offers."
+        st.rerun()
+
+    if "demo_message" in st.session_state:
+        st.success(st.session_state.pop("demo_message"))
 
     if "last_fetch_results" in st.session_state:
         st.subheader("Live fetch diagnostics")
@@ -90,6 +110,21 @@ def main():
                     f'{result["inserted"]} new, {result["rejected"]} rejected '
                     f'({result["seconds"]}s)'
                 )
+
+    # Re-read after possible actions. Never use the pre-fetch snapshot here.
+    stats = get_stats(store, cfg)
+
+    if not stats["jobs"]:
+        st.info(
+            "No live offers are currently stored. Click 'Fetch live jobs' to "
+            "collect current offers from the configured sources."
+        )
+        st.caption(
+            "Note: the hosted MVP currently uses SQLite. Streamlit Cloud can "
+            "restart the app and reset local SQLite data. Persistent storage "
+            "will require an external database in the next hosting step."
+        )
+        return
 
     st.divider()
 

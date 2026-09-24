@@ -78,3 +78,12 @@ the active offers list.
 - Legacy demo records are removed automatically.
 - Search/listing URLs are filtered out by Pracuj and No Fluff adapters.
 - Score calculation now correctly reads the nested candidate technology configuration.
+
+
+## Important: hosted SQLite
+
+The hosted MVP currently uses a local SQLite database. Streamlit Cloud can
+restart/redeploy the app, which can reset local filesystem data. The dashboard
+therefore never blocks the live-fetch button just because the database is empty.
+For persistent job history, the next hosting step should move the database to
+PostgreSQL (or another external persistent database).
