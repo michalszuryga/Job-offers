@@ -33,3 +33,18 @@ application-status tracking.
 
 This hosted MVP uses SQLite for demonstration. Production persistence will move
 to PostgreSQL before automated job collection and application tracking are enabled.
+
+
+## Live job sources
+
+The hosted MVP can fetch jobs from:
+- No Fluff Jobs
+- Pracuj.pl
+- JustJoin.IT
+
+Use **Fetch live jobs** in the dashboard. These adapters scrape public search pages
+and normalize the results into the common `Job` model. Job-board HTML changes can
+require adapter maintenance, so the dashboard reports per-source errors instead
+of silently failing.
+
+Always respect each site's terms, robots rules, rate limits, and application policies.

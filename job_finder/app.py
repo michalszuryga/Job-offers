@@ -6,6 +6,7 @@ import streamlit as st
 from .config import load_config
 from .scoring import score_job
 from .sources.sample import SampleSource
+from .collector import collect_live_jobs
 from .storage import DEFAULT_STATUSES, JobStore
 
 
@@ -47,8 +48,20 @@ def main():
         sum(j.get("application_status", "NEW") == "NEW" for j in all_jobs),
     )
 
-    if st.button("Reload"):
-        st.rerun()
+    c1, c2 = st.columns(2)
+    with c1:
+        if st.button("Fetch live jobs", type="primary"):
+            with st.spinner("Fetching No Fluff Jobs, Pracuj.pl and JustJoin.IT..."):
+                results = collect_live_jobs()
+            for result in results:
+                if result.error:
+                    st.error(f"{result.name}: {result.error}")
+                else:
+                    st.success(f"{result.name}: {result.count} found, {result.inserted} new")
+            st.rerun()
+    with c2:
+        if st.button("Reload"):
+            st.rerun()
 
     st.divider()
 
