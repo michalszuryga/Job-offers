@@ -8,7 +8,7 @@ class JustJoinSource(JobSource):
 
     def __init__(self, queries=None):
         self.queries = queries or [
-            "https://justjoin.it/job-offers/testing",
+            "https://justjoin.it/job-offers/all-locations/testing",
         ]
 
     def fetch(self):

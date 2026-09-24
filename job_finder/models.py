@@ -19,6 +19,9 @@ class Job:
     seniority: str = ""
     published_at: Optional[datetime] = None
     score: float = 0.0
+    rejected: bool = False
+    reject_reason: str = ""
+    score_breakdown: dict = field(default_factory=dict)
     recency_score: float = 0.0
     matched_keywords: list[str] = field(default_factory=list)
     penalties: list[str] = field(default_factory=list)

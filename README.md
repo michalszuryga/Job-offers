@@ -61,3 +61,13 @@ inserted, elapsed time, exception type and exception message.
 - Updated JustJoin.IT listing URLs to current public testing listings.
 - Updated Pracuj.pl QA search URLs.
 - Added a storage regression test.
+
+
+## Candidate hard exclusions
+
+The profile now supports hard exclusions. Java is rejected using a whole-word
+match, so JavaScript remains allowed. Junior/intern roles and configured Java
+phrases are also rejected before insertion into the job database.
+
+Rejected offers are counted in live-fetch diagnostics but are not inserted into
+the active offers list.

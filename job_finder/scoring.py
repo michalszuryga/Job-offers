@@ -1,116 +1,121 @@
 import re
 from datetime import datetime, timezone
-from typing import Optional
-
-from .models import Job
 
 
-def norm(value: Optional[str]) -> str:
-    return re.sub(r"\s+", " ", (value or "").lower()).strip()
+def _text(job):
+    parts = [
+        job.title or "",
+        job.company or "",
+        job.description or "",
+        job.location or "",
+        job.contract or "",
+        job.seniority or "",
+    ]
+    return " ".join(parts).lower()
 
 
-def hit(text: str, key: str) -> bool:
-    return norm(key) in norm(text)
+def _whole_word(text, word):
+    return re.search(rf"\b{re.escape(word.lower())}\b", text) is not None
 
 
-def recency_points(published_at: Optional[datetime], now: Optional[datetime] = None) -> tuple[float, str]:
-    """Return a freshness bonus and a human-readable bucket."""
+def _contains_phrase(text, phrase):
+    return phrase.lower() in text
+
+
+def recency_score(published_at):
     if not published_at:
-        return 0.0, "unknown"
-
-    now = now or datetime.now(timezone.utc)
+        return 0
     if published_at.tzinfo is None:
         published_at = published_at.replace(tzinfo=timezone.utc)
-    age_hours = max(0.0, (now - published_at).total_seconds() / 3600)
-    if age_hours < 24:
-        return 10.0, "<24h"
-    if age_hours < 72:
-        return 8.0, "1–3d"
-    if age_hours < 168:
-        return 6.0, "4–7d"
-    if age_hours < 336:
-        return 3.0, "8–14d"
-    if age_hours < 720:
-        return 1.0, "15–30d"
-    return 0.0, ">30d"
+    age_days = max(0, (datetime.now(timezone.utc) - published_at).total_seconds() / 86400)
+    if age_days < 1:
+        return 10
+    if age_days <= 3:
+        return 8
+    if age_days <= 7:
+        return 6
+    if age_days <= 14:
+        return 3
+    if age_days <= 30:
+        return 1
+    return 0
 
 
-def _contract_match(text: str, contract: str) -> bool:
-    # Avoid treating phrases such as "no B2B" as a positive match.
-    c = norm(contract)
-    t = norm(text)
-    negative = [f"no {c}", f"not {c}", f"without {c}", f"nie {c}", f"bez {c}"]
-    return c in t and not any(x in t for x in negative)
+def score_job(job, cfg):
+    text = _text(job)
+    exclusions = cfg.get("hard_exclusions", {})
 
+    # Java is a hard rejection, but JavaScript must remain valid.
+    if _whole_word(text, "java"):
+        job.score = 0
+        job.recency_score = recency_score(job.published_at)
+        job.rejected = True
+        job.reject_reason = "Java"
+        job.score_breakdown = {"hard_reject": "Java"}
+        return job
 
-def score_job(job: Job, cfg, now: Optional[datetime] = None) -> Job:
-    c = cfg["candidate"]
-    weights = cfg["scoring"]["weights"]
-    penalties_cfg = cfg["scoring"]["penalties"]
-    text = job.full_text
-    score = 0.0
-    matched: list[str] = []
-    penalties: list[str] = []
+    for phrase in exclusions.get("keywords", []):
+        if _contains_phrase(text, phrase):
+            job.score = 0
+            job.recency_score = recency_score(job.published_at)
+            job.rejected = True
+            job.reject_reason = phrase
+            job.score_breakdown = {"hard_reject": phrase}
+            return job
 
-    if any(hit(job.title, role) for role in c["target_roles"]):
-        score += weights["role"]
-        matched.append("target role")
+    for level in exclusions.get("seniority", []):
+        if _whole_word(text, level):
+            job.score = 0
+            job.recency_score = recency_score(job.published_at)
+            job.rejected = True
+            job.reject_reason = level
+            job.score_breakdown = {"hard_reject": level}
+            return job
 
-    strong_tech = [x for x in c["technologies"]["strong"] if hit(text, x)]
-    additional_tech = [x for x in c["technologies"].get("additional", []) if hit(text, x)]
-    # Strong technology coverage is capped at its full weight; additional tools add evidence but not score.
-    if strong_tech:
-        score += min(weights["technologies"], weights["technologies"] * len(strong_tech) / 6)
-        matched.extend(strong_tech)
-    matched.extend(additional_tech)
+    weights = {
+        "technologies": 45,
+        "domains": 10,
+        "remote": 10,
+        "contract": 5,
+        "seniority": 5,
+    }
 
-    domains = [x for x in c["domains"] if hit(text, x)]
-    if domains:
-        score += min(weights["domain"], weights["domain"] * len(domains) / 2)
-        matched.extend(domains)
+    techs = [x.lower() for x in cfg["candidate"].get("technologies", [])]
+    domains = [x.lower() for x in cfg["candidate"].get("domains", [])]
+    preferred_remote = cfg["candidate"].get("remote", True)
+    preferred_contracts = [x.lower() for x in cfg["candidate"].get("contracts", ["B2B"])]
 
-    if job.remote is True or hit(text, "remote") or hit(text, "fully remote") or hit(text, "100% remote"):
-        score += weights["remote"]
-        matched.append("remote")
-    elif job.remote is False or hit(text, "on-site") or hit(text, "onsite") or hit(text, "hybrid"):
-        penalties.append("onsite/hybrid")
-        score -= penalties_cfg["onsite"]
+    matched_techs = [x for x in techs if _contains_phrase(text, x)]
+    matched_domains = [x for x in domains if _contains_phrase(text, x)]
 
-    if any(_contract_match(text, contract) for contract in c["contracts"]):
-        score += weights["contract"]
-        matched.append("preferred contract")
+    tech_points = min(weights["technologies"], round(len(matched_techs) / max(1, len(techs)) * weights["technologies"]))
+    domain_points = min(weights["domains"], round(len(matched_domains) / max(1, len(domains)) * weights["domains"]))
 
-    if any(hit(job.seniority, level) for level in c["seniority"]):
-        score += weights["seniority"]
-        matched.append("preferred seniority")
+    remote_points = weights["remote"] if job.remote is True and preferred_remote else 0
+    contract_points = (
+        weights["contract"]
+        if any(x in (job.contract or "").lower() for x in preferred_contracts)
+        else 0
+    )
 
-    if hit(text, "english"):
-        score += weights["language"]
-        matched.append("English")
+    seniority_text = (job.seniority or "").lower()
+    seniority_points = weights["seniority"] if seniority_text in {"mid", "regular", "senior"} else 0
 
-    ai = [x for x in c["ai"] if hit(text, x)]
-    if ai:
-        score += weights["ai"]
-        matched.extend(ai)
+    fresh = recency_score(job.published_at)
+    total = min(100, tech_points + domain_points + remote_points + contract_points + seniority_points + fresh)
 
-    if hit(job.seniority, "junior") or hit(job.title, "junior"):
-        score -= penalties_cfg["junior"]
-        penalties.append("junior")
-    if hit(text, "internship") or re.search(r"\bintern\b", text, re.I):
-        score -= penalties_cfg["internship"]
-        penalties.append("internship")
-
-    if hit(text, "relocation required") or hit(text, "must relocate"):
-        score -= penalties_cfg["relocation"]
-        penalties.append("relocation required")
-
-    fresh, bucket = recency_points(job.published_at, now=now)
-    score += fresh
+    job.score = total
     job.recency_score = fresh
-    if bucket != "unknown":
-        matched.append(f"freshness:{bucket}")
-
-    job.score = max(0, min(cfg["scoring"]["max_score"], round(score, 1)))
-    job.matched_keywords = list(dict.fromkeys(matched))
-    job.penalties = list(dict.fromkeys(penalties))
+    job.rejected = False
+    job.reject_reason = ""
+    job.score_breakdown = {
+        "technology": tech_points,
+        "domain": domain_points,
+        "remote": remote_points,
+        "contract": contract_points,
+        "seniority": seniority_points,
+        "freshness": fresh,
+        "matched_technologies": matched_techs,
+        "matched_domains": matched_domains,
+    }
     return job

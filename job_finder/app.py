@@ -59,6 +59,7 @@ def main():
                     "name": r.name,
                     "count": r.count,
                     "inserted": r.inserted,
+                    "rejected": r.rejected,
                     "seconds": round(r.seconds, 2),
                     "error": r.error,
                     "error_type": r.error_type,
@@ -82,7 +83,8 @@ def main():
             else:
                 st.success(
                     f'{result["name"]}: {result["count"]} found, '
-                    f'{result["inserted"]} new ({result["seconds"]}s)'
+                    f'{result["inserted"]} new, {result["rejected"]} rejected '
+                    f'({result["seconds"]}s)'
                 )
 
     st.divider()
@@ -151,6 +153,10 @@ def main():
     with right:
         st.metric("Match", job["score"])
         st.metric("Freshness bonus", f'+{job.get("recency_score", 0)}')
+
+        if job.get("score_breakdown"):
+            st.markdown("#### Score breakdown")
+            st.json(job["score_breakdown"])
 
         new_status = st.selectbox(
             "Status",

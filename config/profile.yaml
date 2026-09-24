@@ -14,3 +14,19 @@ scoring:
 filters:
   minimum_score_to_show: 55
   high_match_threshold: 80
+
+hard_exclusions:
+  technologies:
+    - Java
+  keywords:
+    - "Java developer"
+    - "Java/Selenium"
+    - "Java backend"
+    - "Java QA"
+    - "Java automation"
+    - "Java engineer"
+    - "Java tester"
+  seniority:
+    - intern
+    - internship
+    - junior
