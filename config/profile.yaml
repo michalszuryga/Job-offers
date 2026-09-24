@@ -1,0 +1,16 @@
+candidate:
+  target_roles: [QA Engineer, Software QA Engineer, QA Analyst, SQA Engineer, Software Test Engineer, Test Engineer, QA Automation Engineer]
+  seniority: [mid, senior]
+  contracts: [B2B, employment, contractor]
+  technologies:
+    strong: [API testing, REST API, Postman, SQL, Playwright, TypeScript, Cypress, JavaScript, Git, GitHub, CI/CD, Chrome DevTools]
+    additional: [MariaDB, MS SQL, DBeaver, Elastic, AppSignal, CloudWatch, Claude Code, Claude CLI, GitHub Copilot]
+  domains: [healthcare, digital health, telehealth, medical diagnostics, fintech, payments, SaaS, enterprise software, e-government]
+  ai: [AI, AI-assisted, Claude, Claude Code, Claude CLI, GitHub Copilot, AI testing, AI-assisted testing]
+scoring:
+  max_score: 100
+  weights: {role: 20, technologies: 25, domain: 10, remote: 15, contract: 10, seniority: 5, language: 5, ai: 5}
+  penalties: {junior: 30, internship: 60, onsite: 25, relocation: 20}
+filters:
+  minimum_score_to_show: 55
+  high_match_threshold: 80
