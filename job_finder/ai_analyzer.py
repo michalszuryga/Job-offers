@@ -1,7 +1,6 @@
-"""AI analysis layer.
+"""Provider-agnostic AI analysis payload builder.
 
-The first version is provider-agnostic: it builds a strict prompt and returns a structured
-result. A concrete API client can be plugged in later without changing scoring or storage.
+The real model API integration will be added after the hosted MVP is verified.
 """
 
 import json
@@ -9,8 +8,7 @@ import json
 
 def build_analysis_payload(job, profile: dict) -> dict:
     return {
-        "task": "Analyze this job against the candidate profile. Do not invent experience.
-",
+        "task": "Analyze this job against the candidate profile. Do not invent experience.",
         "candidate": profile["candidate"],
         "job": {
             "title": job.title,
@@ -29,11 +27,16 @@ def build_analysis_payload(job, profile: dict) -> dict:
             "missing_or_unclear": ["string"],
             "concerns": ["string"],
             "cv_emphasis": ["string"],
-            "application_questions": [{"question": "string", "suggested_answer": "string"}],
+            "application_questions": [
+                {"question": "string", "suggested_answer": "string"}
+            ],
         },
     }
 
 
 def build_prompt(job, profile: dict) -> str:
-    payload = build_analysis_payload(job, profile)
-    return json.dumps(payload, ensure_ascii=False, indent=2)
+    return json.dumps(
+        build_analysis_payload(job, profile),
+        ensure_ascii=False,
+        indent=2,
+    )

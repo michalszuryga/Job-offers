@@ -23,3 +23,13 @@ streamlit run job_finder/app.py
 ```
 
 Do not commit API keys, `.env` files or local databases.
+
+
+## Hosted MVP
+
+Deploy `streamlit_app.py` to Streamlit Community Cloud. After deployment,
+open the app and click **Load demo data** to verify scoring, recency and
+application-status tracking.
+
+This hosted MVP uses SQLite for demonstration. Production persistence will move
+to PostgreSQL before automated job collection and application tracking are enabled.
