@@ -1,25 +1,25 @@
-# Michal Job Finder v1
+# Michal Job Finder
 
-Personal job-search engine tailored to Michal's QA profile.
+Personal job-search engine for collecting, scoring, analyzing and tracking QA job opportunities.
 
-## MVP
-- Python + SQLite
-- YAML candidate profile
-- transparent scoring
-- pluggable job-board sources
+## V1.1
+- Deterministic profile matching
+- Recency scoring
+- Application status tracking
 - Streamlit dashboard
-- deduplication by URL
-- demo source for local testing
+- Provider-agnostic AI analysis payload
+- SQLite persistence with lightweight migration
+- Docker/hosting-ready structure (deployment config to be added next)
 
-Live job-board adapters are deliberately separated from the core so each source can use its current public/authorized access method rather than brittle scraping.
+## Run locally
 
-## Run
 ```bash
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-python -m job_finder.cli init-db
 python -m job_finder.cli demo
 python -m job_finder.cli list --min-score 55
 streamlit run job_finder/app.py
 ```
+
+Do not commit API keys, `.env` files or local databases.

@@ -1,29 +1,30 @@
 # Roadmap
 
-## V1 foundation
-- Candidate profile and scoring
-- SQLite persistence and URL deduplication
-- Demo source
-- Streamlit dashboard
+## V1.1 — current
+- [x] Recency scoring
+- [x] Better technology/domain matching
+- [x] Application statuses
+- [x] AI analysis interface (provider-agnostic)
+- [x] Dashboard foundation
+- [x] Database migration support
+- [x] `.gitignore` / remove local DB from repository
 
-## V1.1 live sources
-Implement adapters one at a time using each site's current public/authorized access method:
-- Just Join IT
-- No Fluff Jobs
-- Pracuj.pl
-- RocketJobs
-- Bulldogjob
-- Wellfound
-- Indeed
-- Remote OK
-- We Work Remotely
-- Greenhouse / Lever / other public company career APIs
+## V1.2 — next
+- [ ] Real job-board adapters (Pracuj, Just Join IT, No Fluff Jobs, company career pages)
+- [ ] Job normalization and robust date parsing
+- [ ] AI API client
+- [ ] Tailored CV generation from master CV
+- [ ] Application question generator
 
-## V1.2 AI analysis
-For high-scoring jobs: summarize, identify matches, missing requirements, concerns and application effort.
+## V1.3
+- [ ] PostgreSQL
+- [ ] Background scheduler
+- [ ] Authentication
+- [ ] Notifications
+- [ ] Cloud deployment
 
-## V1.3 notifications
-Daily email/Telegram digest; notify only for new high-match jobs.
-
-## V2 feedback loop
-Track Interested / Applied / Rejected / Ignored and tune scoring from decisions.
+## V2
+- [ ] Playwright application agent
+- [ ] Approval workflow before submission
+- [ ] CAPTCHA / 2FA handoff
+- [ ] Application outcome analytics
