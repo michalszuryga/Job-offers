@@ -1,6 +1,16 @@
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Optional
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+
+
+def canonical_job_url(url: str) -> str:
+    """Normalize equivalent offer URLs into a stable storage key."""
+    parts = urlsplit((url or "").strip())
+    query = sorted((k, v) for k, v in parse_qsl(parts.query, keep_blank_values=True)
+                   if not k.lower().startswith("utm_") and k.lower() not in {"fbclid", "gclid"})
+    path = parts.path.rstrip("/") or "/"
+    return urlunsplit((parts.scheme.lower(), parts.netloc.lower(), path, urlencode(query), ""))
 
 
 @dataclass
@@ -29,7 +39,7 @@ class Job:
 
     @property
     def external_id(self):
-        return self.url.strip().lower()
+        return canonical_job_url(self.url)
 
     @property
     def full_text(self) -> str:

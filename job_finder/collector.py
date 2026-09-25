@@ -14,6 +14,7 @@ class SourceResult:
     name: str
     count: int = 0
     inserted: int = 0
+    updated: int = 0
     rejected: int = 0
     seconds: float = 0.0
     error: str = ""
@@ -31,19 +32,25 @@ def collect_live_jobs(config_path="config/profile.yaml"):
         try:
             jobs = source.fetch()
             inserted = 0
+            updated = 0
             rejected = 0
             for job in jobs:
                 scored = score_job(job, cfg)
                 if getattr(scored, 'rejected', False):
                     rejected += 1
                     continue
-                if store.upsert(scored):
+                existed = store.contains(scored.url)
+                store.upsert(scored)
+                if existed:
+                    updated += 1
+                else:
                     inserted += 1
             results.append(
                 SourceResult(
                     name=source.name,
                     count=len(jobs),
                     inserted=inserted,
+                    updated=updated,
                     rejected=rejected,
                     seconds=perf_counter() - started,
                 )

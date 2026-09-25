@@ -41,10 +41,6 @@ def main():
     cfg = load_config()
     store = JobStore()
 
-    # Remove legacy demo records automatically. This is safe because only the
-    # dedicated "demo" source is deleted; live sources are untouched.
-    store.delete_source("demo")
-
     stats = get_stats(store, cfg)
 
     # Counters are always calculated from the current database state.
@@ -74,6 +70,7 @@ def main():
                 "name": r.name,
                 "count": r.count,
                 "inserted": r.inserted,
+                "updated": r.updated,
                 "rejected": r.rejected,
                 "seconds": round(r.seconds, 2),
                 "error": r.error,
@@ -107,7 +104,8 @@ def main():
             else:
                 st.success(
                     f'{result["name"]}: {result["count"]} found, '
-                    f'{result["inserted"]} new, {result["rejected"]} rejected '
+                    f'{result["inserted"]} inserted, {result["updated"]} updated, '
+                    f'{result["rejected"]} rejected '
                     f'({result["seconds"]}s)'
                 )
 

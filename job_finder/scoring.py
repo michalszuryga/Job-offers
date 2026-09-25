@@ -1,95 +1,96 @@
 import re
 from datetime import datetime, timezone
 
+
 def _text(job):
-    return " ".join([
-        job.title or "", job.company or "", job.description or "",
-        job.location or "", job.contract or "", job.seniority or ""
-    ]).lower()
+    return " ".join(str(x or "") for x in (
+        job.title, job.company, job.description, job.location, job.contract, job.seniority
+    )).lower()
+
 
 def _word(text, value):
-    return bool(re.search(rf"(?<![a-z0-9]){re.escape(value.lower())}(?![a-z0-9])", text))
+    return bool(re.search(rf"(?<![a-z0-9]){re.escape(str(value).lower())}(?![a-z0-9])", text))
+
 
 def _phrase(text, value):
-    return value.lower() in text
+    pattern = re.escape(str(value).lower()).replace(r"\ ", r"\s+")
+    return bool(re.search(rf"(?<![a-z0-9]){pattern}(?![a-z0-9])", text))
 
-def recency_score(published_at):
+
+def recency_points(published_at, now=None):
     if not published_at:
-        return 0
+        return 0, None
+    now = now or datetime.now(timezone.utc)
     if published_at.tzinfo is None:
         published_at = published_at.replace(tzinfo=timezone.utc)
-    age = max(0, (datetime.now(timezone.utc) - published_at).total_seconds() / 86400)
-    if age < 1: return 10
-    if age <= 3: return 8
-    if age <= 7: return 6
-    if age <= 14: return 3
-    if age <= 30: return 1
-    return 0
+    age = max(0, (now - published_at.astimezone(timezone.utc)).total_seconds() / 86400)
+    points = 10 if age < 1 else 8 if age <= 3 else 6 if age <= 7 else 3 if age <= 14 else 1 if age <= 30 else 0
+    return points, age
 
-def score_job(job, cfg):
+
+def recency_score(published_at):
+    return recency_points(published_at)[0]
+
+
+def score_job(job, cfg, now=None):
     text = _text(job)
     hard = cfg.get("hard_exclusions", {})
-
-    # Hard exclusions first. Java is a whole-word match, therefore JavaScript is safe.
-    if _word(text, "java"):
+    tech_exclusions = hard.get("technologies", [])
+    for term in tech_exclusions:
+        if _word(text, term):
+            job.rejected, job.reject_reason, job.score = True, str(term), 0
+            job.score_breakdown = {"hard_reject": str(term)}
+            return job
+    for phrase in hard.get("keywords", []):
+        if _phrase(text, phrase):
+            job.rejected, job.reject_reason, job.score = True, str(phrase), 0
+            job.score_breakdown = {"hard_reject": str(phrase)}
+            return job
+    for level in hard.get("seniority", []):
+        if _word(text, level):
+            job.rejected, job.reject_reason, job.score = True, str(level), 0
+            job.score_breakdown = {"hard_reject": str(level)}
+            return job
+    # Also retain the explicit Java guarantee if a profile omits the setting.
+    if not tech_exclusions and _word(text, "java"):
         job.rejected, job.reject_reason, job.score = True, "Java", 0
-        job.recency_score = recency_score(job.published_at)
         job.score_breakdown = {"hard_reject": "Java"}
         return job
 
-    for phrase in hard.get("keywords", []):
-        if _phrase(text, phrase):
-            job.rejected, job.reject_reason, job.score = True, phrase, 0
-            job.recency_score = recency_score(job.published_at)
-            job.score_breakdown = {"hard_reject": phrase}
-            return job
-
-    for level in hard.get("seniority", []):
-        if _word(text, level):
-            job.rejected, job.reject_reason, job.score = True, level, 0
-            job.recency_score = recency_score(job.published_at)
-            job.score_breakdown = {"hard_reject": level}
-            return job
-
-    cand = cfg.get("candidate", {})
+    candidate = cfg.get("candidate", {})
     weights = cfg.get("scoring", {}).get("weights", {})
-    role_terms = [str(x).lower() for x in cand.get("target_roles", [])]
-    tech_cfg = cand.get("technologies", {})
-    tech_terms = []
-    if isinstance(tech_cfg, dict):
-        tech_terms = [str(x).lower() for group in tech_cfg.values() for x in (group or [])]
-    else:
-        tech_terms = [str(x).lower() for x in tech_cfg]
-    domain_terms = [str(x).lower() for x in cand.get("domains", [])]
-    ai_terms = [str(x).lower() for x in cand.get("ai", [])]
-    contracts = [str(x).lower() for x in cand.get("contracts", [])]
+    role_terms = [str(v).lower() for v in candidate.get("target_roles", [])]
+    tech_cfg = candidate.get("technologies", {})
+    tech_terms = [str(v).lower() for group in tech_cfg.values() for v in (group or [])] if isinstance(tech_cfg, dict) else [str(v).lower() for v in tech_cfg]
+    domain_terms = [str(v).lower() for v in candidate.get("domains", [])]
+    contracts = [str(v).lower() for v in candidate.get("contracts", [])]
+    ai_terms = [str(v).lower() for v in candidate.get("ai", [])]
+    matched_roles = [v for v in role_terms if v in text]
+    matched_tech = [v for v in tech_terms if v in text]
+    matched_domains = [v for v in domain_terms if v in text]
+    matched_ai = [v for v in ai_terms if v in text]
 
-    matched_roles = [x for x in role_terms if x in text]
-    matched_tech = [x for x in tech_terms if x in text]
-    matched_domain = [x for x in domain_terms if x in text]
-    matched_ai = [x for x in ai_terms if x in text]
+    def points(key, hits, denominator):
+        return round(weights.get(key, 0) * min(1, len(set(hits)) / max(1, denominator)))
 
-    def proportional(n, total):
-        return round(min(1, n / max(1, total)), 2)
-
-    role = round(weights.get("role", 20) * proportional(len(matched_roles), 2))
-    tech = round(weights.get("technologies", 25) * proportional(len(matched_tech), 6))
-    domain = round(weights.get("domain", 10) * proportional(len(matched_domain), 2))
-    remote = weights.get("remote", 15) if job.remote is True else 0
-    contract = weights.get("contract", 10) if any(x in (job.contract or "").lower() for x in contracts) else 0
-    seniority = weights.get("seniority", 5) if (job.seniority or "").lower() in {"mid","regular","senior","lead"} else 0
-    ai = weights.get("ai", 5) if matched_ai else 0
-    fresh = min(weights.get("recency_max", 10), recency_score(job.published_at))
-
-    total = min(100, role + tech + domain + remote + contract + seniority + ai + fresh)
-    job.score = total
-    job.recency_score = fresh
-    job.rejected = False
-    job.reject_reason = ""
-    job.score_breakdown = {
-        "role": role, "technology": tech, "domain": domain, "remote": remote,
-        "contract": contract, "seniority": seniority, "ai": ai, "freshness": fresh,
-        "matched_roles": matched_roles, "matched_technologies": matched_tech,
-        "matched_domains": matched_domain, "matched_ai": matched_ai,
-    }
+    role = points("role", matched_roles, 2)
+    technology = points("technologies", matched_tech, 6)
+    domain = points("domain", matched_domains, 2)
+    remote = weights.get("remote", 0) if job.remote is True else 0
+    contract = weights.get("contract", 0) if any(v in (job.contract or "").lower() for v in contracts) else 0
+    seniority_value = (job.seniority or "").lower()
+    seniority = weights.get("seniority", 0) if seniority_value in {"mid", "regular", "senior", "lead"} else 0
+    language = weights.get("language", 0) if re.search(r"\b(english|angielski|fluent)\b", text) else 0
+    ai = weights.get("ai", 0) if matched_ai else 0
+    freshness = min(weights.get("recency_max", 10), recency_points(job.published_at, now)[0])
+    breakdown = {"role": role, "technology": technology, "domain": domain, "remote": remote,
+                 "contract": contract, "seniority": seniority, "language": language,
+                 "ai": ai, "freshness": freshness,
+                 "matched_roles": matched_roles, "matched_technologies": matched_tech,
+                 "matched_domains": matched_domains, "matched_ai": matched_ai}
+    job.score = min(100, sum(v for v in breakdown.values() if isinstance(v, (int, float))))
+    job.recency_score = freshness
+    job.rejected, job.reject_reason = False, ""
+    job.matched_keywords = sorted(set(matched_roles + matched_tech + matched_domains + matched_ai))
+    job.score_breakdown = breakdown
     return job

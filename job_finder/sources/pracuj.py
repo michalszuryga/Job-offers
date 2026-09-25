@@ -1,6 +1,8 @@
+from urllib.parse import unquote
+
 from ..models import Job
 from .base import JobSource
-from .web_utils import get_soup, clean, absolute, infer_remote, infer_seniority, extract_salary, parse_date
+from .web_utils import get_soup, clean, absolute, parse_offer
 
 
 class PracujSource(JobSource):
@@ -22,49 +24,19 @@ class PracujSource(JobSource):
                 href_l = href.lower()
                 if "pracuj.pl/praca/" not in href_l:
                     continue
-                # Never store the search page itself as a job.
-                if href_l.rstrip("/") in {
-                    "https://www.pracuj.pl/praca/tester%20-%20qa%20engineer%3bkw",
-                    "https://www.pracuj.pl/praca/qa%20tester%3bkw",
-                }:
-                    continue
-                if href_l.endswith(";kw") or "%3bkw" in href_l:
+                # Individual Pracuj offers contain an offer marker and identifier.
+                decoded_href = unquote(href_l)
+                if ",oferta," not in decoded_href or ";kw" in decoded_href:
                     continue
                 title = clean(a.get_text(" ", strip=True))
                 if len(title) < 5:
                     continue
 
-                parent = a
-                for _ in range(6):
-                    parent = getattr(parent, "parent", parent)
-                text = clean(parent.get_text(" ", strip=True))
-
                 if href in seen:
                     continue
-                if not any(k in (title + " " + text).lower() for k in
-                           ["qa", "tester", "quality assurance", "test automation", "software test"]):
-                    continue
                 seen.add(href)
-
-                salary_min, salary_max = extract_salary(text)
-                published = parse_date(next(
-                    (s for s in parent.stripped_strings if "Opublikowana:" in s or "2026" in s),
-                    None
-                ))
-
-                jobs.append(Job(
-                    title=title,
-                    company="",
-                    url=href,
-                    source=self.name,
-                    description=text,
-                    location=text[:250],
-                    remote=infer_remote(text),
-                    contract="",
-                    salary_min=salary_min,
-                    salary_max=salary_max,
-                    salary_currency="PLN",
-                    seniority=infer_seniority(text),
-                    published_at=published,
-                ))
+                job = parse_offer(href, self.name, title)
+                if job and any(k in (job.title + " " + job.description).lower() for k in
+                               ["qa", "tester", "quality assurance", "test automation", "software test"]):
+                    jobs.append(job)
         return jobs

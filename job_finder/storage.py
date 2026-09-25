@@ -3,7 +3,7 @@ import sqlite3
 from datetime import datetime
 from pathlib import Path
 
-from .models import Job
+from .models import Job, canonical_job_url
 
 
 DEFAULT_STATUSES = ["NEW", "REVIEW", "INTERESTED", "CV_GENERATED", "READY_TO_APPLY", "APPLIED", "INTERVIEW", "REJECTED", "WITHDRAWN"]
@@ -46,6 +46,7 @@ class JobStore:
             conn.execute("UPDATE jobs SET last_seen_at=COALESCE(last_seen_at, CURRENT_TIMESTAMP)")
 
     def upsert(self, job: Job) -> bool:
+        canonical_url = canonical_job_url(job.url)
         with sqlite3.connect(self.path) as conn:
             old = conn.execute("SELECT external_id FROM jobs WHERE external_id=?", (job.external_id,)).fetchone()
             conn.execute(
@@ -62,7 +63,7 @@ class JobStore:
                     penalties=excluded.penalties, last_seen_at=CURRENT_TIMESTAMP, rejected=excluded.rejected,
                     reject_reason=excluded.reject_reason, score_breakdown=excluded.score_breakdown""",
                 (
-                    job.external_id, job.title, job.company, job.url, job.source, job.description, job.location,
+                    job.external_id, job.title, job.company, canonical_url, job.source, job.description, job.location,
                     None if job.remote is None else int(job.remote), job.contract, job.salary_min, job.salary_max,
                     job.salary_currency, job.seniority, job.published_at.isoformat() if job.published_at else None,
                     job.score, job.recency_score, json.dumps(job.matched_keywords), json.dumps(job.penalties),
@@ -73,7 +74,7 @@ class JobStore:
         return old is None
 
     def list(self, min_score=0, status=None, limit=None):
-        sql = "SELECT * FROM jobs WHERE score>=?"
+        sql = "SELECT * FROM jobs WHERE score>=? AND COALESCE(rejected, 0)=0"
         params = [min_score]
         if status:
             sql += " AND application_status=?"
@@ -85,6 +86,10 @@ class JobStore:
         with sqlite3.connect(self.path) as conn:
             conn.row_factory = sqlite3.Row
             return [dict(row) for row in conn.execute(sql, params).fetchall()]
+
+    def contains(self, url: str) -> bool:
+        with sqlite3.connect(self.path) as conn:
+            return conn.execute("SELECT 1 FROM jobs WHERE external_id=?", (canonical_job_url(url),)).fetchone() is not None
 
     def delete_source(self, source):
         with sqlite3.connect(self.path) as conn:

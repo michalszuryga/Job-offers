@@ -1,10 +1,12 @@
 import re
+import json
 from datetime import datetime, timezone
 from urllib.parse import urljoin
 
 import requests
 from bs4 import BeautifulSoup
 from dateutil import parser as date_parser
+from ..models import Job
 
 
 HEADERS = {
@@ -97,3 +99,78 @@ def parse_cards(soup, base_url: str, source_name: str, link_predicate, title_pre
         seen.add(href)
         jobs.append((href, title, text))
     return jobs
+
+
+def _jobposting_objects(value):
+    if isinstance(value, list):
+        for item in value:
+            yield from _jobposting_objects(item)
+    elif isinstance(value, dict):
+        types = value.get("@type") or []
+        if types == "JobPosting" or (isinstance(types, list) and "JobPosting" in types):
+            yield value
+        for key in ("@graph", "mainEntity", "itemListElement"):
+            if key in value:
+                yield from _jobposting_objects(value[key])
+
+
+def _meta(soup, *names):
+    for name in names:
+        tag = soup.find("meta", attrs={"property": name}) or soup.find("meta", attrs={"name": name})
+        if tag and tag.get("content"):
+            return clean(tag["content"])
+    return ""
+
+
+def parse_offer(url: str, source_name: str, listing_title: str = "") -> Job | None:
+    """Fetch one offer page and normalize structured data or page-level metadata."""
+    soup = get_soup(url)
+    posting = None
+    for tag in soup.find_all("script", type="application/ld+json"):
+        try:
+            data = json.loads(tag.string or tag.get_text())
+        except (TypeError, ValueError):
+            continue
+        posting = next(_jobposting_objects(data), None)
+        if posting:
+            break
+
+    def nested_text(value):
+        if isinstance(value, str):
+            return clean(value)
+        if isinstance(value, dict):
+            direct = value.get("name")
+            if direct:
+                return clean(direct)
+            address = value.get("address")
+            if address:
+                return nested_text(address)
+            return ", ".join(clean(value.get(key) or "") for key in
+                              ("addressLocality", "addressRegion", "addressCountry") if value.get(key))
+        if isinstance(value, list):
+            return ", ".join(filter(None, (nested_text(v) for v in value)))
+        return ""
+
+    title = clean((posting or {}).get("title") or "") or clean(soup.find("h1").get_text(" ", strip=True) if soup.find("h1") else "") or listing_title
+    company = nested_text((posting or {}).get("hiringOrganization")) or _meta(soup, "job:company", "company")
+    location = nested_text((posting or {}).get("jobLocation"))
+    if not location:
+        location = _meta(soup, "job:location", "og:locality")
+    description = clean((posting or {}).get("description") or "")
+    if description and "<" in description:
+        description = clean(BeautifulSoup(description, "html.parser").get_text(" ", strip=True))
+    if not description:
+        description = _meta(soup, "description", "og:description")
+    if not description:
+        main = soup.find("main") or soup.find("article")
+        description = clean(main.get_text(" ", strip=True)) if main else ""
+    # A list card snippet is not a valid individual job description.
+    if not title or not company or len(description) < 80:
+        return None
+    remote = infer_remote(" ".join((description, location, nested_text((posting or {}).get("jobLocationType")))))
+    contract = nested_text((posting or {}).get("employmentType"))
+    published = parse_date((posting or {}).get("datePosted"))
+    salary_min, salary_max = extract_salary(description)
+    return Job(title=title, company=company, url=url, source=source_name, description=description,
+               location=location, remote=remote, contract=contract, salary_min=salary_min,
+               salary_max=salary_max, published_at=published, seniority=infer_seniority(title + " " + description))

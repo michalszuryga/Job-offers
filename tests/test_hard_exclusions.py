@@ -48,3 +48,11 @@ def test_junior_is_hard_reject():
     scored = score_job(job("Junior QA Engineer", "Playwright TypeScript"), cfg())
     assert scored.rejected is True
     assert scored.score == 0
+
+
+def test_scoring_breakdown_is_transparent():
+    config = cfg()
+    config["candidate"]["target_roles"] = ["QA Engineer"]
+    scored = score_job(job("QA Engineer", "Remote B2B healthcare Playwright SQL English"), config)
+    assert scored.rejected is False
+    assert {"technology", "domain", "remote", "contract", "seniority", "freshness"} <= set(scored.score_breakdown)
