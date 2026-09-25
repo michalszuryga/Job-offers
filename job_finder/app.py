@@ -3,7 +3,7 @@ from datetime import datetime
 import pandas as pd
 import streamlit as st
 
-from .config import load_config
+from .config import load_config, save_user_overrides
 from .scoring import score_job
 from .models import Job
 from .sources.sample import SampleSource
@@ -92,11 +92,70 @@ def refresh_scores_for_config(store, cfg):
     st.session_state["score_config_signature"] = signature
 
 
+def render_scoring_controls(cfg):
+    scoring = cfg.setdefault("scoring", {})
+    penalties = scoring.setdefault("penalties", {})
+    filters = cfg.setdefault("filters", {})
+
+    with st.sidebar.expander("Scoring & filters", expanded=False):
+        st.caption("Saved to a local override file. Streamlit Cloud may reset it after an app restart.")
+        with st.form("scoring_filters_form"):
+            remote_only = st.checkbox("Remote offers only", value=filters.get("remote_only", True))
+            automation_penalty = st.slider(
+                "Penalty: ‘automation’ in title", 0, 60,
+                int(penalties.get("automation_title", 30)), step=5,
+            )
+            language_penalty = st.slider(
+                "Penalty: C++ / Java / C# / Python in title", 0, 60,
+                int(penalties.get("programming_language_title", 30)), step=5,
+            )
+            stale_after_days = st.number_input(
+                "Treat offers older than (days)", 0, 90,
+                int(penalties.get("stale_after_days", 10)), step=1,
+            )
+            stale_penalty = st.slider(
+                "Penalty for stale offer", 0, 60,
+                int(penalties.get("stale_offer", 15)), step=5,
+            )
+            minimum_score = st.slider(
+                "Minimum score to show", 0, 100,
+                int(filters.get("minimum_score_to_show", 55)), step=5,
+            )
+            high_match_threshold = st.slider(
+                "High match threshold", 0, 100,
+                int(filters.get("high_match_threshold", 80)), step=5,
+            )
+            save_clicked = st.form_submit_button("Save criteria")
+
+        if save_clicked:
+            try:
+                save_user_overrides({
+                    "filters": {
+                        "remote_only": remote_only,
+                        "minimum_score_to_show": minimum_score,
+                        "high_match_threshold": high_match_threshold,
+                    },
+                    "scoring": {"penalties": {
+                        "automation_title": automation_penalty,
+                        "programming_language_title": language_penalty,
+                        "stale_after_days": stale_after_days,
+                        "stale_offer": stale_penalty,
+                    }},
+                })
+                st.success("Criteria saved.")
+                st.rerun()
+            except OSError as exc:
+                st.error(f"Could not save criteria: {exc}")
+
+    return cfg
+
+
 def main():
     st.title("Michal's Job Finder")
     st.caption("Hosted MVP - job matching, freshness scoring and application tracking.")
 
     cfg = load_config()
+    cfg = render_scoring_controls(cfg)
     store = JobStore()
     refresh_scores_for_config(store, cfg)
 
