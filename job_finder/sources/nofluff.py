@@ -1,8 +1,5 @@
-from ..models import Job
 from .base import JobSource
-from .web_utils import (
-    get_soup, clean, absolute, parse_offer
-)
+from .web_utils import get_soup, clean, absolute, parse_offer_batch
 
 
 class NoFluffSource(JobSource):
@@ -15,7 +12,8 @@ class NoFluffSource(JobSource):
         ]
 
     def fetch(self):
-        jobs = []
+        self.errors = []
+        offers = []
         seen = set()
 
         for url in self.queries:
@@ -38,7 +36,6 @@ class NoFluffSource(JobSource):
                 if href in seen:
                     continue
                 seen.add(href)
-                job = parse_offer(href, self.name, title)
-                if job:
-                    jobs.append(job)
+                offers.append((href, title))
+        jobs, self.errors = parse_offer_batch(offers, self.name)
         return jobs

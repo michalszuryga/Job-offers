@@ -31,7 +31,7 @@ def test_offer_parser_reads_individual_jobposting(monkeypatch):
     "jobLocation":{"address":{"addressLocality":"Warsaw","addressCountry":"PL"}},
     "employmentType":"CONTRACTOR","datePosted":"2026-09-20"}
     </script>'''
-    monkeypatch.setattr(web_utils, "get_soup", lambda _: BeautifulSoup(html, "html.parser"))
+    monkeypatch.setattr(web_utils, "get_soup", lambda _, timeout=10: BeautifulSoup(html, "html.parser"))
     job = web_utils.parse_offer("https://example.com/jobs/123", "test")
     assert job is not None
     assert job.title == "QA Engineer"
@@ -52,7 +52,32 @@ def test_missing_company_does_not_discard_an_individual_offer(monkeypatch):
     {"@type":"JobPosting","title":"Senior QA Engineer",
     "description":"A detailed individual job description for a senior QA engineer. The role includes API, exploratory, and regression testing responsibilities."}
     </script>'''
-    monkeypatch.setattr(web_utils, "get_soup", lambda _: BeautifulSoup(html, "html.parser"))
+    monkeypatch.setattr(web_utils, "get_soup", lambda _, timeout=10: BeautifulSoup(html, "html.parser"))
     job = web_utils.parse_offer("https://example.com/jobs/124", "test")
     assert job is not None
     assert job.company == ""
+
+
+def test_future_publication_date_is_treated_as_unknown():
+    from datetime import datetime, timezone
+
+    now = datetime(2026, 9, 25, tzinfo=timezone.utc)
+    assert web_utils.parse_date("2026-11-09", now=now) is None
+    assert web_utils.parse_date("2026-09-24", now=now) is not None
+
+
+def test_parse_offer_batch_keeps_success_when_one_detail_page_fails(monkeypatch):
+    def parse(url, source, title):
+        if "broken" in url:
+            raise TimeoutError("detail page timed out")
+        return title
+
+    monkeypatch.setattr(web_utils, "parse_offer", parse)
+    jobs, errors = web_utils.parse_offer_batch([
+        ("https://example.com/good", "Good QA"),
+        ("https://example.com/broken", "Broken QA"),
+    ], "test")
+    assert jobs == ["Good QA"]
+    assert len(errors) == 1
+    assert "Broken QA" in errors[0]
+    assert "TimeoutError" in errors[0]

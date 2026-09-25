@@ -32,7 +32,7 @@ def job(title, description):
 
 
 def test_java_is_hard_reject():
-    scored = score_job(job("QA Engineer", "Playwright TypeScript Java Selenium"), cfg())
+    scored = score_job(job("QA Engineer", "Java experience is required. Playwright TypeScript Selenium"), cfg())
     assert scored.rejected is True
     assert scored.reject_reason == "Java"
     assert scored.score == 0
@@ -48,6 +48,18 @@ def test_junior_is_hard_reject():
     scored = score_job(job("Junior QA Engineer", "Playwright TypeScript"), cfg())
     assert scored.rejected is True
     assert scored.score == 0
+
+
+def test_java_in_application_stack_is_not_a_hard_reject():
+    scored = score_job(job("QA Engineer", "The application backend is written in Java. "
+                            "Testers use Playwright, TypeScript, SQL and Postman."), cfg())
+    assert scored.rejected is False
+
+
+def test_java_required_of_tester_is_a_hard_reject():
+    scored = score_job(job("QA Engineer", "Experience with Java is required for this role. "
+                            "Testers use Selenium and API testing."), cfg())
+    assert scored.rejected is True
 
 
 def test_scoring_breakdown_is_transparent():

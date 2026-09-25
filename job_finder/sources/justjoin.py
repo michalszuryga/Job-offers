@@ -1,6 +1,5 @@
-from ..models import Job
 from .base import JobSource
-from .web_utils import get_soup, clean, absolute, parse_offer
+from .web_utils import get_soup, clean, absolute, parse_offer_batch
 
 
 class JustJoinSource(JobSource):
@@ -12,7 +11,8 @@ class JustJoinSource(JobSource):
         ]
 
     def fetch(self):
-        jobs, seen = [], set()
+        self.errors = []
+        offers, seen = [], set()
 
         for url in self.queries:
             soup = get_soup(url)
@@ -28,7 +28,6 @@ class JustJoinSource(JobSource):
                 if href in seen:
                     continue
                 seen.add(href)
-                job = parse_offer(href, self.name, title)
-                if job:
-                    jobs.append(job)
+                offers.append((href, title))
+        jobs, self.errors = parse_offer_batch(offers, self.name)
         return jobs

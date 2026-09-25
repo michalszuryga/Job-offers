@@ -1,8 +1,7 @@
 from urllib.parse import unquote
 
-from ..models import Job
 from .base import JobSource
-from .web_utils import get_soup, clean, absolute, parse_offer
+from .web_utils import get_soup, clean, absolute, parse_offer_batch
 
 
 class PracujSource(JobSource):
@@ -15,7 +14,8 @@ class PracujSource(JobSource):
         ]
 
     def fetch(self):
-        jobs, seen = [], set()
+        self.errors = []
+        offers, seen = [], set()
 
         for url in self.queries:
             soup = get_soup(url)
@@ -35,8 +35,7 @@ class PracujSource(JobSource):
                 if href in seen:
                     continue
                 seen.add(href)
-                job = parse_offer(href, self.name, title)
-                if job and any(k in (job.title + " " + job.description).lower() for k in
-                               ["qa", "tester", "quality assurance", "test automation", "software test"]):
-                    jobs.append(job)
-        return jobs
+                offers.append((href, title))
+        jobs, self.errors = parse_offer_batch(offers, self.name)
+        return [job for job in jobs if any(k in (job.title + " " + job.description).lower() for k in
+                                           ["qa", "tester", "quality assurance", "test automation", "software test"])]

@@ -17,6 +17,31 @@ def _phrase(text, value):
     return bool(re.search(rf"(?<![a-z0-9]){pattern}(?![a-z0-9])", text))
 
 
+def _java_is_role_requirement(job):
+    """Reject Java jobs/required tester skills, not Java mentioned as product stack."""
+    title = (job.title or "").lower()
+    description = (job.description or "").lower()
+    role_terms = ("java developer", "java engineer", "java tester", "java qa",
+                  "java automation", "java/sdet", "java selenium")
+    if any(_phrase(title, term) for term in role_terms):
+        return True
+    # Keep evidence local: Java listed in a stack paragraph alone is not a skill gate.
+    java = re.finditer(r"(?<![a-z0-9])java(?![a-z0-9])", description)
+    requirement_markers = re.compile(
+        r"(?:required|requirement|must have|must-have|mandatory|essential|"
+        r"experience (?:with|in)|proficien(?:t|cy) (?:in|with)|knowledge of|"
+        r"wymagamy|wymagane|wymagana|wymagany|doswiadczenie (?:z|w)|"
+        r"znajomosc|bieg(?:la|ly|losc))", re.I
+    )
+    product_markers = re.compile(r"(?:application|product|platform|system|backend|codebase|"
+                                 r"aplikacj[ai]|produkt|platforma|system|backend)", re.I)
+    for match in java:
+        context = description[max(0, match.start() - 100):match.end() + 100]
+        if requirement_markers.search(context) and not product_markers.search(context):
+            return True
+    return False
+
+
 def recency_points(published_at, now=None):
     if not published_at:
         return 0, None
@@ -37,7 +62,11 @@ def score_job(job, cfg, now=None):
     hard = cfg.get("hard_exclusions", {})
     tech_exclusions = hard.get("technologies", [])
     for term in tech_exclusions:
-        if _word(text, term):
+        if str(term).lower() == "java":
+            excluded = _java_is_role_requirement(job)
+        else:
+            excluded = _word(text, term)
+        if excluded:
             job.rejected, job.reject_reason, job.score = True, str(term), 0
             job.score_breakdown = {"hard_reject": str(term)}
             return job
@@ -51,8 +80,8 @@ def score_job(job, cfg, now=None):
             job.rejected, job.reject_reason, job.score = True, str(level), 0
             job.score_breakdown = {"hard_reject": str(level)}
             return job
-    # Also retain the explicit Java guarantee if a profile omits the setting.
-    if not tech_exclusions and _word(text, "java"):
+    # Default safety behavior when the profile has no technology exclusions.
+    if not tech_exclusions and _java_is_role_requirement(job):
         job.rejected, job.reject_reason, job.score = True, "Java", 0
         job.score_breakdown = {"hard_reject": "Java"}
         return job

@@ -135,7 +135,14 @@ def main():
     if "last_fetch_results" in st.session_state:
         st.subheader("Live fetch diagnostics")
         for result in st.session_state["last_fetch_results"]:
-            if result["error"]:
+            if result["error_type"] == "OfferParseError":
+                st.warning(
+                    f'{result["name"]}: {result["count"]} found, '
+                    f'{result["inserted"]} inserted, {result["updated"]} updated, '
+                    f'{result["rejected"]} rejected; some detail pages failed: '
+                    f'{result["error"]} ({result["seconds"]}s)'
+                )
+            elif result["error"]:
                 st.error(
                     f'{result["name"]}: FAILED '
                     f'[{result["error_type"]}] {result["error"]} '

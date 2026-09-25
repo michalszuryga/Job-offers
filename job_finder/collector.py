@@ -53,6 +53,8 @@ def collect_live_jobs(config_path="config/profile.yaml"):
                     updated=updated,
                     rejected=rejected,
                     seconds=perf_counter() - started,
+                    error="; ".join(source.errors[:3]) if getattr(source, "errors", None) else "",
+                    error_type="OfferParseError" if getattr(source, "errors", None) else "",
                 )
             )
         except Exception as exc:

@@ -21,14 +21,6 @@ filters:
 hard_exclusions:
   technologies:
     - Java
-  keywords:
-    - "Java developer"
-    - "Java/Selenium"
-    - "Java backend"
-    - "Java QA"
-    - "Java automation"
-    - "Java engineer"
-    - "Java tester"
   seniority:
     - intern
     - internship

@@ -1,6 +1,7 @@
 import re
 import json
-from datetime import datetime, timezone
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime, timedelta, timezone
 from urllib.parse import urljoin
 
 import requests
@@ -32,14 +33,26 @@ def absolute(base_url: str, href: str) -> str:
     return urljoin(base_url, href)
 
 
-def parse_date(value: str | None):
+def parse_date(value: str | None, now: datetime | None = None):
     if not value:
         return None
     value = clean(value)
     try:
-        dt = date_parser.parse(value, dayfirst=True)
+        # ISO dates must be parsed year-first. dateutil with dayfirst=True can
+        # silently turn 2026-11-09 into September 11, 2026.
+        try:
+            dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError:
+            dt = date_parser.parse(value, dayfirst=True)
         if dt.tzinfo is None:
             dt = dt.replace(tzinfo=timezone.utc)
+        now = now or datetime.now(timezone.utc)
+        if now.tzinfo is None:
+            now = now.replace(tzinfo=timezone.utc)
+        # Job boards occasionally expose a malformed/future date; never present it as
+        # a real publication date or award it freshness points.
+        if dt.astimezone(timezone.utc) > now.astimezone(timezone.utc) + timedelta(days=1):
+            return None
         return dt
     except Exception:
         return None
@@ -122,9 +135,9 @@ def _meta(soup, *names):
     return ""
 
 
-def parse_offer(url: str, source_name: str, listing_title: str = "") -> Job | None:
+def parse_offer(url: str, source_name: str, listing_title: str = "", timeout: int = 10) -> Job | None:
     """Fetch one offer page and normalize structured data or page-level metadata."""
-    soup = get_soup(url)
+    soup = get_soup(url, timeout=timeout)
     posting = None
     for tag in soup.find_all("script", type="application/ld+json"):
         try:
@@ -176,3 +189,23 @@ def parse_offer(url: str, source_name: str, listing_title: str = "") -> Job | No
     return Job(title=title, company=company, url=url, source=source_name, description=description,
                location=location, remote=remote, contract=contract, salary_min=salary_min,
                salary_max=salary_max, published_at=published, seniority=infer_seniority(title + " " + description))
+
+
+def parse_offer_batch(offers, source_name: str, max_workers: int = 5):
+    """Fetch detail pages concurrently while preserving partial successes and errors."""
+    results = [None] * len(offers)
+    errors = []
+
+    def load_offer(offer):
+        url, title = offer
+        return parse_offer(url, source_name, title)
+
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        pending = {executor.submit(load_offer, offer): (index, offer) for index, offer in enumerate(offers)}
+        for future in as_completed(pending):
+            index, (url, title) = pending[future]
+            try:
+                results[index] = future.result()
+            except Exception as exc:
+                errors.append(f"{title} ({url}): {type(exc).__name__}: {exc}")
+    return [job for job in results if job is not None], errors
