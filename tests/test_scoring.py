@@ -29,3 +29,10 @@ def test_recency_buckets():
     assert recency_points(now - timedelta(days=10), now)[0] == 3
     assert recency_points(now - timedelta(days=20), now)[0] == 1
     assert recency_points(now - timedelta(days=40), now)[0] == 0
+
+
+def test_profile_exposes_current_tunable_preferences():
+    config = load_config()
+    assert config["filters"]["remote_only"] is True
+    assert config["scoring"]["penalties"]["automation_title"] == 15
+    assert config["scoring"]["penalties"]["stale_after_days"] == 10

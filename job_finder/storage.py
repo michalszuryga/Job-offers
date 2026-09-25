@@ -73,9 +73,11 @@ class JobStore:
             )
         return old is None
 
-    def list(self, min_score=0, status=None, limit=None):
-        sql = "SELECT * FROM jobs WHERE score>=? AND COALESCE(rejected, 0)=0"
+    def list(self, min_score=0, status=None, limit=None, remote_only=False):
+        sql = "SELECT * FROM jobs WHERE score>=? AND COALESCE(rejected, 0)=0 AND TRIM(COALESCE(company, ''))<>''"
         params = [min_score]
+        if remote_only:
+            sql += " AND remote=1"
         if status:
             sql += " AND application_status=?"
             params.append(status)
@@ -86,6 +88,12 @@ class JobStore:
         with sqlite3.connect(self.path) as conn:
             conn.row_factory = sqlite3.Row
             return [dict(row) for row in conn.execute(sql, params).fetchall()]
+
+    def list_all(self):
+        """Return every stored row so changed scoring rules can be reapplied."""
+        with sqlite3.connect(self.path) as conn:
+            conn.row_factory = sqlite3.Row
+            return [dict(row) for row in conn.execute("SELECT * FROM jobs").fetchall()]
 
     def contains(self, url: str) -> bool:
         with sqlite3.connect(self.path) as conn:

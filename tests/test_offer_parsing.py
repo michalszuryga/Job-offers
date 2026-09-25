@@ -4,6 +4,7 @@ from job_finder.sources import web_utils
 from job_finder.sources.nofluff import NoFluffSource
 from job_finder.sources.pracuj import PracujSource
 from job_finder.sources.justjoin import JustJoinSource
+from job_finder.sources.web_utils import infer_remote
 
 
 def test_search_listing_links_are_not_saved_as_offers(monkeypatch):
@@ -39,3 +40,8 @@ def test_offer_parser_reads_individual_jobposting(monkeypatch):
     assert job.contract == "CONTRACTOR"
     assert "detailed role description" in job.description
     assert job.url == "https://example.com/jobs/123"
+
+
+def test_remote_detection_handles_streamlit_app_source_labels():
+    assert infer_remote("TELECOMMUTE") is True
+    assert infer_remote("Hybrid, remote friendly team") is False

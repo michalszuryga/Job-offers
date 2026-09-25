@@ -56,6 +56,10 @@ def score_job(job, cfg, now=None):
         job.rejected, job.reject_reason, job.score = True, "Java", 0
         job.score_breakdown = {"hard_reject": "Java"}
         return job
+    if cfg.get("filters", {}).get("remote_only") and job.remote is not True:
+        job.rejected, job.reject_reason, job.score = True, "Remote-only preference", 0
+        job.score_breakdown = {"hard_reject": "Remote-only preference"}
+        return job
 
     candidate = cfg.get("candidate", {})
     weights = cfg.get("scoring", {}).get("weights", {})
@@ -82,13 +86,19 @@ def score_job(job, cfg, now=None):
     seniority = weights.get("seniority", 0) if seniority_value in {"mid", "regular", "senior", "lead"} else 0
     language = weights.get("language", 0) if re.search(r"\b(english|angielski|fluent)\b", text) else 0
     ai = weights.get("ai", 0) if matched_ai else 0
-    freshness = min(weights.get("recency_max", 10), recency_points(job.published_at, now)[0])
+    freshness_points, age_days = recency_points(job.published_at, now)
+    freshness = min(weights.get("recency_max", 10), freshness_points)
+    penalties = cfg.get("scoring", {}).get("penalties", {})
+    automation_penalty = -penalties.get("automation_title", 15) if _word(job.title.lower(), "automation") else 0
+    stale_after_days = penalties.get("stale_after_days", 10)
+    stale_penalty = -penalties.get("stale_offer", 15) if age_days is not None and age_days > stale_after_days else 0
     breakdown = {"role": role, "technology": technology, "domain": domain, "remote": remote,
                  "contract": contract, "seniority": seniority, "language": language,
-                 "ai": ai, "freshness": freshness,
+                 "ai": ai, "freshness": freshness, "title_automation_penalty": automation_penalty,
+                 "stale_offer_penalty": stale_penalty,
                  "matched_roles": matched_roles, "matched_technologies": matched_tech,
                  "matched_domains": matched_domains, "matched_ai": matched_ai}
-    job.score = min(100, sum(v for v in breakdown.values() if isinstance(v, (int, float))))
+    job.score = max(0, min(100, sum(v for v in breakdown.values() if isinstance(v, (int, float)))))
     job.recency_score = freshness
     job.rejected, job.reject_reason = False, ""
     job.matched_keywords = sorted(set(matched_roles + matched_tech + matched_domains + matched_ai))

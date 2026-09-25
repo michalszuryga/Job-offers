@@ -29,3 +29,22 @@ def test_empty_database_is_valid(tmp_path):
     store = JobStore(tmp_path / "jobs.db")
     assert store.list() == []
     assert store.contains("https://example.com/jobs/missing") is False
+
+
+def test_remote_only_query_hides_hybrid_and_unknown_rows(tmp_path):
+    store = JobStore(tmp_path / "jobs.db")
+    remote = Job("QA Engineer", "Example", "https://example.com/remote", "test", remote=True)
+    hybrid = Job("QA Engineer", "Example", "https://example.com/hybrid", "test", remote=False)
+    unknown = Job("QA Engineer", "Example", "https://example.com/unknown", "test")
+    for job in (remote, hybrid, unknown):
+        store.upsert(job)
+    assert [job["url"] for job in store.list(remote_only=True)] == [remote.url]
+
+
+def test_active_offers_require_a_parsed_company(tmp_path):
+    store = JobStore(tmp_path / "jobs.db")
+    incomplete = Job("QA Engineer", "", "https://example.com/no-company", "test", remote=True)
+    complete = Job("QA Engineer", "Example", "https://example.com/company", "test", remote=True)
+    store.upsert(incomplete)
+    store.upsert(complete)
+    assert [job["url"] for job in store.list(remote_only=True)] == [complete.url]

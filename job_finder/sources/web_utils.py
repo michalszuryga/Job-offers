@@ -62,10 +62,10 @@ def extract_salary(text: str):
 
 def infer_remote(text: str):
     t = clean(text).lower()
-    if any(x in t for x in ["100% zdalna", "100% remote", "praca zdalna", "zdalnie", "fully remote", "remote"]):
-        return True
     if any(x in t for x in ["hybryd", "hybrid", "onsite", "on-site", "stacjonarn"]):
         return False
+    if any(x in t for x in ["100% zdalna", "100% remote", "praca zdalna", "zdalnie", "fully remote", "telecommute", "remote"]):
+        return True
     return None
 
 
@@ -167,9 +167,11 @@ def parse_offer(url: str, source_name: str, listing_title: str = "") -> Job | No
     # A list card snippet is not a valid individual job description.
     if not title or not company or len(description) < 80:
         return None
-    remote = infer_remote(" ".join((description, location, nested_text((posting or {}).get("jobLocationType")))))
+    remote = infer_remote(" ".join((title, description, location, nested_text((posting or {}).get("jobLocationType")))))
     contract = nested_text((posting or {}).get("employmentType"))
-    published = parse_date((posting or {}).get("datePosted"))
+    if re.search(r"(?<![a-z0-9])b2b(?![a-z0-9])", clean(description).lower()):
+        contract = "B2B"
+    published = parse_date((posting or {}).get("datePosted") or _meta(soup, "article:published_time", "datePublished", "job:published_time"))
     salary_min, salary_max = extract_salary(description)
     return Job(title=title, company=company, url=url, source=source_name, description=description,
                location=location, remote=remote, contract=contract, salary_min=salary_min,

@@ -1,12 +1,15 @@
 import json
+from datetime import datetime
 import pandas as pd
 import streamlit as st
 
 from .config import load_config
 from .scoring import score_job
+from .models import Job
 from .sources.sample import SampleSource
 from .collector import collect_live_jobs
 from .storage import DEFAULT_STATUSES, JobStore
+from .sources.web_utils import infer_remote
 
 
 st.set_page_config(page_title="Michal Job Finder", layout="wide")
@@ -22,7 +25,7 @@ def load_demo_data(store, cfg):
 
 
 def get_stats(store, cfg):
-    jobs = store.list(0)
+    jobs = store.list(0, remote_only=cfg.get("filters", {}).get("remote_only", False))
     return {
         "jobs": jobs,
         "offers": len(jobs),
@@ -34,12 +37,49 @@ def get_stats(store, cfg):
     }
 
 
+def format_published_at(value):
+    if not value:
+        return ""
+    try:
+        return datetime.fromisoformat(str(value).replace("Z", "+00:00")).date().isoformat()
+    except ValueError:
+        return str(value)
+
+
+def refresh_scores_for_config(store, cfg):
+    """Reapply changed filters and scoring rules to existing rows once per session/config."""
+    scoring_inputs = {key: cfg.get(key) for key in ("candidate", "scoring", "filters", "hard_exclusions")}
+    signature = json.dumps(scoring_inputs, sort_keys=True, ensure_ascii=False)
+    if st.session_state.get("score_config_signature") == signature:
+        return
+
+    for row in store.list_all():
+        published_at = row.get("published_at")
+        try:
+            published_at = datetime.fromisoformat(published_at.replace("Z", "+00:00")) if published_at else None
+        except ValueError:
+            published_at = None
+        remote = None if row.get("remote") is None else bool(row["remote"])
+        inferred_remote = infer_remote(" ".join((row.get("title") or "", row.get("description") or "", row.get("location") or "")))
+        if inferred_remote is not None:
+            remote = inferred_remote
+        job = Job(title=row.get("title") or "", company=row.get("company") or "", url=row.get("url") or "",
+                  source=row.get("source") or "", description=row.get("description") or "",
+                  location=row.get("location") or "", remote=remote, contract=row.get("contract") or "",
+                  salary_min=row.get("salary_min"), salary_max=row.get("salary_max"),
+                  salary_currency=row.get("salary_currency") or "", seniority=row.get("seniority") or "",
+                  published_at=published_at)
+        store.upsert(score_job(job, cfg))
+    st.session_state["score_config_signature"] = signature
+
+
 def main():
     st.title("Michal's Job Finder")
     st.caption("Hosted MVP - job matching, freshness scoring and application tracking.")
 
     cfg = load_config()
     store = JobStore()
+    refresh_scores_for_config(store, cfg)
 
     stats = get_stats(store, cfg)
 
@@ -145,6 +185,7 @@ def main():
         min_score,
         None if status == "ALL" else status,
         limit=int(limit),
+        remote_only=cfg.get("filters", {}).get("remote_only", False),
     )
 
     if not jobs:
@@ -156,7 +197,8 @@ def main():
         rows.append(
             {
                 "Score": j["score"],
-                "Freshness": j.get("recency_score", 0),
+                "Freshness points (0-10)": j.get("recency_score", 0),
+                "Published": format_published_at(j.get("published_at")),
                 "Title": j["title"],
                 "Company": j["company"],
                 "Location": j["location"],
@@ -189,7 +231,7 @@ def main():
 
     with right:
         st.metric("Match", job["score"])
-        st.metric("Freshness bonus", f'+{job.get("recency_score", 0)}')
+        st.metric("Freshness bonus (0-10)", f'+{job.get("recency_score", 0)}')
 
         if job.get("score_breakdown"):
             st.markdown("#### Score breakdown")
