@@ -1,5 +1,6 @@
 import re
 from datetime import datetime, timezone
+from .salary import monthly_salary_pln
 
 
 def _text(job):
@@ -126,11 +127,24 @@ def score_job(job, cfg, now=None):
     )
     stale_after_days = penalties.get("stale_after_days", 10)
     stale_penalty = -penalties.get("stale_offer", 15) if age_days is not None and age_days > stale_after_days else 0
+    salary_cfg = cfg.get("scoring", {}).get("salary_bonus", {})
+    normalized_salary = monthly_salary_pln(job, salary_cfg)
+    salary_threshold = salary_cfg.get("monthly_threshold_pln", 15000)
+    salary_bonus = (
+        salary_cfg.get("points", 15)
+        if normalized_salary is not None and normalized_salary >= salary_threshold
+        else 0
+    )
     breakdown = {"role": role, "technology": technology, "domain": domain, "remote": remote,
                  "contract": contract, "seniority": seniority, "language": language,
                  "ai": ai, "freshness": freshness, "title_automation_penalty": automation_penalty,
                  "title_programming_language_penalty": title_language_penalty,
-                 "stale_offer_penalty": stale_penalty,
+                 "stale_offer_penalty": stale_penalty, "salary_bonus": salary_bonus,
+                 "salary_assessment": {
+                     "estimated_monthly_pln": round(normalized_salary, 2) if normalized_salary is not None else None,
+                     "threshold_pln": salary_threshold,
+                     "minimum_of_range_used": job.salary_min is not None and job.salary_max is not None,
+                 },
                  "matched_roles": matched_roles, "matched_technologies": matched_tech,
                  "matched_domains": matched_domains, "matched_ai": matched_ai}
     job.score = max(0, min(100, sum(v for v in breakdown.values() if isinstance(v, (int, float)))))

@@ -1,5 +1,5 @@
 import json
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 import pandas as pd
 import streamlit as st
 
@@ -46,6 +46,27 @@ def format_published_at(value):
         return str(value)
 
 
+def filter_by_published_window(jobs, window):
+    hours = {"Last 24 hours": 24, "Last 3 days": 72, "Last 7 days": 168}.get(window)
+    if hours is None:
+        return jobs
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
+    recent = []
+    for job in jobs:
+        raw = job.get("published_at")
+        if not raw:
+            continue
+        try:
+            published = datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
+            if published.tzinfo is None:
+                published = published.replace(tzinfo=timezone.utc)
+            if published.astimezone(timezone.utc) >= cutoff:
+                recent.append(job)
+        except ValueError:
+            continue
+    return recent
+
+
 def format_salary(job):
     low, high = job.get("salary_min"), job.get("salary_max")
     if low is None and high is None:
@@ -62,6 +83,22 @@ def format_salary(job):
         value = f"{amount(low)}–{amount(high)}"
     suffix = " ".join(part for part in (job.get("salary_currency"), job.get("salary_period")) if part)
     return f"{value} {suffix}".strip()
+
+
+def format_score_adjustments(job):
+    breakdown = job.get("score_breakdown") or {}
+    labels = (
+        ("automation title", "title_automation_penalty"),
+        ("language in title", "title_programming_language_penalty"),
+        ("stale offer", "stale_offer_penalty"),
+        ("salary", "salary_bonus"),
+    )
+    parts = []
+    for label, key in labels:
+        value = breakdown.get(key, 0)
+        if value:
+            parts.append(f"{label} {value:+g}")
+    return "; ".join(parts) if parts else "—"
 
 
 def refresh_scores_for_config(store, cfg):
@@ -95,6 +132,7 @@ def refresh_scores_for_config(store, cfg):
 def render_scoring_controls(cfg):
     scoring = cfg.setdefault("scoring", {})
     penalties = scoring.setdefault("penalties", {})
+    salary_bonus_cfg = scoring.setdefault("salary_bonus", {})
     filters = cfg.setdefault("filters", {})
 
     with st.sidebar.expander("Scoring & filters", expanded=False):
@@ -116,6 +154,24 @@ def render_scoring_controls(cfg):
             stale_penalty = st.slider(
                 "Penalty for stale offer", 0, 60,
                 int(penalties.get("stale_offer", 15)), step=5,
+            )
+            salary_threshold = st.number_input(
+                "Salary bonus threshold (PLN/month)", 0, 100000,
+                int(salary_bonus_cfg.get("monthly_threshold_pln", 15000)), step=500,
+            )
+            salary_points = st.slider(
+                "Salary bonus points", 0, 30,
+                int(salary_bonus_cfg.get("points", 15)), step=5,
+            )
+            eur_rate = st.number_input(
+                "Approx. EUR → PLN", 3.0, 6.0,
+                float(salary_bonus_cfg.get("exchange_rates", {}).get("EUR", 4.40)),
+                step=0.05, format="%.2f",
+            )
+            usd_rate = st.number_input(
+                "Approx. USD → PLN", 2.0, 6.0,
+                float(salary_bonus_cfg.get("exchange_rates", {}).get("USD", 4.00)),
+                step=0.05, format="%.2f",
             )
             minimum_score = st.slider(
                 "Minimum score to show", 0, 100,
@@ -140,6 +196,10 @@ def render_scoring_controls(cfg):
                         "programming_language_title": language_penalty,
                         "stale_after_days": stale_after_days,
                         "stale_offer": stale_penalty,
+                    }, "salary_bonus": {
+                        "monthly_threshold_pln": salary_threshold,
+                        "points": salary_points,
+                        "exchange_rates": {"PLN": 1.0, "EUR": eur_rate, "USD": usd_rate},
                     }},
                 })
                 st.success("Criteria saved.")
@@ -266,6 +326,11 @@ def main():
         100,
         cfg["filters"]["minimum_score_to_show"],
     )
+    st.caption("Offers below this final score are hidden. Hard-excluded offers never appear in the table.")
+    published_window = st.selectbox(
+        "Show offers published within",
+        ["Any time", "Last 24 hours", "Last 3 days", "Last 7 days"],
+    )
     status = st.selectbox("Application status", ["ALL"] + DEFAULT_STATUSES)
     limit = st.number_input(
         "Maximum offers",
@@ -281,6 +346,9 @@ def main():
         limit=int(limit),
         remote_only=cfg.get("filters", {}).get("remote_only", False),
     )
+    jobs = filter_by_published_window(jobs, published_window)
+    if published_window != "Any time":
+        st.caption("Offers without a reliable publication date are hidden for this time filter.")
 
     if not jobs:
         st.info("No offers match the selected filters.")
@@ -294,6 +362,7 @@ def main():
                 "Freshness points (0-10)": j.get("recency_score", 0),
                 "Published": format_published_at(j.get("published_at")),
                 "Salary": format_salary(j),
+                "Score adjustments": format_score_adjustments(j),
                 "Title": j["title"],
                 "Company": j.get("company") or "Brak w danych",
                 "Location": j["location"],
