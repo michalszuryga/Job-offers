@@ -355,17 +355,17 @@ def main():
         rows.append(
             {
                 "Score": j["score"],
-                "Freshness points (0-10)": j.get("recency_score", 0),
-                "Published": format_published_at(j.get("published_at")),
-                "Salary": format_salary(j),
-                "Score adjustments": format_score_adjustments(j),
                 "Title": j["title"],
+                "Salary": format_salary(j),
                 "Company": j.get("company") or "Brak w danych",
+                "Offer link": j["url"],
+                "Published": format_published_at(j.get("published_at")),
+                "Score adjustments": format_score_adjustments(j),
+                "Freshness points (0-10)": j.get("recency_score", 0),
                 "Location": j["location"],
                 "Contract": j["contract"],
                 "Status": j.get("application_status", "NEW"),
                 "Source": j["source"],
-                "URL": j["url"],
             }
         )
 
@@ -373,7 +373,7 @@ def main():
         pd.DataFrame(rows),
         use_container_width=True,
         hide_index=True,
-        column_config={"URL": st.column_config.LinkColumn()},
+        column_config={"Offer link": st.column_config.LinkColumn("Offer link", display_text="Open")},
     )
 
     st.subheader("Job details")
