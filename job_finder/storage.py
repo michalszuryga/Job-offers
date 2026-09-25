@@ -74,7 +74,7 @@ class JobStore:
         return old is None
 
     def list(self, min_score=0, status=None, limit=None, remote_only=False):
-        sql = "SELECT * FROM jobs WHERE score>=? AND COALESCE(rejected, 0)=0 AND TRIM(COALESCE(company, ''))<>''"
+        sql = "SELECT * FROM jobs WHERE score>=? AND COALESCE(rejected, 0)=0"
         params = [min_score]
         if remote_only:
             sql += " AND remote=1"

@@ -165,7 +165,7 @@ def parse_offer(url: str, source_name: str, listing_title: str = "") -> Job | No
         main = soup.find("main") or soup.find("article")
         description = clean(main.get_text(" ", strip=True)) if main else ""
     # A list card snippet is not a valid individual job description.
-    if not title or not company or len(description) < 80:
+    if not title or len(description) < 80:
         return None
     remote = infer_remote(" ".join((title, description, location, nested_text((posting or {}).get("jobLocationType")))))
     contract = nested_text((posting or {}).get("employmentType"))

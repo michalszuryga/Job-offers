@@ -45,3 +45,14 @@ def test_offer_parser_reads_individual_jobposting(monkeypatch):
 def test_remote_detection_handles_streamlit_app_source_labels():
     assert infer_remote("TELECOMMUTE") is True
     assert infer_remote("Hybrid, remote friendly team") is False
+
+
+def test_missing_company_does_not_discard_an_individual_offer(monkeypatch):
+    html = '''<h1>Senior QA Engineer</h1><script type="application/ld+json">
+    {"@type":"JobPosting","title":"Senior QA Engineer",
+    "description":"A detailed individual job description for a senior QA engineer. The role includes API, exploratory, and regression testing responsibilities."}
+    </script>'''
+    monkeypatch.setattr(web_utils, "get_soup", lambda _: BeautifulSoup(html, "html.parser"))
+    job = web_utils.parse_offer("https://example.com/jobs/124", "test")
+    assert job is not None
+    assert job.company == ""

@@ -200,7 +200,7 @@ def main():
                 "Freshness points (0-10)": j.get("recency_score", 0),
                 "Published": format_published_at(j.get("published_at")),
                 "Title": j["title"],
-                "Company": j["company"],
+                "Company": j.get("company") or "Brak w danych",
                 "Location": j["location"],
                 "Contract": j["contract"],
                 "Status": j.get("application_status", "NEW"),
@@ -225,7 +225,7 @@ def main():
 
     with left:
         st.markdown(f'### {job["title"]}')
-        st.write(f'**{job["company"]}** · {job["location"]} · {job["contract"]}')
+        st.write(f'**{job.get("company") or "Brak w danych"}** · {job["location"]} · {job["contract"]}')
         st.write(job["description"])
         st.markdown(f'[Open original offer]({job["url"]})')
 
