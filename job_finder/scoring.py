@@ -119,11 +119,17 @@ def score_job(job, cfg, now=None):
     freshness = min(weights.get("recency_max", 10), freshness_points)
     penalties = cfg.get("scoring", {}).get("penalties", {})
     automation_penalty = -penalties.get("automation_title", 15) if _word(job.title.lower(), "automation") else 0
+    title_language_penalty = (
+        -penalties.get("programming_language_title", 30)
+        if re.search(r"(?<![a-z0-9])(?:c\+\+|c#|java|python)(?![a-z0-9])", job.title or "", re.I)
+        else 0
+    )
     stale_after_days = penalties.get("stale_after_days", 10)
     stale_penalty = -penalties.get("stale_offer", 15) if age_days is not None and age_days > stale_after_days else 0
     breakdown = {"role": role, "technology": technology, "domain": domain, "remote": remote,
                  "contract": contract, "seniority": seniority, "language": language,
                  "ai": ai, "freshness": freshness, "title_automation_penalty": automation_penalty,
+                 "title_programming_language_penalty": title_language_penalty,
                  "stale_offer_penalty": stale_penalty,
                  "matched_roles": matched_roles, "matched_technologies": matched_tech,
                  "matched_domains": matched_domains, "matched_ai": matched_ai}

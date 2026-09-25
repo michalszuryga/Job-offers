@@ -11,7 +11,7 @@ scoring:
   max_score: 100
   weights: {role: 20, technologies: 25, domain: 10, remote: 15, contract: 10, seniority: 5, language: 5, ai: 5, recency_max: 10}
   # Penalty values are subtracted; stale_after_days sets the age threshold.
-  penalties: {automation_title: 15, stale_offer: 15, stale_after_days: 10, junior: 30, internship: 60, onsite: 25, relocation: 20}
+  penalties: {automation_title: 15, programming_language_title: 30, stale_offer: 15, stale_after_days: 10, junior: 30, internship: 60, onsite: 25, relocation: 20}
 filters:
   minimum_score_to_show: 55
   high_match_threshold: 80
