@@ -281,7 +281,8 @@ def parse_offer_batch(offers, source_name: str, max_workers: int = 5):
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         pending = {executor.submit(load_offer, offer): (index, offer) for index, offer in enumerate(offers)}
         for future in as_completed(pending):
-            index, (url, title) = pending[future]
+            index, offer = pending[future]
+            url, title = offer[:2]
             try:
                 results[index] = future.result()
             except Exception as exc:
