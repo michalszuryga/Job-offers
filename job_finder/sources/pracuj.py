@@ -40,7 +40,11 @@ class PracujSource(JobSource):
                     if getattr(card, "parent", None):
                         card = card.parent
                 offers.append((href, title, clean(card.get_text(" ", strip=True))))
-        jobs, self.errors = parse_offer_batch(offers, self.name)
+        # Pracuj.pl rate-limits parallel detail-page requests. Keep this source
+        # deliberately serial and paced; other sources stay concurrent.
+        jobs, self.errors = parse_offer_batch(
+            offers, self.name, max_workers=1, request_interval=0.75,
+        )
         self.candidates = len(offers)
         self.parsed = len(jobs)
         return [job for job in jobs if any(k in (job.title + " " + job.description).lower() for k in

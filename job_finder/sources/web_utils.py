@@ -1,5 +1,6 @@
 import re
 import json
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta, timezone
 from urllib.parse import urljoin
@@ -20,9 +21,19 @@ HEADERS = {
 
 
 def get_soup(url: str, timeout: int = 20) -> BeautifulSoup:
-    response = requests.get(url, headers=HEADERS, timeout=timeout)
+    """Fetch a page, respecting a server's retry request after a 429 response."""
+    for attempt in range(3):
+        response = requests.get(url, headers=HEADERS, timeout=timeout)
+        if response.status_code != 429:
+            response.raise_for_status()
+            return BeautifulSoup(response.text, "html.parser")
+        if attempt < 2:
+            try:
+                retry_after = float(response.headers.get("Retry-After", 3))
+            except (TypeError, ValueError):
+                retry_after = 3
+            time.sleep(min(max(retry_after, 1), 15))
     response.raise_for_status()
-    return BeautifulSoup(response.text, "html.parser")
 
 
 def clean(text: str) -> str:
@@ -266,12 +277,14 @@ def parse_offer(url: str, source_name: str, listing_title: str = "", timeout: in
                published_at=published, seniority=infer_seniority(title + " " + description))
 
 
-def parse_offer_batch(offers, source_name: str, max_workers: int = 5):
+def parse_offer_batch(offers, source_name: str, max_workers: int = 5, request_interval: float = 0):
     """Fetch detail pages concurrently while preserving partial successes and errors."""
     results = [None] * len(offers)
     errors = []
 
     def load_offer(offer):
+        if request_interval:
+            time.sleep(request_interval)
         url, title = offer[:2]
         listing_text = offer[2] if len(offer) > 2 else ""
         if listing_text:
