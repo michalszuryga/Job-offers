@@ -35,7 +35,13 @@ class PracujSource(JobSource):
                 if href in seen:
                     continue
                 seen.add(href)
-                offers.append((href, title))
+                card = a
+                for _ in range(3):
+                    if getattr(card, "parent", None):
+                        card = card.parent
+                offers.append((href, title, clean(card.get_text(" ", strip=True))))
         jobs, self.errors = parse_offer_batch(offers, self.name)
+        self.candidates = len(offers)
+        self.parsed = len(jobs)
         return [job for job in jobs if any(k in (job.title + " " + job.description).lower() for k in
                                            ["qa", "tester", "quality assurance", "test automation", "software test"])]

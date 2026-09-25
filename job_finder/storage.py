@@ -20,7 +20,7 @@ class JobStore:
                 """CREATE TABLE IF NOT EXISTS jobs (
                     external_id TEXT PRIMARY KEY, title TEXT, company TEXT, url TEXT, source TEXT,
                     description TEXT, location TEXT, remote INTEGER, contract TEXT, salary_min REAL,
-                    salary_max REAL, salary_currency TEXT, seniority TEXT, published_at TEXT,
+                    salary_max REAL, salary_currency TEXT, salary_period TEXT DEFAULT '', seniority TEXT, published_at TEXT,
                     score REAL, recency_score REAL DEFAULT 0, matched_keywords TEXT, penalties TEXT,
                     application_status TEXT DEFAULT 'NEW', ai_analysis TEXT, tailored_cv_path TEXT,
                     first_seen_at TEXT DEFAULT CURRENT_TIMESTAMP, last_seen_at TEXT DEFAULT CURRENT_TIMESTAMP,
@@ -39,6 +39,7 @@ class JobStore:
                 "rejected": "INTEGER DEFAULT 0",
                 "reject_reason": "TEXT",
                 "score_breakdown": "TEXT",
+                "salary_period": "TEXT DEFAULT ''",
             }
             for column, definition in migrations.items():
                 if column not in existing:
@@ -51,13 +52,14 @@ class JobStore:
             old = conn.execute("SELECT external_id FROM jobs WHERE external_id=?", (job.external_id,)).fetchone()
             conn.execute(
                 """INSERT INTO jobs (external_id,title,company,url,source,description,location,remote,contract,
-                    salary_min,salary_max,salary_currency,seniority,published_at,score,recency_score,
+                    salary_min,salary_max,salary_currency,salary_period,seniority,published_at,score,recency_score,
                     matched_keywords,penalties,application_status,first_seen_at,last_seen_at,rejected,reject_reason,score_breakdown)
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,?,?,?)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,?,?,?)
                     ON CONFLICT(external_id) DO UPDATE SET
                     title=excluded.title, company=excluded.company, description=excluded.description,
                     location=excluded.location, remote=excluded.remote, contract=excluded.contract,
                     salary_min=excluded.salary_min, salary_max=excluded.salary_max, salary_currency=excluded.salary_currency,
+                    salary_period=excluded.salary_period,
                     seniority=excluded.seniority, published_at=excluded.published_at, score=excluded.score,
                     recency_score=excluded.recency_score, matched_keywords=excluded.matched_keywords,
                     penalties=excluded.penalties, last_seen_at=CURRENT_TIMESTAMP, rejected=excluded.rejected,
@@ -65,7 +67,7 @@ class JobStore:
                 (
                     job.external_id, job.title, job.company, canonical_url, job.source, job.description, job.location,
                     None if job.remote is None else int(job.remote), job.contract, job.salary_min, job.salary_max,
-                    job.salary_currency, job.seniority, job.published_at.isoformat() if job.published_at else None,
+                    job.salary_currency, job.salary_period, job.seniority, job.published_at.isoformat() if job.published_at else None,
                     job.score, job.recency_score, json.dumps(job.matched_keywords), json.dumps(job.penalties),
                     job.application_status, int(getattr(job, "rejected", False)), getattr(job, "reject_reason", ""),
                     json.dumps(getattr(job, "score_breakdown", {}), ensure_ascii=False),

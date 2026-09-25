@@ -46,6 +46,24 @@ def format_published_at(value):
         return str(value)
 
 
+def format_salary(job):
+    low, high = job.get("salary_min"), job.get("salary_max")
+    if low is None and high is None:
+        return "Not listed"
+
+    def amount(value):
+        return f"{float(value):,.0f}".replace(",", " ")
+
+    if low is None:
+        value = amount(high)
+    elif high is None or float(low) == float(high):
+        value = amount(low)
+    else:
+        value = f"{amount(low)}–{amount(high)}"
+    suffix = " ".join(part for part in (job.get("salary_currency"), job.get("salary_period")) if part)
+    return f"{value} {suffix}".strip()
+
+
 def refresh_scores_for_config(store, cfg):
     """Reapply changed filters and scoring rules to existing rows once per session/config."""
     scoring_inputs = {key: cfg.get(key) for key in ("candidate", "scoring", "filters", "hard_exclusions")}
@@ -67,7 +85,8 @@ def refresh_scores_for_config(store, cfg):
                   source=row.get("source") or "", description=row.get("description") or "",
                   location=row.get("location") or "", remote=remote, contract=row.get("contract") or "",
                   salary_min=row.get("salary_min"), salary_max=row.get("salary_max"),
-                  salary_currency=row.get("salary_currency") or "", seniority=row.get("seniority") or "",
+                  salary_currency=row.get("salary_currency") or "", salary_period=row.get("salary_period") or "",
+                  seniority=row.get("seniority") or "",
                   published_at=published_at)
         store.upsert(score_job(job, cfg))
     st.session_state["score_config_signature"] = signature
@@ -85,9 +104,10 @@ def main():
 
     # Counters are always calculated from the current database state.
     col1, col2, col3 = st.columns(3)
-    col1.metric("Offers", stats["offers"])
+    col1.metric("Eligible offers", stats["offers"])
     col2.metric("High match", stats["high_match"])
     col3.metric("New", stats["new"])
+    st.caption("Offer count includes remote jobs that passed hard exclusions; fetch diagnostics show listing candidates, parsed offers and exclusion reasons.")
 
     c1, c2, c3 = st.columns(3)
 
@@ -112,6 +132,9 @@ def main():
                 "inserted": r.inserted,
                 "updated": r.updated,
                 "rejected": r.rejected,
+                "candidates": r.candidates,
+                "parsed": r.parsed,
+                "rejected_by_reason": r.rejected_by_reason,
                 "seconds": round(r.seconds, 2),
                 "error": r.error,
                 "error_type": r.error_type,
@@ -137,9 +160,12 @@ def main():
         for result in st.session_state["last_fetch_results"]:
             if result["error_type"] == "OfferParseError":
                 st.warning(
-                    f'{result["name"]}: {result["count"]} found, '
+                    f'{result["name"]}: {result.get("candidates", result["count"])} listing candidates, '
+                    f'{result.get("parsed", result["count"])} parsed, '
+                    f'{result["count"]} passed source filters, '
                     f'{result["inserted"]} inserted, {result["updated"]} updated, '
-                    f'{result["rejected"]} rejected; some detail pages failed: '
+                    f'{result["rejected"]} excluded ({result.get("rejected_by_reason", {})}); '
+                    f'some detail pages failed: '
                     f'{result["error"]} ({result["seconds"]}s)'
                 )
             elif result["error"]:
@@ -150,9 +176,11 @@ def main():
                 )
             else:
                 st.success(
-                    f'{result["name"]}: {result["count"]} found, '
+                    f'{result["name"]}: {result.get("candidates", result["count"])} listing candidates, '
+                    f'{result.get("parsed", result["count"])} parsed, '
+                    f'{result["count"]} passed source filters, '
                     f'{result["inserted"]} inserted, {result["updated"]} updated, '
-                    f'{result["rejected"]} rejected '
+                    f'{result["rejected"]} excluded ({result.get("rejected_by_reason", {})}) '
                     f'({result["seconds"]}s)'
                 )
 
@@ -206,6 +234,7 @@ def main():
                 "Score": j["score"],
                 "Freshness points (0-10)": j.get("recency_score", 0),
                 "Published": format_published_at(j.get("published_at")),
+                "Salary": format_salary(j),
                 "Title": j["title"],
                 "Company": j.get("company") or "Brak w danych",
                 "Location": j["location"],
@@ -233,6 +262,7 @@ def main():
     with left:
         st.markdown(f'### {job["title"]}')
         st.write(f'**{job.get("company") or "Brak w danych"}** · {job["location"]} · {job["contract"]}')
+        st.write(f'**Salary:** {format_salary(job)}')
         st.write(job["description"])
         st.markdown(f'[Open original offer]({job["url"]})')
 

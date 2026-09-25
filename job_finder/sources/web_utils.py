@@ -58,19 +58,88 @@ def parse_date(value: str | None, now: datetime | None = None):
         return None
 
 
+_AMOUNT = r"(?:\d{1,3}(?:[ \u00a0]\d{3})+(?:[,.]\d{1,2})?|\d+(?:[,.]\d{1,2})?)"
+_CURRENCY = r"(?:PLN|EUR|USD|GBP|CHF|zł|€|\$)"
+
+
+def _amount_number(raw):
+    value = clean(str(raw)).replace("\u00a0", "").replace(" ", "")
+    if "," in value and "." in value:
+        value = value.replace(".", "").replace(",", ".")
+    elif "," in value:
+        left, right = value.rsplit(",", 1)
+        value = left + ("." + right if len(right) <= 2 else right)
+    elif "." in value:
+        left, right = value.rsplit(".", 1)
+        value = left + ("." + right if len(right) <= 2 else right)
+    return float(value)
+
+
+def _salary_period(text):
+    value = (text or "").lower()
+    if value in {"hur", "h"}:
+        return "hour"
+    if value in {"day", "d"}:
+        return "day"
+    if value in {"mon", "month"}:
+        return "month"
+    if value in {"yer", "year"}:
+        return "year"
+    if re.search(r"(?:/\s*h\b|per hour|hourly|godzin|za godzin)", value):
+        return "hour"
+    if re.search(r"(?:/\s*(?:md|day)\b|per day|daily|dziennie|za dzień|za dzien)", value):
+        return "day"
+    if re.search(r"(?:/\s*(?:month|mo)\b|per month|monthly|miesięczn|miesieczn)", value):
+        return "month"
+    if re.search(r"(?:/\s*year\b|per year|yearly|annually|rocznie)", value):
+        return "year"
+    return ""
+
+
 def extract_salary(text: str):
-    nums = re.findall(r"(\d[\d\s]{2,6}(?:[.,]\d{1,2})?)", text or "")
-    values = []
-    for raw in nums:
-        try:
-            values.append(float(raw.replace(" ", "").replace(",", ".")))
-        except ValueError:
-            pass
-    if not values:
-        return None, None
-    if len(values) == 1:
-        return values[0], values[0]
-    return min(values), max(values)
+    """Find salary amounts only when adjacent to a recognized currency marker."""
+    text = clean(text or "")
+    range_pattern = re.compile(
+        rf"(?P<first>{_AMOUNT})\s*(?:-|–|—|to)\s*(?P<second>{_AMOUNT})\s*(?P<currency_after>{_CURRENCY})"
+        rf"|(?P<currency_before>{_CURRENCY})\s*(?P<first_before>{_AMOUNT})\s*(?:-|–|—|to)\s*(?P<second_before>{_AMOUNT})",
+        re.I,
+    )
+    single_pattern = re.compile(rf"(?P<amount>{_AMOUNT})\s*(?P<currency>{_CURRENCY})", re.I)
+    match = range_pattern.search(text)
+    if match:
+        first = match.group("first") or match.group("first_before")
+        second = match.group("second") or match.group("second_before")
+        currency = match.group("currency_after") or match.group("currency_before")
+        currency = {"zł": "PLN", "€": "EUR", "$": "USD"}.get(currency.lower(), currency.upper())
+        return min(_amount_number(first), _amount_number(second)), max(_amount_number(first), _amount_number(second)), currency, _salary_period(text[match.start():match.end() + 24])
+    match = single_pattern.search(text)
+    if match:
+        amount = _amount_number(match.group("amount"))
+        currency = match.group("currency")
+        currency = {"zł": "PLN", "€": "EUR", "$": "USD"}.get(currency.lower(), currency.upper())
+        return amount, amount, currency, _salary_period(text[match.start():match.end() + 24])
+    return None, None, "", ""
+
+
+def extract_structured_salary(value):
+    if not isinstance(value, dict):
+        return None, None, "", ""
+    currency = clean(value.get("currency") or "").upper()
+    amount = value.get("value")
+    period = ""
+    if isinstance(amount, dict):
+        period = _salary_period(clean(amount.get("unitText") or amount.get("unitCode") or ""))
+        low, high = amount.get("minValue"), amount.get("maxValue")
+        if low is None and high is None:
+            low = high = amount.get("value")
+    else:
+        low = high = amount
+    try:
+        return (float(low) if low is not None else None,
+                float(high) if high is not None else None,
+                currency, period)
+    except (TypeError, ValueError):
+        return None, None, "", ""
 
 
 def infer_remote(text: str):
@@ -135,7 +204,8 @@ def _meta(soup, *names):
     return ""
 
 
-def parse_offer(url: str, source_name: str, listing_title: str = "", timeout: int = 10) -> Job | None:
+def parse_offer(url: str, source_name: str, listing_title: str = "", timeout: int = 10,
+                listing_text: str = "") -> Job | None:
     """Fetch one offer page and normalize structured data or page-level metadata."""
     soup = get_soup(url, timeout=timeout)
     posting = None
@@ -185,10 +255,15 @@ def parse_offer(url: str, source_name: str, listing_title: str = "", timeout: in
     if re.search(r"(?<![a-z0-9])b2b(?![a-z0-9])", clean(description).lower()):
         contract = "B2B"
     published = parse_date((posting or {}).get("datePosted") or _meta(soup, "article:published_time", "datePublished", "job:published_time"))
-    salary_min, salary_max = extract_salary(description)
+    salary_min, salary_max, salary_currency, salary_period = extract_structured_salary((posting or {}).get("baseSalary"))
+    if salary_min is None and salary_max is None:
+        salary_min, salary_max, salary_currency, salary_period = extract_salary(description)
+    if salary_min is None and salary_max is None:
+        salary_min, salary_max, salary_currency, salary_period = extract_salary(listing_text)
     return Job(title=title, company=company, url=url, source=source_name, description=description,
                location=location, remote=remote, contract=contract, salary_min=salary_min,
-               salary_max=salary_max, published_at=published, seniority=infer_seniority(title + " " + description))
+               salary_max=salary_max, salary_currency=salary_currency, salary_period=salary_period,
+               published_at=published, seniority=infer_seniority(title + " " + description))
 
 
 def parse_offer_batch(offers, source_name: str, max_workers: int = 5):
@@ -197,7 +272,10 @@ def parse_offer_batch(offers, source_name: str, max_workers: int = 5):
     errors = []
 
     def load_offer(offer):
-        url, title = offer
+        url, title = offer[:2]
+        listing_text = offer[2] if len(offer) > 2 else ""
+        if listing_text:
+            return parse_offer(url, source_name, title, listing_text=listing_text)
         return parse_offer(url, source_name, title)
 
     with ThreadPoolExecutor(max_workers=max_workers) as executor:

@@ -26,6 +26,7 @@ class Job:
     salary_min: Optional[float] = None
     salary_max: Optional[float] = None
     salary_currency: str = ""
+    salary_period: str = ""
     seniority: str = ""
     published_at: Optional[datetime] = None
     score: float = 0.0
