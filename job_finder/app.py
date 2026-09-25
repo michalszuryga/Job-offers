@@ -170,16 +170,6 @@ def render_scoring_controls(cfg):
                 "Salary bonus points", 0, 30,
                 int(salary_bonus_cfg.get("points", 15)), step=5,
             )
-            eur_rate = st.number_input(
-                "Approx. EUR → PLN", 3.0, 6.0,
-                float(salary_bonus_cfg.get("exchange_rates", {}).get("EUR", 4.40)),
-                step=0.05, format="%.2f",
-            )
-            usd_rate = st.number_input(
-                "Approx. USD → PLN", 2.0, 6.0,
-                float(salary_bonus_cfg.get("exchange_rates", {}).get("USD", 4.00)),
-                step=0.05, format="%.2f",
-            )
             minimum_score = st.slider(
                 "Minimum score to show", 0, 100,
                 int(filters.get("minimum_score_to_show", 55)), step=5,
@@ -206,7 +196,6 @@ def render_scoring_controls(cfg):
                     }, "salary_bonus": {
                         "monthly_threshold_pln": salary_threshold,
                         "points": salary_points,
-                        "exchange_rates": {"PLN": 1.0, "EUR": eur_rate, "USD": usd_rate},
                     }},
                 })
                 st.success("Criteria saved.")

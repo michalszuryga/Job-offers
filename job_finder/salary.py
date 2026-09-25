@@ -1,5 +1,7 @@
 """Salary normalization helpers for scoring job offers."""
 
+APPROXIMATE_PLN_RATES = {"EUR": 4.40, "USD": 4.00, "GBP": 5.20, "CHF": 4.70}
+
 
 def monthly_salary_pln(job, salary_cfg):
     """Normalize the minimum stated salary to PLN/month when period and FX are known."""
@@ -7,8 +9,7 @@ def monthly_salary_pln(job, salary_cfg):
     if low is None:
         return None
     currency = (job.salary_currency or "").upper()
-    exchange_rates = salary_cfg.get("exchange_rates", {})
-    rate = 1.0 if currency in {"", "PLN", "ZŁ"} else exchange_rates.get(currency)
+    rate = 1.0 if currency in {"", "PLN", "ZŁ"} else APPROXIMATE_PLN_RATES.get(currency)
     if rate is None:
         return None
 
