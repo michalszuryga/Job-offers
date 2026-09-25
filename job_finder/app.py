@@ -87,6 +87,13 @@ def format_salary(job):
 
 def format_score_adjustments(job):
     breakdown = job.get("score_breakdown") or {}
+    if isinstance(breakdown, str):
+        try:
+            breakdown = json.loads(breakdown)
+        except json.JSONDecodeError:
+            breakdown = {}
+    if not isinstance(breakdown, dict):
+        breakdown = {}
     labels = (
         ("automation title", "title_automation_penalty"),
         ("language in title", "title_programming_language_penalty"),
