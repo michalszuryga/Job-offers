@@ -41,6 +41,11 @@ The hosted MVP can fetch jobs from:
 - No Fluff Jobs
 - Pracuj.pl
 - JustJoin.IT
+- RemoteOK (public JSON API, international remote roles)
+- We Work Remotely (RSS feeds, international remote roles)
+- Bulldogjob
+- TestDevJobs (QA/testing-only board, Europe remote filter)
+- CzyJestEldorado (aggregator — deduplicated by title+company against other sources)
 
 Use **Fetch live jobs** in the dashboard. These adapters scrape public search pages
 and normalize the results into the common `Job` model. Job-board HTML changes can

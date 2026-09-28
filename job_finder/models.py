@@ -1,3 +1,4 @@
+import re
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Optional
@@ -11,6 +12,28 @@ def canonical_job_url(url: str) -> str:
                    if not k.lower().startswith("utm_") and k.lower() not in {"fbclid", "gclid"})
     path = parts.path.rstrip("/") or "/"
     return urlunsplit((parts.scheme.lower(), parts.netloc.lower(), path, urlencode(query), ""))
+
+
+_COMPANY_SUFFIXES = re.compile(
+    r"\b(sp\.?\s*z\s*o\.?\s*o\.?|s\.?\s*a\.?|sp\.?\s*j\.?|sp\.?\s*k\.?|ltd\.?|inc\.?|llc|gmbh|"
+    r"s\.?\s*r\.?\s*o\.?|polska|poland)\b\.?",
+    re.I,
+)
+_TITLE_NOISE = re.compile(r"\((?:k/m|m/k|m/f|f/m|w/m|m/w)\)|\bnowa\b", re.I)
+
+
+def _normalize_for_dedup(text):
+    text = _TITLE_NOISE.sub("", text or "")
+    text = _COMPANY_SUFFIXES.sub("", text)
+    text = re.sub(r"[.,\-–—/()]", " ", text)
+    return re.sub(r"\s+", " ", text).strip().lower()
+
+
+def dedup_key(title: str, company: str):
+    """A same posting cross-posted on an aggregator (different URL, same job)
+    normalizes to the same key — used to catch duplicates that canonical_job_url
+    (URL-based) can't, since aggregators host their own URLs for the same job."""
+    return (_normalize_for_dedup(title), _normalize_for_dedup(company))
 
 
 @dataclass

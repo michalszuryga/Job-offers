@@ -16,24 +16,67 @@ HEADERS = {
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
         "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136 Safari/537.36"
     ),
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     "Accept-Language": "pl-PL,pl;q=0.9,en;q=0.8",
+    "Connection": "keep-alive",
+    "Upgrade-Insecure-Requests": "1",
 }
 
 
+class BlockedError(RuntimeError):
+    """Raised when a source returns an anti-bot challenge page instead of real content."""
+
+
+_CHALLENGE_MARKERS = (
+    "checking your browser",
+    "cf-browser-verification",
+    "cf-chl-",
+    "attention required",
+    "just a moment",
+    "captcha",
+    "access denied",
+    "request unsuccessful",
+    "verify you are a human",
+)
+
+
+def _looks_like_challenge_page(html: str) -> bool:
+    sample = html[:4000].lower()
+    return any(marker in sample for marker in _CHALLENGE_MARKERS)
+
+
 def get_soup(url: str, timeout: int = 20) -> BeautifulSoup:
-    """Fetch a page, respecting a server's retry request after a 429 response."""
+    """Fetch a page, retrying a 429 (with the server's own Retry-After) and
+    other transient failures (timeouts, connection resets, 5xx) with a short
+    backoff — these showed up in practice under concurrent multi-source load,
+    not just from a single slow/rate-limited site."""
+    last_exc = None
     for attempt in range(3):
-        response = requests.get(url, headers=HEADERS, timeout=timeout)
-        if response.status_code != 429:
+        try:
+            response = requests.get(url, headers=HEADERS, timeout=timeout)
+        except (requests.ConnectionError, requests.Timeout) as exc:
+            last_exc = exc
+            if attempt < 2:
+                time.sleep(2 * (attempt + 1))
+                continue
+            raise
+        if response.status_code == 429:
+            if attempt < 2:
+                try:
+                    retry_after = float(response.headers.get("Retry-After", 3))
+                except (TypeError, ValueError):
+                    retry_after = 3
+                time.sleep(min(max(retry_after, 1), 15))
+                continue
             response.raise_for_status()
-            return BeautifulSoup(response.text, "html.parser")
-        if attempt < 2:
-            try:
-                retry_after = float(response.headers.get("Retry-After", 3))
-            except (TypeError, ValueError):
-                retry_after = 3
-            time.sleep(min(max(retry_after, 1), 15))
-    response.raise_for_status()
+        if response.status_code >= 500 and attempt < 2:
+            time.sleep(2 * (attempt + 1))
+            continue
+        response.raise_for_status()
+        if _looks_like_challenge_page(response.text):
+            raise BlockedError(f"{url} returned an anti-bot challenge page instead of listing content")
+        return BeautifulSoup(response.text, "html.parser")
+    raise last_exc
 
 
 def clean(text: str) -> str:
@@ -69,8 +112,12 @@ def parse_date(value: str | None, now: datetime | None = None):
         return None
 
 
-_AMOUNT = r"(?:\d{1,3}(?:[ \u00a0]\d{3})+(?:[,.]\d{1,2})?|\d+(?:[,.]\d{1,2})?)"
-_CURRENCY = r"(?:PLN|EUR|USD|GBP|CHF|zł|€|\$)"
+_AMOUNT = (
+    r"(?:\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?"       # comma-thousands: 2,333 / 2,333.50
+    r"|\d{1,3}(?:[ \u00a0]\d{3})+(?:[,.]\d{1,2})?"  # space-thousands: 2 333 / 2 333,50
+    r"|\d+(?:[,.]\d{1,2})?)"                     # plain: 2333 / 2333.50 / 2333,50
+)
+_CURRENCY = r"(?:PLN|EUR|USD|GBP|CHF|zł|€|\$|£)"
 
 
 def _amount_number(raw):
@@ -107,27 +154,63 @@ def _salary_period(text):
     return ""
 
 
+# A number next to a currency marker isn't necessarily the salary — job ads
+# routinely quote amounts for training/certification budgets, benefit cards,
+# insurance, equipment, or referral bonuses in the same breath. Skip a match
+# whose nearby context names one of those instead of actual compensation.
+_NON_SALARY_CONTEXT = re.compile(
+    r"(?:budget|budżet|certyfikat|certification|szkolen|training|kurs|course|"
+    r"benefit|multisport|karta sportowa|ubezpieczen|insurance|"
+    r"reimburs|zwrot koszt|conference|konferencj|bonus|premia|nagrod|"
+    r"sprz[eę]t|equipment|laptop|l\s*&\s*d\b)",
+    re.I,
+)
+
+
+def _currency_lookup(symbol):
+    return {"zł": "PLN", "€": "EUR", "$": "USD", "£": "GBP"}.get(symbol.lower(), symbol.upper())
+
+
+_CLAUSE_BOUNDARY = re.compile(r"[.!?;\n•,]")
+
+
+def _has_disqualifying_context(text, match_start, window=60):
+    """Only look for a disqualifying word within the same clause as the match,
+    so an unrelated earlier mention (e.g. a training-budget sentence) doesn't
+    disqualify a real salary that happens to follow it a bit later."""
+    context = text[max(0, match_start - window):match_start]
+    boundaries = list(_CLAUSE_BOUNDARY.finditer(context))
+    if boundaries:
+        context = context[boundaries[-1].end():]
+    return bool(_NON_SALARY_CONTEXT.search(context))
+
+
 def extract_salary(text: str):
-    """Find salary amounts only when adjacent to a recognized currency marker."""
+    """Find salary amounts only when adjacent to a recognized currency marker,
+    skipping matches that look like a budget/benefit/bonus figure instead."""
     text = clean(text or "")
     range_pattern = re.compile(
         rf"(?P<first>{_AMOUNT})\s*(?:-|–|—|to)\s*(?P<second>{_AMOUNT})\s*(?P<currency_after>{_CURRENCY})"
-        rf"|(?P<currency_before>{_CURRENCY})\s*(?P<first_before>{_AMOUNT})\s*(?:-|–|—|to)\s*(?P<second_before>{_AMOUNT})",
+        rf"|(?P<currency_before>{_CURRENCY})\s*(?P<first_before>{_AMOUNT})\s*(?:-|–|—|to)\s*(?P<second_before>{_AMOUNT})"
+        # A currency symbol repeated before each side of the range, e.g. "€2,333 - €2,900".
+        rf"|(?P<currency_both1>{_CURRENCY})\s*(?P<first_both>{_AMOUNT})\s*(?:-|–|—|to)\s*"
+        rf"(?P<currency_both2>{_CURRENCY})\s*(?P<second_both>{_AMOUNT})",
         re.I,
     )
     single_pattern = re.compile(rf"(?P<amount>{_AMOUNT})\s*(?P<currency>{_CURRENCY})", re.I)
-    match = range_pattern.search(text)
-    if match:
-        first = match.group("first") or match.group("first_before")
-        second = match.group("second") or match.group("second_before")
-        currency = match.group("currency_after") or match.group("currency_before")
-        currency = {"zł": "PLN", "€": "EUR", "$": "USD"}.get(currency.lower(), currency.upper())
+    for match in range_pattern.finditer(text):
+        if _has_disqualifying_context(text, match.start()):
+            continue
+        first = match.group("first") or match.group("first_before") or match.group("first_both")
+        second = match.group("second") or match.group("second_before") or match.group("second_both")
+        currency = match.group("currency_after") or match.group("currency_before") or match.group("currency_both1")
+        currency = _currency_lookup(currency)
         return min(_amount_number(first), _amount_number(second)), max(_amount_number(first), _amount_number(second)), currency, _salary_period(text[match.start():match.end() + 24])
-    match = single_pattern.search(text)
-    if match:
+    for match in single_pattern.finditer(text):
+        if _has_disqualifying_context(text, match.start()):
+            continue
         amount = _amount_number(match.group("amount"))
-        currency = match.group("currency")
-        currency = {"zł": "PLN", "€": "EUR", "$": "USD"}.get(currency.lower(), currency.upper())
+        currency = _currency_lookup(match.group("currency"))
         return amount, amount, currency, _salary_period(text[match.start():match.end() + 24])
     return None, None, "", ""
 
@@ -160,6 +243,21 @@ def infer_remote(text: str):
     if any(x in t for x in ["100% zdalna", "100% remote", "praca zdalna", "zdalnie", "fully remote", "telecommute", "remote"]):
         return True
     return None
+
+
+_QA_TITLE = re.compile(
+    r"\b(qa|quality|test|tester|testing|sdet|automation engineer)\b", re.I,
+)
+
+
+def looks_like_qa_role(title: str) -> bool:
+    """Loose title filter for feeds without a QA/testing category of their own.
+
+    Deliberately broad (bare 'quality'/'test' match too) since these feeds are
+    small and the scoring/hard-exclusion pipeline downstream filters out
+    whatever doesn't actually match the candidate profile.
+    """
+    return bool(_QA_TITLE.search(title or ""))
 
 
 def infer_seniority(text: str):

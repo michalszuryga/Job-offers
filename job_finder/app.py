@@ -1,4 +1,6 @@
 import json
+import re
+from dataclasses import asdict
 from datetime import datetime, timedelta, timezone
 import pandas as pd
 import streamlit as st
@@ -6,22 +8,13 @@ import streamlit as st
 from .config import load_config, save_user_overrides
 from .scoring import score_job
 from .models import Job
-from .sources.sample import SampleSource
-from .collector import collect_live_jobs
+from .collector import collect_live_jobs, SOURCE_COUNT, SENSITIVE_SOURCE_COUNT
 from .storage import DEFAULT_STATUSES, JobStore
 from .sources.web_utils import infer_remote
+from .cv_highlights import load_cv_highlights, match_highlights
 
 
-st.set_page_config(page_title="Michal Job Finder", layout="wide")
-
-
-def load_demo_data(store, cfg):
-    created = 0
-    for job in SampleSource().fetch():
-        scored = score_job(job, cfg)
-        if not scored.rejected and store.upsert(scored):
-            created += 1
-    return created
+st.set_page_config(page_title="Michal Job Finder", layout="wide", initial_sidebar_state="collapsed")
 
 
 def get_stats(store, cfg):
@@ -85,15 +78,18 @@ def format_salary(job):
     return f"{value} {suffix}".strip()
 
 
-def format_score_adjustments(job):
+def parsed_score_breakdown(job):
     breakdown = job.get("score_breakdown") or {}
     if isinstance(breakdown, str):
         try:
             breakdown = json.loads(breakdown)
         except json.JSONDecodeError:
             breakdown = {}
-    if not isinstance(breakdown, dict):
-        breakdown = {}
+    return breakdown if isinstance(breakdown, dict) else {}
+
+
+def format_score_adjustments(job):
+    breakdown = parsed_score_breakdown(job)
     labels = (
         ("automation title", "title_automation_penalty"),
         ("language in title", "title_programming_language_penalty"),
@@ -106,6 +102,27 @@ def format_score_adjustments(job):
         if value:
             parts.append(f"{label} {value:+g}")
     return "; ".join(parts) if parts else "—"
+
+
+_DESCRIPTION_BULLETS = "•✅✔️🔹➡️👉🎯📌⭐️🚀💡🔸▪️‣🧡🟣✍️🎁"
+_DESCRIPTION_HEADINGS = (
+    "requirements", "responsibilities", "benefits", "nice to have", "about the role",
+    "wymagania", "obowiązki", "oferujemy", "zakres obowiązków", "mile widziane",
+    "nasze wymagania", "benefity", "co oferujemy", "kogo szukamy", "twoja rola",
+    "twoje zadania", "twoje umiejętności", "co zyskujesz", "o projekcie",
+)
+
+
+def format_description(text):
+    """Descriptions are scraped as a single whitespace-collapsed block with no
+    real line breaks. Reintroduce paragraph breaks before bullet markers and
+    common section headings that survive as plain text, so it isn't one
+    unbroken wall of text — best-effort, not a real layout reconstruction."""
+    text = text or ""
+    text = re.sub(rf"(?<=\S)(?=[{re.escape(_DESCRIPTION_BULLETS)}])", "\n\n", text)
+    heading_pattern = "|".join(re.escape(h) for h in _DESCRIPTION_HEADINGS)
+    text = re.sub(rf"(?<=[a-ząćęłńóśźż.!?:])\s+(?=(?:{heading_pattern})\b)", "\n\n", text, flags=re.I)
+    return text.strip()
 
 
 def refresh_scores_for_config(store, cfg):
@@ -206,6 +223,65 @@ def render_scoring_controls(cfg):
     return cfg
 
 
+def render_fetch_diagnostics():
+    results = st.session_state.get("last_fetch_results")
+    if not results:
+        return
+
+    st.subheader("Live fetch diagnostics")
+
+    rows = []
+    notes = []
+    reason_lines = []
+    for result in results:
+        candidates = result.get("candidates", result["count"])
+        parsed = result.get("parsed", result["count"])
+        if result["error_type"] == "OfferParseError":
+            status = "⚠️ Some pages failed"
+            notes.append(f'**{result["name"]}** — some detail pages failed: {result["error"]}')
+        elif result["error"]:
+            status = "❌ Failed"
+            notes.append(f'**{result["name"]}** — [{result["error_type"]}] {result["error"]}')
+        elif candidates == 0:
+            status = "⚠️ 0 found"
+            notes.append(
+                f'**{result["name"]}** — 0 listing candidates found, no error raised. Usually means the '
+                f"site blocked the request (anti-bot check) or changed its page structure."
+            )
+        else:
+            status = "✅ OK"
+
+        rows.append({
+            "Source": result["name"],
+            "Status": status,
+            "Candidates": candidates,
+            "Parsed": parsed,
+            "Skipped (known)": result.get("skipped_known", 0),
+            "Inserted": result["inserted"],
+            "Updated": result["updated"],
+            "Rejected": result["rejected"],
+            "Duplicate": result.get("duplicate", 0),
+            "Seconds": result["seconds"],
+        })
+
+        reasons = result.get("rejected_by_reason") or {}
+        if reasons:
+            parts = ", ".join(f"{reason} ({count})" for reason, count in reasons.items())
+            reason_lines.append(f'**{result["name"]}:** {parts}')
+
+    st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+
+    if notes:
+        with st.expander("⚠️ Warnings & errors", expanded=True):
+            for note in notes:
+                st.markdown(f"- {note}")
+
+    if reason_lines:
+        with st.expander("Why offers were excluded"):
+            for line in reason_lines:
+                st.markdown(f"- {line}")
+
+
 def main():
     st.title("Michal's Job Finder")
     st.caption("Hosted MVP - job matching, freshness scoring and application tracking.")
@@ -224,21 +300,65 @@ def main():
     col3.metric("New", stats["new"])
     st.caption("Offer count includes remote jobs that passed hard exclusions; fetch diagnostics show listing candidates, parsed offers and exclusion reasons.")
 
-    c1, c2, c3 = st.columns(3)
+    skip_sensitive = st.checkbox(
+        "Skip rate-limit-sensitive sources (Pracuj.pl, No Fluff Jobs, CzyJestEldorado)",
+        value=False,
+        help=(
+            "These three have shown 429/403 blocks under heavy use. Check this for a "
+            "faster run with the other 5 sources, or if one of them is currently blocking this IP."
+        ),
+    )
+
+    c1, c2 = st.columns(2)
 
     with c1:
         fetch_clicked = st.button("Fetch live jobs", type="primary", use_container_width=True)
 
     with c2:
-        demo_clicked = st.button("Load demo data", use_container_width=True)
-
-    with c3:
         if st.button("Reload", use_container_width=True):
             st.rerun()
 
     if fetch_clicked:
-        with st.spinner("Fetching No Fluff Jobs, Pracuj.pl and JustJoin.IT..."):
-            results = collect_live_jobs()
+        progress_box = st.empty()
+        progress_rows = []
+        live_offer_rows = []
+        total_sources = SOURCE_COUNT - (SENSITIVE_SOURCE_COUNT if skip_sensitive else 0)
+
+        def _on_source_fetched(raw, result, new_jobs):
+            status = "✅ done" if not raw["error"] else f'⚠️ {raw["error_type"]}'
+            progress_rows.append({
+                "Source": raw["source"].name,
+                "Status": status,
+                "Candidates": raw["candidates"],
+                "Parsed": raw["parsed"],
+                "Seconds": round(raw["seconds"], 1),
+            })
+            for job in new_jobs:
+                job_dict = asdict(job)
+                live_offer_rows.append({
+                    "Score": job.score,
+                    "Title": job.title,
+                    "Company": job.company or "Brak w danych",
+                    "Salary": format_salary(job_dict),
+                    "Source": job.source,
+                    "Offer link": job.url,
+                })
+
+            with progress_box.container():
+                found_note = f" — {len(live_offer_rows)} new offer(s) found so far" if live_offer_rows else ""
+                st.caption(f"{len(progress_rows)}/{total_sources} sources fetched so far{found_note}...")
+                st.dataframe(pd.DataFrame(progress_rows), use_container_width=True, hide_index=True)
+                if live_offer_rows:
+                    ranked = sorted(live_offer_rows, key=lambda r: r["Score"], reverse=True)
+                    st.dataframe(
+                        pd.DataFrame(ranked),
+                        use_container_width=True,
+                        hide_index=True,
+                        column_config={"Offer link": st.column_config.LinkColumn("Offer link", display_text="Open")},
+                    )
+
+        results = collect_live_jobs(on_source_fetched=_on_source_fetched, skip_sensitive=skip_sensitive)
+        progress_box.empty()
 
         st.session_state["last_fetch_results"] = [
             {
@@ -247,8 +367,10 @@ def main():
                 "inserted": r.inserted,
                 "updated": r.updated,
                 "rejected": r.rejected,
+                "duplicate": r.duplicate,
                 "candidates": r.candidates,
                 "parsed": r.parsed,
+                "skipped_known": r.skipped_known,
                 "rejected_by_reason": r.rejected_by_reason,
                 "seconds": round(r.seconds, 2),
                 "error": r.error,
@@ -256,48 +378,14 @@ def main():
             }
             for r in results
         ]
+        # Remembered until the next fetch, so newly inserted offers can be
+        # marked "NEW" in the table below regardless of how they're sorted/filtered.
+        st.session_state["newly_inserted_urls"] = {url for r in results for url in r.inserted_urls}
 
         # Explicitly re-read the database after collection before rerunning.
         # This makes the next render use the newly inserted rows.
         st.success("Live offers fetched.")
         st.rerun()
-
-    if demo_clicked:
-        created = load_demo_data(store, cfg)
-        st.session_state["demo_message"] = f"Loaded {created} demo offers."
-        st.rerun()
-
-    if "demo_message" in st.session_state:
-        st.success(st.session_state.pop("demo_message"))
-
-    if "last_fetch_results" in st.session_state:
-        st.subheader("Live fetch diagnostics")
-        for result in st.session_state["last_fetch_results"]:
-            if result["error_type"] == "OfferParseError":
-                st.warning(
-                    f'{result["name"]}: {result.get("candidates", result["count"])} listing candidates, '
-                    f'{result.get("parsed", result["count"])} parsed, '
-                    f'{result["count"]} passed source filters, '
-                    f'{result["inserted"]} inserted, {result["updated"]} updated, '
-                    f'{result["rejected"]} excluded ({result.get("rejected_by_reason", {})}); '
-                    f'some detail pages failed: '
-                    f'{result["error"]} ({result["seconds"]}s)'
-                )
-            elif result["error"]:
-                st.error(
-                    f'{result["name"]}: FAILED '
-                    f'[{result["error_type"]}] {result["error"]} '
-                    f'({result["seconds"]}s)'
-                )
-            else:
-                st.success(
-                    f'{result["name"]}: {result.get("candidates", result["count"])} listing candidates, '
-                    f'{result.get("parsed", result["count"])} parsed, '
-                    f'{result["count"]} passed source filters, '
-                    f'{result["inserted"]} inserted, {result["updated"]} updated, '
-                    f'{result["rejected"]} excluded ({result.get("rejected_by_reason", {})}) '
-                    f'({result["seconds"]}s)'
-                )
 
     # Re-read after possible actions. Never use the pre-fetch snapshot here.
     stats = get_stats(store, cfg)
@@ -312,6 +400,8 @@ def main():
             "restart the app and reset local SQLite data. Persistent storage "
             "will require an external database in the next hosting step."
         )
+        st.divider()
+        render_fetch_diagnostics()
         return
 
     st.divider()
@@ -336,36 +426,51 @@ def main():
         step=10,
     )
 
-    jobs = store.list(
+    # Fetch everything matching score/status/remote first, then apply the
+    # published-window filter, and only then cap to "Maximum offers" — doing
+    # it in this order (rather than capping in SQL first) means a tight
+    # published-window filter can't hide offers that were pushed out by the
+    # cap before it had a chance to see them.
+    matching = store.list(
         min_score,
         None if status == "ALL" else status,
-        limit=int(limit),
         remote_only=cfg.get("filters", {}).get("remote_only", False),
     )
-    jobs = filter_by_published_window(jobs, published_window)
+    matching = filter_by_published_window(matching, published_window)
+    jobs = matching[: int(limit)]
     if published_window != "Any time":
         st.caption("Offers without a reliable publication date are hidden for this time filter.")
+    st.caption(
+        f"Showing {len(jobs)} of {len(matching)} offers matching your filters "
+        f"(score ≥ {min_score}). Lower 'Minimum match score' to see more."
+    )
 
     if not jobs:
         st.info("No offers match the selected filters.")
+        st.divider()
+        render_fetch_diagnostics()
         return
 
+    newly_inserted = st.session_state.get("newly_inserted_urls", set())
+
     rows = []
-    for j in jobs:
+    for i, j in enumerate(jobs, start=1):
         rows.append(
             {
+                "No.": i,
+                "New": "🆕" if j["url"] in newly_inserted else "",
                 "Score": j["score"],
                 "Title": j["title"],
                 "Salary": format_salary(j),
                 "Published": format_published_at(j.get("published_at")),
                 "Company": j.get("company") or "Brak w danych",
                 "Offer link": j["url"],
+                "Source": j["source"],
                 "Score adjustments": format_score_adjustments(j),
                 "Freshness points (0-10)": j.get("recency_score", 0),
                 "Location": j["location"],
                 "Contract": j["contract"],
                 "Status": j.get("application_status", "NEW"),
-                "Source": j["source"],
             }
         )
 
@@ -373,7 +478,26 @@ def main():
         pd.DataFrame(rows),
         use_container_width=True,
         hide_index=True,
-        column_config={"Offer link": st.column_config.LinkColumn("Offer link", display_text="Open")},
+        column_config={
+            "No.": st.column_config.NumberColumn("No.", width="small"),
+            "New": st.column_config.TextColumn("New", width="small"),
+            "Score": st.column_config.NumberColumn("Score", width="small"),
+            "Title": st.column_config.TextColumn("Title", width="large"),
+            "Salary": st.column_config.TextColumn("Salary", width="medium"),
+            "Published": st.column_config.TextColumn("Published", width="small"),
+            "Company": st.column_config.TextColumn("Company", width="medium"),
+            "Offer link": st.column_config.LinkColumn("Offer link", display_text="Open", width="small"),
+            "Source": st.column_config.TextColumn("Source", width="small"),
+            "Score adjustments": st.column_config.TextColumn(
+                "Score adj.", width="medium", help="Score adjustments (penalties/bonuses applied)"
+            ),
+            "Freshness points (0-10)": st.column_config.NumberColumn(
+                "Freshness", width="small", help="Freshness points (0-10)"
+            ),
+            "Location": st.column_config.TextColumn("Location", width="medium"),
+            "Contract": st.column_config.TextColumn("Contract", width="small"),
+            "Status": st.column_config.TextColumn("Status", width="small"),
+        },
     )
 
     st.subheader("Job details")
@@ -387,8 +511,20 @@ def main():
         st.markdown(f'### {job["title"]}')
         st.write(f'**{job.get("company") or "Brak w danych"}** · {job["location"]} · {job["contract"]}')
         st.write(f'**Salary:** {format_salary(job)}')
-        st.write(job["description"])
+        with st.container(height=400, border=True):
+            st.markdown(format_description(job["description"]))
         st.markdown(f'[Open original offer]({job["url"]})')
+
+        cv_matches = match_highlights(parsed_score_breakdown(job), load_cv_highlights())
+        if cv_matches:
+            st.markdown("#### CV highlights for this offer")
+            st.caption(
+                "Rule-based, not AI — picked from your CV using the same technology/domain "
+                "matches already used for scoring. No API call involved."
+            )
+            for match in cv_matches:
+                st.markdown(f"- {match['text']}")
+                st.caption("Matched: " + ", ".join(match["matched_tags"]))
 
     with right:
         st.metric("Match", job["score"])
@@ -415,6 +551,9 @@ def main():
                 st.json(json.loads(job["ai_analysis"]))
             except json.JSONDecodeError:
                 st.write(job["ai_analysis"])
+
+    st.divider()
+    render_fetch_diagnostics()
 
 
 if __name__ == "__main__":

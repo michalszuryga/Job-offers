@@ -1,0 +1,60 @@
+# Structured CV bullets, each tagged with the same lowercase technology/domain/ai
+# vocabulary used in profile.yaml. This lets the app show "which parts of your
+# CV are relevant to this offer" using the same matching already done for
+# scoring (job.score_breakdown's matched_technologies/matched_domains/matched_ai),
+# with no AI/API call involved.
+# Deliberately company-agnostic — no employer/product names, only role and tech.
+highlights:
+  - text: >-
+      Leveraging Claude Code and Claude CLI for test scripting, automation and
+      QA-related development tasks; applying AI-assisted approaches to improve
+      test scripting and day-to-day QA workflows.
+    tags: [claude code, claude cli, ai, ai-assisted, ai testing, ai-assisted testing]
+
+  - text: >-
+      Testing healthcare and telehealth platforms — a diagnostic imaging
+      provider and a telehealth/healthcare SaaS platform — covering
+      functional, exploratory, regression and end-to-end testing of
+      web-based workflows.
+    tags: [healthcare, digital health, telehealth, medical diagnostics, saas]
+
+  - text: >-
+      Using Postman and application monitoring tools to investigate API
+      behaviour, defects and test failures.
+    tags: [postman, rest api, api testing]
+
+  - text: >-
+      API and UI testing of ISO 20022-based payment systems within the
+      Payments team of an EMI-regulated company.
+    tags: [fintech, payments]
+
+  - text: >-
+      Creating and maintaining automated tests using Playwright and
+      TypeScript, alongside manual API testing.
+    tags: [playwright, typescript, api testing, rest api]
+
+  - text: >-
+      Developed and maintained automated tests using Cypress and JavaScript
+      (~20% of the role) at an enterprise software company, testing web
+      applications and an Electronic Document Management / ETL platform.
+    tags: [cypress, javascript, enterprise software]
+
+  - text: >-
+      SQL data validation and query work across MS SQL, MariaDB and DBeaver.
+    tags: [sql, ms sql, mariadb, dbeaver]
+
+  - text: >-
+      GitHub Copilot used alongside manual and automated testing for
+      day-to-day development support.
+    tags: [github copilot, ai, ai-assisted]
+
+  - text: >-
+      Manual testing of Electronic Document Management systems for public
+      administration, verifying data integrity and regulatory workflow
+      compliance.
+    tags: [e-government]
+
+  - text: >-
+      Git/GitHub-based workflows and CI/CD pipelines across all roles, using
+      Chrome DevTools and CloudWatch for debugging and monitoring.
+    tags: [git, github, ci/cd, chrome devtools, cloudwatch]
