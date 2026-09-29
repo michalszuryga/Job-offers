@@ -111,11 +111,11 @@ class JobStore:
                     self._exec(conn, f"ALTER TABLE jobs ADD COLUMN {column} {definition}")
             self._exec(conn, f"UPDATE jobs SET last_seen_at=COALESCE(last_seen_at, {_NOW})")
 
-    _UPSERT_SQL = """INSERT INTO jobs (external_id,title,company,url,source,description,location,remote,contract,
-                salary_min,salary_max,salary_currency,salary_period,seniority,published_at,score,recency_score,
-                matched_keywords,penalties,application_status,first_seen_at,last_seen_at,rejected,reject_reason,score_breakdown)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,{now},{now},?,?,?)
-                ON CONFLICT(external_id) DO UPDATE SET
+    _UPSERT_COLUMNS = ("external_id,title,company,url,source,description,location,remote,contract,"
+                       "salary_min,salary_max,salary_currency,salary_period,seniority,published_at,score,recency_score,"
+                       "matched_keywords,penalties,application_status,first_seen_at,last_seen_at,rejected,reject_reason,score_breakdown")
+
+    _UPSERT_CONFLICT_CLAUSE = """ON CONFLICT(external_id) DO UPDATE SET
                 title=excluded.title, company=excluded.company, description=excluded.description,
                 location=excluded.location, remote=excluded.remote, contract=excluded.contract,
                 salary_min=excluded.salary_min, salary_max=excluded.salary_max, salary_currency=excluded.salary_currency,
@@ -124,6 +124,12 @@ class JobStore:
                 recency_score=excluded.recency_score, matched_keywords=excluded.matched_keywords,
                 penalties=excluded.penalties, last_seen_at={now}, rejected=excluded.rejected,
                 reject_reason=excluded.reject_reason, score_breakdown=excluded.score_breakdown""".format(now=_NOW)
+
+    # 20 values supplied per row, then the two server-side NOW() timestamps,
+    # then 3 more supplied values — see _upsert_params()'s 23-item tuple.
+    _UPSERT_ROW_TEMPLATE = "(" + ",".join(["?"] * 20) + f",{_NOW},{_NOW}," + ",".join(["?"] * 3) + ")"
+
+    _UPSERT_SQL = f"INSERT INTO jobs ({_UPSERT_COLUMNS}) VALUES {_UPSERT_ROW_TEMPLATE} {_UPSERT_CONFLICT_CLAUSE}"
 
     @staticmethod
     def _upsert_params(job: Job):
@@ -144,13 +150,29 @@ class JobStore:
         return old is None
 
     def upsert_many(self, jobs):
-        """Like upsert(), but reuses one connection for the whole batch and skips
-        the existed/new lookup (unused by callers) — critical for
-        refresh_scores_for_config(), which can rewrite hundreds of rows at
-        once and would otherwise pay two network round trips per row."""
-        with self._connect() as conn:
-            for job in jobs:
-                self._exec(conn, self._UPSERT_SQL, self._upsert_params(job))
+        """Like upsert(), but as one bulk statement instead of one round trip
+        per row — critical for refresh_scores_for_config(), which can rewrite
+        hundreds of rows at once. A per-row loop (even reusing one connection)
+        still pays the DB's network latency once per row; with a cross-region
+        connection (e.g. Streamlit Cloud -> Supabase) that alone turned ~750
+        rows into a multi-minute wait. Postgres gets a true multi-row INSERT
+        via execute_values (1-2 round trips total); SQLite (no meaningful
+        per-call latency) just loops with a single connection."""
+        jobs = list(jobs)
+        if not jobs:
+            return
+        if self.backend == "postgres":
+            from psycopg2.extras import execute_values
+
+            sql = f"INSERT INTO jobs ({self._UPSERT_COLUMNS}) VALUES %s {self._UPSERT_CONFLICT_CLAUSE}"
+            template = self._q(self._UPSERT_ROW_TEMPLATE)
+            with self._connect() as conn:
+                cur = conn.cursor()
+                execute_values(cur, sql, [self._upsert_params(job) for job in jobs], template=template)
+        else:
+            with self._connect() as conn:
+                for job in jobs:
+                    self._exec(conn, self._UPSERT_SQL, self._upsert_params(job))
 
     def list(self, min_score=0, status=None, limit=None, remote_only=False):
         sql = "SELECT * FROM jobs WHERE score>=? AND COALESCE(rejected, 0)=0"
