@@ -293,13 +293,24 @@ def render_fetch_diagnostics():
                 st.markdown(f"- {line}")
 
 
+@st.cache_resource
+def get_store():
+    # Streamlit reruns this whole script on every interaction (any click,
+    # slider drag, etc). Without caching, JobStore() would reopen a fresh
+    # Postgres connection and rerun its migration checks (including a
+    # full-table UPDATE) on every single rerun, multiplying our exposure to
+    # any network hiccup between Streamlit Cloud and the DB host. Caching
+    # means that work happens once per container lifetime instead.
+    return JobStore()
+
+
 def main():
     st.title("Michal's Job Finder")
     st.caption("Hosted MVP - job matching, freshness scoring and application tracking.")
 
     cfg = load_config()
     cfg = render_scoring_controls(cfg)
-    store = JobStore()
+    store = get_store()
     refresh_scores_for_config(store, cfg)
 
     stats = get_stats(store, cfg)
