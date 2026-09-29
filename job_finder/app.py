@@ -143,6 +143,7 @@ def refresh_scores_for_config(store, cfg):
     if st.session_state.get("score_config_signature") == signature:
         return
 
+    rescored = []
     for row in store.list_all():
         published_at = row.get("published_at")
         try:
@@ -160,7 +161,8 @@ def refresh_scores_for_config(store, cfg):
                   salary_currency=row.get("salary_currency") or "", salary_period=row.get("salary_period") or "",
                   seniority=row.get("seniority") or "",
                   published_at=published_at)
-        store.upsert(score_job(job, cfg))
+        rescored.append(score_job(job, cfg))
+    store.upsert_many(rescored)
     st.session_state["score_config_signature"] = signature
 
 
