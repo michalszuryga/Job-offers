@@ -43,6 +43,35 @@ def _java_is_role_requirement(job):
     return False
 
 
+def _junior_is_role_only(job):
+    """Reject a junior-only posting, but not a dual-level one ('junior/mid',
+    'junior-mid', 'junior or mid') that also targets a level the candidate
+    profile accepts — a plain whole-word match on 'junior' alone can't tell
+    those apart."""
+    text = _text(job)
+    for match in re.finditer(r"(?<![a-z0-9])junior(?![a-z0-9])", text):
+        context = text[max(0, match.start() - 40):match.end() + 40]
+        if re.search(r"\b(?:mid|regular|senior)\b", context):
+            continue
+        return True
+    return False
+
+
+def _salary_overrides_junior_exclusion(job, monthly_threshold=12000, hourly_threshold=90):
+    """A junior-only posting is still worth seeing if it pays like a mid role.
+    Deliberately two separate raw thresholds (not one normalized-to-monthly
+    figure) — that's what was asked for, and it's simpler to reason about
+    than picking an hours-per-month assumption for this one-off check."""
+    if (job.salary_currency or "PLN").upper() != "PLN":
+        return False
+    amount = job.salary_max if job.salary_max is not None else job.salary_min
+    if amount is None:
+        return False
+    if (job.salary_period or "").lower() == "hour":
+        return amount >= hourly_threshold
+    return amount >= monthly_threshold
+
+
 def recency_points(published_at, now=None):
     if not published_at:
         return 0, None
@@ -77,7 +106,11 @@ def score_job(job, cfg, now=None):
             job.score_breakdown = {"hard_reject": str(phrase)}
             return job
     for level in hard.get("seniority", []):
-        if _word(text, level):
+        if str(level).lower() == "junior":
+            excluded = _junior_is_role_only(job) and not _salary_overrides_junior_exclusion(job)
+        else:
+            excluded = _word(text, level)
+        if excluded:
             job.rejected, job.reject_reason, job.score = True, str(level), 0
             job.score_breakdown = {"hard_reject": str(level)}
             return job

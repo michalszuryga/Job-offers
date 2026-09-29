@@ -186,3 +186,22 @@ def test_get_soup_gives_up_after_repeated_failures(monkeypatch):
         assert False, "expected ConnectionError to propagate"
     except requests.ConnectionError:
         pass
+
+def test_structured_salary_recognizes_spelled_out_unit_text():
+    # schema.org's baseSalary.value.unitText commonly comes spelled out
+    # ("HOUR", "YEAR"), not as the abbreviated unitCode ("HUR", "ANN") —
+    # both must resolve to the same period.
+    hourly = web_utils.extract_structured_salary(
+        {"currency": "PLN", "value": {"unitText": "HOUR", "minValue": 100, "maxValue": 140}}
+    )
+    assert hourly == (100.0, 140.0, "PLN", "hour")
+
+    yearly = web_utils.extract_structured_salary(
+        {"currency": "PLN", "value": {"unitText": "YEAR", "minValue": 120000, "maxValue": 150000}}
+    )
+    assert yearly[3] == "year"
+
+    coded = web_utils.extract_structured_salary(
+        {"currency": "PLN", "value": {"unitCode": "HUR", "minValue": 100, "maxValue": 140}}
+    )
+    assert coded[3] == "hour"

@@ -1,6 +1,6 @@
 import json
+import os
 import sqlite3
-from datetime import datetime
 from pathlib import Path
 
 from .models import Job, canonical_job_url
@@ -8,27 +8,89 @@ from .models import Job, canonical_job_url
 
 DEFAULT_STATUSES = ["NEW", "REVIEW", "INTERESTED", "CV_GENERATED", "READY_TO_APPLY", "APPLIED", "INTERVIEW", "REJECTED", "WITHDRAWN"]
 
+# All timestamp columns are plain TEXT (matches how SQLite already stores
+# job.published_at.isoformat() etc.). SQLite's CURRENT_TIMESTAMP already
+# yields a text string, but Postgres's is a real `timestamp with time zone`
+# value — assigning it straight into a text column raises "DatatypeMismatch".
+# Casting makes the exact same SQL text work correctly on both backends.
+_NOW = "CAST(CURRENT_TIMESTAMP AS TEXT)"
+
+# All queries in this file are written once, using SQLite's "?" placeholder
+# style; _q() swaps them for Postgres's "%s" when talking to a real Postgres
+# server. The two dialects otherwise agree closely enough (TEXT/REAL/INTEGER
+# column types, DEFAULT CURRENT_TIMESTAMP, ON CONFLICT ... DO UPDATE SET with
+# EXCLUDED) that no separate schema is needed.
+
 
 class JobStore:
-    def __init__(self, path="jobs.db"):
-        self.path = str(Path(path))
+    def __init__(self, path="jobs.db", database_url=None):
+        # No DATABASE_URL configured (local dev, tests) -> plain SQLite file,
+        # zero setup, no network. Configured (via env var, or app.py bridging
+        # st.secrets into the environment) -> shared, persistent Postgres,
+        # e.g. so the same data shows up whether you're on your laptop or
+        # opening the Streamlit Cloud app from your phone.
+        self.database_url = database_url or os.environ.get("DATABASE_URL")
+        self.backend = "postgres" if self.database_url else "sqlite"
+        self.path = str(Path(path)) if self.backend == "sqlite" else None
         self.init()
 
+    def _connect(self):
+        if self.backend == "postgres":
+            import psycopg2
+
+            dsn = self.database_url
+            if "sslmode=" not in dsn:
+                dsn = f"{dsn}{'&' if '?' in dsn else '?'}sslmode=require"
+            return psycopg2.connect(dsn)
+        return sqlite3.connect(self.path)
+
+    def _q(self, sql):
+        return sql.replace("?", "%s") if self.backend == "postgres" else sql
+
+    def _exec(self, conn, sql, params=()):
+        """Execute a write/lookup query, returning a cursor either way (sqlite3's
+        conn.execute() shorthand doesn't exist on psycopg2 connections)."""
+        sql = self._q(sql)
+        if self.backend == "postgres":
+            cur = conn.cursor()
+            cur.execute(sql, params)
+            return cur
+        return conn.execute(sql, params)
+
+    def _query_dicts(self, conn, sql, params=()):
+        sql = self._q(sql)
+        if self.backend == "postgres":
+            from psycopg2.extras import RealDictCursor
+
+            cur = conn.cursor(cursor_factory=RealDictCursor)
+            cur.execute(sql, params)
+            return [dict(row) for row in cur.fetchall()]
+        conn.row_factory = sqlite3.Row
+        return [dict(row) for row in conn.execute(sql, params).fetchall()]
+
+    def _existing_columns(self, conn):
+        if self.backend == "postgres":
+            cur = conn.cursor()
+            cur.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'jobs'")
+            return {row[0] for row in cur.fetchall()}
+        return {row[1] for row in conn.execute("PRAGMA table_info(jobs)").fetchall()}
+
     def init(self):
-        with sqlite3.connect(self.path) as conn:
-            conn.execute(
+        with self._connect() as conn:
+            self._exec(
+                conn,
                 """CREATE TABLE IF NOT EXISTS jobs (
                     external_id TEXT PRIMARY KEY, title TEXT, company TEXT, url TEXT, source TEXT,
                     description TEXT, location TEXT, remote INTEGER, contract TEXT, salary_min REAL,
                     salary_max REAL, salary_currency TEXT, salary_period TEXT DEFAULT '', seniority TEXT, published_at TEXT,
                     score REAL, recency_score REAL DEFAULT 0, matched_keywords TEXT, penalties TEXT,
                     application_status TEXT DEFAULT 'NEW', ai_analysis TEXT, tailored_cv_path TEXT,
-                    first_seen_at TEXT DEFAULT CURRENT_TIMESTAMP, last_seen_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                    first_seen_at TEXT DEFAULT ({now}), last_seen_at TEXT DEFAULT ({now}),
                     analyzed_at TEXT
-                )"""
+                )""".format(now=_NOW),
             )
             # Lightweight migration for an existing V1 database.
-            existing = {row[1] for row in conn.execute("PRAGMA table_info(jobs)").fetchall()}
+            existing = self._existing_columns(conn)
             migrations = {
                 "recency_score": "REAL DEFAULT 0",
                 "application_status": "TEXT DEFAULT 'NEW'",
@@ -40,21 +102,25 @@ class JobStore:
                 "reject_reason": "TEXT",
                 "score_breakdown": "TEXT",
                 "salary_period": "TEXT DEFAULT ''",
+                "applied_rate": "TEXT DEFAULT ''",
+                "notice_period": "TEXT DEFAULT ''",
+                "applied_at": "TEXT",
             }
             for column, definition in migrations.items():
                 if column not in existing:
-                    conn.execute(f"ALTER TABLE jobs ADD COLUMN {column} {definition}")
-            conn.execute("UPDATE jobs SET last_seen_at=COALESCE(last_seen_at, CURRENT_TIMESTAMP)")
+                    self._exec(conn, f"ALTER TABLE jobs ADD COLUMN {column} {definition}")
+            self._exec(conn, f"UPDATE jobs SET last_seen_at=COALESCE(last_seen_at, {_NOW})")
 
     def upsert(self, job: Job) -> bool:
         canonical_url = canonical_job_url(job.url)
-        with sqlite3.connect(self.path) as conn:
-            old = conn.execute("SELECT external_id FROM jobs WHERE external_id=?", (job.external_id,)).fetchone()
-            conn.execute(
-                """INSERT INTO jobs (external_id,title,company,url,source,description,location,remote,contract,
+        with self._connect() as conn:
+            old = self._exec(conn, "SELECT external_id FROM jobs WHERE external_id=?", (job.external_id,)).fetchone()
+            self._exec(
+                conn,
+                f"""INSERT INTO jobs (external_id,title,company,url,source,description,location,remote,contract,
                     salary_min,salary_max,salary_currency,salary_period,seniority,published_at,score,recency_score,
                     matched_keywords,penalties,application_status,first_seen_at,last_seen_at,rejected,reject_reason,score_breakdown)
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,?,?,?)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,{_NOW},{_NOW},?,?,?)
                     ON CONFLICT(external_id) DO UPDATE SET
                     title=excluded.title, company=excluded.company, description=excluded.description,
                     location=excluded.location, remote=excluded.remote, contract=excluded.contract,
@@ -62,7 +128,7 @@ class JobStore:
                     salary_period=excluded.salary_period,
                     seniority=excluded.seniority, published_at=excluded.published_at, score=excluded.score,
                     recency_score=excluded.recency_score, matched_keywords=excluded.matched_keywords,
-                    penalties=excluded.penalties, last_seen_at=CURRENT_TIMESTAMP, rejected=excluded.rejected,
+                    penalties=excluded.penalties, last_seen_at={_NOW}, rejected=excluded.rejected,
                     reject_reason=excluded.reject_reason, score_breakdown=excluded.score_breakdown""",
                 (
                     job.external_id, job.title, job.company, canonical_url, job.source, job.description, job.location,
@@ -87,44 +153,63 @@ class JobStore:
         if limit:
             sql += " LIMIT ?"
             params.append(limit)
-        with sqlite3.connect(self.path) as conn:
-            conn.row_factory = sqlite3.Row
-            return [dict(row) for row in conn.execute(sql, params).fetchall()]
+        with self._connect() as conn:
+            return self._query_dicts(conn, sql, params)
 
     def list_all(self):
         """Return every stored row so changed scoring rules can be reapplied."""
-        with sqlite3.connect(self.path) as conn:
-            conn.row_factory = sqlite3.Row
-            return [dict(row) for row in conn.execute("SELECT * FROM jobs").fetchall()]
+        with self._connect() as conn:
+            return self._query_dicts(conn, "SELECT * FROM jobs")
 
     def contains(self, url: str) -> bool:
-        with sqlite3.connect(self.path) as conn:
-            return conn.execute("SELECT 1 FROM jobs WHERE external_id=?", (canonical_job_url(url),)).fetchone() is not None
+        with self._connect() as conn:
+            return self._exec(conn, "SELECT 1 FROM jobs WHERE external_id=?", (canonical_job_url(url),)).fetchone() is not None
 
     def delete_source(self, source):
-        with sqlite3.connect(self.path) as conn:
-            conn.execute("DELETE FROM jobs WHERE source=?", (source,))
+        with self._connect() as conn:
+            self._exec(conn, "DELETE FROM jobs WHERE source=?", (source,))
 
     def delete_all(self):
-        with sqlite3.connect(self.path) as conn:
-            conn.execute("DELETE FROM jobs")
+        with self._connect() as conn:
+            self._exec(conn, "DELETE FROM jobs")
 
     def set_status(self, external_id, status):
         if status not in DEFAULT_STATUSES:
             raise ValueError(f"Unknown status: {status}")
-        with sqlite3.connect(self.path) as conn:
-            conn.execute("UPDATE jobs SET application_status=? WHERE external_id=?", (status, external_id))
+        with self._connect() as conn:
+            if status == "APPLIED":
+                self._exec(
+                    conn,
+                    "UPDATE jobs SET application_status=?, "
+                    f"applied_at=COALESCE(applied_at, {_NOW}) WHERE external_id=?",
+                    (status, external_id),
+                )
+            else:
+                self._exec(conn, "UPDATE jobs SET application_status=? WHERE external_id=?", (status, external_id))
+
+    def save_application_details(self, external_id, applied_rate="", notice_period=""):
+        """The rate and notice period you actually told the employer — kept
+        separate from the offer's own listed salary, which may differ from
+        what you negotiated or stated."""
+        with self._connect() as conn:
+            self._exec(
+                conn,
+                "UPDATE jobs SET applied_rate=?, notice_period=? WHERE external_id=?",
+                (applied_rate, notice_period, external_id),
+            )
 
     def save_ai_analysis(self, external_id, analysis: dict):
-        with sqlite3.connect(self.path) as conn:
-            conn.execute(
-                "UPDATE jobs SET ai_analysis=?, analyzed_at=CURRENT_TIMESTAMP WHERE external_id=?",
+        with self._connect() as conn:
+            self._exec(
+                conn,
+                f"UPDATE jobs SET ai_analysis=?, analyzed_at={_NOW} WHERE external_id=?",
                 (json.dumps(analysis, ensure_ascii=False), external_id),
             )
 
     def save_tailored_cv(self, external_id, path):
-        with sqlite3.connect(self.path) as conn:
-            conn.execute(
+        with self._connect() as conn:
+            self._exec(
+                conn,
                 "UPDATE jobs SET tailored_cv_path=?, application_status='CV_GENERATED' WHERE external_id=?",
                 (path, external_id),
             )

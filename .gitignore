@@ -2,3 +2,12 @@ config/user_overrides.yaml
 .venv/
 __pycache__/
 *.py[cod]
+
+# Runtime data, not source: scraped offers + your own application tracking
+# (status, quoted rate, notice period). Never belongs in a public repo.
+jobs.db
+logs/
+
+# Real database password lives only here, locally. Never commit this file —
+# only secrets.toml.example (with a placeholder) is tracked.
+.streamlit/secrets.toml

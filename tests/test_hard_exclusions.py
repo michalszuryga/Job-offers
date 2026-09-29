@@ -50,6 +50,48 @@ def test_junior_is_hard_reject():
     assert scored.score == 0
 
 
+def test_junior_mid_dual_level_is_not_a_hard_reject():
+    scored = score_job(job("Test Consultant (junior/mid)", "Playwright TypeScript SQL Postman"), cfg())
+    assert scored.rejected is False
+
+
+def test_junior_mentioned_elsewhere_without_mid_pairing_is_still_rejected():
+    scored = score_job(
+        job("QA Engineer", "Playwright TypeScript. We also hire junior testers for another team."),
+        cfg(),
+    )
+    assert scored.rejected is True
+    assert scored.reject_reason == "junior"
+
+
+def test_junior_with_high_hourly_salary_is_not_a_hard_reject():
+    j = job("Junior QA Engineer", "Playwright TypeScript")
+    j.salary_min, j.salary_max, j.salary_currency, j.salary_period = 100, 140, "PLN", "hour"
+    scored = score_job(j, cfg())
+    assert scored.rejected is False
+
+
+def test_junior_with_high_monthly_salary_is_not_a_hard_reject():
+    j = job("Junior QA Engineer", "Playwright TypeScript")
+    j.salary_min, j.salary_max, j.salary_currency, j.salary_period = 13000, 15000, "PLN", "month"
+    scored = score_job(j, cfg())
+    assert scored.rejected is False
+
+
+def test_junior_with_low_salary_is_still_a_hard_reject():
+    j = job("Junior QA Engineer", "Playwright TypeScript")
+    j.salary_min, j.salary_max, j.salary_currency, j.salary_period = 40, 50, "PLN", "hour"
+    scored = score_job(j, cfg())
+    assert scored.rejected is True
+
+
+def test_junior_with_high_non_pln_salary_is_still_a_hard_reject():
+    j = job("Junior QA Engineer", "Playwright TypeScript")
+    j.salary_min, j.salary_max, j.salary_currency, j.salary_period = 100, 140, "EUR", "hour"
+    scored = score_job(j, cfg())
+    assert scored.rejected is True
+
+
 def test_java_in_application_stack_is_not_a_hard_reject():
     scored = score_job(job("QA Engineer", "The application backend is written in Java. "
                             "Testers use Playwright, TypeScript, SQL and Postman."), cfg())

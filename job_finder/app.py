@@ -1,4 +1,5 @@
 import json
+import os
 import re
 from dataclasses import asdict
 from datetime import datetime, timedelta, timezone
@@ -15,6 +16,16 @@ from .cv_highlights import load_cv_highlights, match_highlights
 
 
 st.set_page_config(page_title="Michal Job Finder", layout="wide", initial_sidebar_state="collapsed")
+
+# Bridge Streamlit's own secret store into an env var, which is what
+# JobStore() actually reads (keeps storage.py itself framework-agnostic, so
+# it works unchanged from the CLI/tests too). No secrets.toml locally, or no
+# DATABASE_URL key in it -> silently falls back to a local SQLite file.
+try:
+    if "DATABASE_URL" in st.secrets:
+        os.environ["DATABASE_URL"] = st.secrets["DATABASE_URL"]
+except Exception:
+    pass
 
 
 def get_stats(store, cfg):

@@ -135,13 +135,18 @@ def _amount_number(raw):
 
 def _salary_period(text):
     value = (text or "").lower()
-    if value in {"hur", "h"}:
+    # "hur"/"yer" match schema.org's abbreviated unitCode ("HUR", UN/CEFACT).
+    # Sites commonly send the spelled-out unitText instead ("HOUR", "YEAR"),
+    # which these sets used to miss entirely — silently dropping the period
+    # (and with it the whole hourly-vs-monthly salary conversion) for any
+    # offer using that field.
+    if value in {"hur", "hour", "hours", "h"}:
         return "hour"
-    if value in {"day", "d"}:
+    if value in {"day", "days", "d"}:
         return "day"
-    if value in {"mon", "month"}:
+    if value in {"mon", "month", "months"}:
         return "month"
-    if value in {"yer", "year"}:
+    if value in {"yer", "ann", "annum", "year", "years"}:
         return "year"
     if re.search(r"(?:/\s*h\b|per hour|hourly|godzin|za godzin)", value):
         return "hour"

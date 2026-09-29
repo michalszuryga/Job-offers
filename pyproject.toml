@@ -6,7 +6,9 @@ build-backend = "setuptools.build_meta"
 name = "michal-job-finder"
 version = "0.1.0"
 requires-python = ">=3.11"
-dependencies = ["PyYAML>=6.0", "requests>=2.32", "beautifulsoup4>=4.12", "python-dateutil>=2.9", "streamlit>=1.40", "pandas>=2.2"]
+# Runtime dependencies live in requirements.txt only (that's what both local
+# `pip install -r requirements.txt` and the Streamlit Cloud deploy use) —
+# keeping a second copy here just let them drift out of sync with no benefit.
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
