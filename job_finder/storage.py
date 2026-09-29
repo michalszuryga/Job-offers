@@ -41,7 +41,7 @@ class JobStore:
             dsn = self.database_url
             if "sslmode=" not in dsn:
                 dsn = f"{dsn}{'&' if '?' in dsn else '?'}sslmode=require"
-            return psycopg2.connect(dsn)
+            return psycopg2.connect(dsn, connect_timeout=10)
         return sqlite3.connect(self.path)
 
     def _q(self, sql):

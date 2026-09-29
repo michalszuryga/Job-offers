@@ -406,11 +406,14 @@ def main():
             "No live offers are currently stored. Click 'Fetch live jobs' to "
             "collect current offers from the configured sources."
         )
-        st.caption(
-            "Note: the hosted MVP currently uses SQLite. Streamlit Cloud can "
-            "restart the app and reset local SQLite data. Persistent storage "
-            "will require an external database in the next hosting step."
-        )
+        if store.backend == "postgres":
+            st.caption("Data is stored in a persistent Postgres database and survives app restarts.")
+        else:
+            st.caption(
+                "Note: this instance is using a local SQLite file. Streamlit Cloud can "
+                "restart the app and reset local SQLite data — configure DATABASE_URL "
+                "in secrets to use a persistent database instead."
+            )
         st.divider()
         render_fetch_diagnostics()
         return
@@ -550,10 +553,21 @@ def main():
             DEFAULT_STATUSES,
             index=DEFAULT_STATUSES.index(job.get("application_status", "NEW")),
         )
+        new_rate = st.text_input(
+            "Rate you quoted them", value=job.get("applied_rate") or "",
+            placeholder="e.g. 120 PLN/h B2B, 15000 PLN UoP",
+        )
+        new_notice = st.text_input(
+            "Notice period you told them", value=job.get("notice_period") or "",
+            placeholder="e.g. 1 month, immediate",
+        )
+        if job.get("applied_at"):
+            st.caption(f'Applied: {format_published_at(job["applied_at"])}')
 
-        if st.button("Save status"):
+        if st.button("Save"):
             store.set_status(job["external_id"], new_status)
-            st.success("Status updated.")
+            store.save_application_details(job["external_id"], new_rate, new_notice)
+            st.success("Saved.")
             st.rerun()
 
         if job.get("ai_analysis"):

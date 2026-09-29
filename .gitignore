@@ -2,6 +2,8 @@ config/user_overrides.yaml
 .venv/
 __pycache__/
 *.py[cod]
+.DS_Store
+.claude/
 
 # Runtime data, not source: scraped offers + your own application tracking
 # (status, quoted rate, notice period). Never belongs in a public repo.

@@ -187,6 +187,7 @@ def test_get_soup_gives_up_after_repeated_failures(monkeypatch):
     except requests.ConnectionError:
         pass
 
+
 def test_structured_salary_recognizes_spelled_out_unit_text():
     # schema.org's baseSalary.value.unitText commonly comes spelled out
     # ("HOUR", "YEAR"), not as the abbreviated unitCode ("HUR", "ANN") —

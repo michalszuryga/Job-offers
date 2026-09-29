@@ -8,8 +8,7 @@ Personal job-search engine for collecting, scoring, analyzing and tracking QA jo
 - Application status tracking
 - Streamlit dashboard
 - Provider-agnostic AI analysis payload
-- SQLite persistence with lightweight migration
-- Docker/hosting-ready structure (deployment config to be added next)
+- Dual-backend persistence: SQLite locally, PostgreSQL (via `DATABASE_URL`) when hosted
 
 ## Run locally
 
@@ -28,11 +27,12 @@ Do not commit API keys, `.env` files or local databases.
 ## Hosted MVP
 
 Deploy `streamlit_app.py` to Streamlit Community Cloud. After deployment,
-open the app and click **Load demo data** to verify scoring, recency and
-application-status tracking.
+open the app and click **Fetch live jobs** to collect and score current offers.
 
-This hosted MVP uses SQLite for demonstration. Production persistence will move
-to PostgreSQL before automated job collection and application tracking are enabled.
+The hosted app uses PostgreSQL (Supabase) for persistence, configured via a
+`DATABASE_URL` secret — see `.streamlit/secrets.toml.example`. Without that
+secret set, the app falls back to a local SQLite file, which does not survive
+a Streamlit Cloud restart/redeploy.
 
 
 ## Live job sources
@@ -85,10 +85,10 @@ the active offers list.
 - Score calculation now correctly reads the nested candidate technology configuration.
 
 
-## Important: hosted SQLite
+## Persistence
 
-The hosted MVP currently uses a local SQLite database. Streamlit Cloud can
-restart/redeploy the app, which can reset local filesystem data. The dashboard
-therefore never blocks the live-fetch button just because the database is empty.
-For persistent job history, the next hosting step should move the database to
-PostgreSQL (or another external persistent database).
+The hosted app stores data in PostgreSQL (Supabase) so job history and
+application tracking (status, quoted rate, notice period) survive Streamlit
+Cloud restarts/redeploys. The dashboard never blocks the live-fetch button
+just because the database is empty. Without `DATABASE_URL` configured, the
+app falls back to a local SQLite file for local development.
