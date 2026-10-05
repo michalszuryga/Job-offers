@@ -110,6 +110,21 @@ class JobStore:
                 if column not in existing:
                     self._exec(conn, f"ALTER TABLE jobs ADD COLUMN {column} {definition}")
             self._exec(conn, f"UPDATE jobs SET last_seen_at=COALESCE(last_seen_at, {_NOW})")
+            self._exec(conn, "CREATE TABLE IF NOT EXISTS meta (meta_key TEXT PRIMARY KEY, meta_value TEXT)")
+
+    def get_meta(self, key, default=None):
+        with self._connect() as conn:
+            row = self._exec(conn, "SELECT meta_value FROM meta WHERE meta_key=?", (key,)).fetchone()
+        return row[0] if row else default
+
+    def set_meta(self, key, value):
+        with self._connect() as conn:
+            self._exec(
+                conn,
+                "INSERT INTO meta (meta_key, meta_value) VALUES (?, ?) "
+                "ON CONFLICT(meta_key) DO UPDATE SET meta_value=excluded.meta_value",
+                (key, value),
+            )
 
     _UPSERT_COLUMNS = ("external_id,title,company,url,source,description,location,remote,contract,"
                        "salary_min,salary_max,salary_currency,salary_period,seniority,published_at,score,recency_score,"

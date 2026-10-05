@@ -202,7 +202,7 @@ def render_scoring_controls(cfg):
             )
             minimum_score = st.slider(
                 "Minimum score to show", 0, 100,
-                int(filters.get("minimum_score_to_show", 55)), step=5,
+                int(filters.get("minimum_score_to_show", 0)), step=5,
             )
             high_match_threshold = st.slider(
                 "High match threshold", 0, 100,
@@ -306,6 +306,28 @@ def get_store():
     return JobStore()
 
 
+def format_last_fetch(iso_value):
+    if not iso_value:
+        return "Last fetch: never"
+    try:
+        moment = datetime.fromisoformat(iso_value)
+    except ValueError:
+        return f"Last fetch: {iso_value}"
+    try:
+        from zoneinfo import ZoneInfo
+        label = moment.astimezone(ZoneInfo("Europe/Warsaw")).strftime("%Y-%m-%d %H:%M")
+    except Exception:
+        label = moment.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    minutes = int((datetime.now(timezone.utc) - moment).total_seconds() // 60)
+    if minutes < 60:
+        age = f"{max(minutes, 0)} min ago"
+    elif minutes < 60 * 48:
+        age = f"{minutes // 60} h ago"
+    else:
+        age = f"{minutes // (60 * 24)} days ago"
+    return f"Last fetch: {label} ({age})"
+
+
 def main():
     st.title("Michal's Job Finder")
     st.caption("Hosted MVP - job matching, freshness scoring and application tracking.")
@@ -323,6 +345,7 @@ def main():
     col2.metric("High match", stats["high_match"])
     col3.metric("New", stats["new"])
     st.caption("Offer count includes remote jobs that passed hard exclusions; fetch diagnostics show listing candidates, parsed offers and exclusion reasons.")
+    st.caption(format_last_fetch(store.get_meta("last_fetch_at")))
 
     skip_sensitive = st.checkbox(
         "Skip rate-limit-sensitive sources (Pracuj.pl, No Fluff Jobs, CzyJestEldorado)",
@@ -383,6 +406,7 @@ def main():
 
         results = collect_live_jobs(on_source_fetched=_on_source_fetched, skip_sensitive=skip_sensitive)
         progress_box.empty()
+        store.set_meta("last_fetch_at", datetime.now(timezone.utc).isoformat(timespec="seconds"))
 
         st.session_state["last_fetch_results"] = [
             {

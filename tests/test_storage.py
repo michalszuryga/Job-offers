@@ -90,3 +90,12 @@ def test_upsert_never_resets_application_details_on_refetch(tmp_path):
     assert saved["application_status"] == "APPLIED"
     assert saved["applied_rate"] == "120 PLN/h"
     assert saved["notice_period"] == "2 weeks"
+
+
+def test_meta_roundtrip_and_overwrite(tmp_path):
+    store = JobStore(tmp_path / "jobs.db")
+    assert store.get_meta("last_fetch_at") is None
+    assert store.get_meta("last_fetch_at", "never") == "never"
+    store.set_meta("last_fetch_at", "2026-10-05T10:00:00+00:00")
+    store.set_meta("last_fetch_at", "2026-10-05T11:00:00+00:00")
+    assert store.get_meta("last_fetch_at") == "2026-10-05T11:00:00+00:00"
