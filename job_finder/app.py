@@ -509,9 +509,8 @@ def main():
         rows.append(
             {
                 "No.": i,
-                "New": "🆕" if j["url"] in newly_inserted else "",
                 "Score": j["score"],
-                "Title": j["title"],
+                "Title": ("🆕 " if j["url"] in newly_inserted else "") + j["title"],
                 "Salary": format_salary(j),
                 "Published": format_published_at(j.get("published_at")),
                 "Company": j.get("company") or "Brak w danych",
@@ -531,7 +530,6 @@ def main():
         hide_index=True,
         column_config={
             "No.": st.column_config.NumberColumn("No.", width="small"),
-            "New": st.column_config.TextColumn("New", width="small"),
             "Score": st.column_config.NumberColumn("Score", width="small"),
             "Title": st.column_config.TextColumn("Title", width="large"),
             "Salary": st.column_config.TextColumn("Salary", width="medium"),
