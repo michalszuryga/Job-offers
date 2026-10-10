@@ -1,9 +1,8 @@
 import argparse
-import os
 
 from .collector import run_fetch
 from .config import load_config, overrides_from_meta
-from .notify import build_summary, send_ntfy
+from .notify import build_summary, send_email
 from .scoring import score_job
 from .storage import JobStore
 from .sources.sample import SampleSource
@@ -42,13 +41,13 @@ def main():
             print(f"{r.name:<18} candidates={r.candidates:<4} inserted={r.inserted:<4} "
                   f"rejected={r.rejected:<4} expired={r.expired:<4} {r.seconds:6.1f}s  {status}")
     elif args.cmd == "notify-summary":
-        title, message = build_summary(store.new_since(args.hours), store.last_fetch_run(), hours=args.hours)
-        if send_ntfy(title, message, os.environ.get("APP_URL")):
-            print(f"Sent: {title}")
+        subject, text, html = build_summary(store.new_since(args.hours), store.last_fetch_run(), hours=args.hours)
+        if send_email(subject, text, html):
+            print(f"Sent: {subject}")
         else:
-            print("NTFY_TOPIC not set — summary not sent:")
-            print(title)
-            print(message)
+            print("SMTP_USER/SMTP_PASSWORD not set — summary not sent:")
+            print(subject)
+            print(text)
     else:
         for job in store.list(args.min_score, args.status):
             print(

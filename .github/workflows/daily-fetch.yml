@@ -62,6 +62,8 @@ jobs:
         # Still report when some sources failed — that's worth knowing too.
         if: always() && steps.gate.outputs.run == 'true'
         env:
-          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          SUMMARY_TO: ${{ vars.SUMMARY_TO }}
           APP_URL: ${{ vars.APP_URL }}
         run: python -m job_finder.cli notify-summary --hours 24

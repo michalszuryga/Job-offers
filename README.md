@@ -4,7 +4,7 @@
 
 Collects QA job offers from Polish and international job boards, scores them
 against a candidate profile, and tracks applications. Runs a scheduled fetch
-every evening and pushes a summary of new offers to your phone.
+every evening and e-mails a summary of new offers.
 
 ## What it does
 
@@ -18,7 +18,7 @@ every evening and pushes a summary of new offers to your phone.
   days without appearing on their board; anything you've triaged is kept.
 - **Tracking:** application status, the rate and notice period you quoted, CV
   highlights matched to each offer.
-- **Daily summary** at 18:00 Europe/Warsaw via [ntfy](https://ntfy.sh) push.
+- **Daily summary e-mail** at 18:00 Europe/Warsaw (Gmail SMTP).
 - **Web app** (`web/`, React + TypeScript) with magic-link sign-in, built for
   phone and laptop; the Streamlit dashboard is being phased out.
 
@@ -28,7 +28,7 @@ every evening and pushes a summary of new offers to your phone.
 GitHub Actions (18:00 daily) ──┐                                         ┌── Web app (GitHub Pages, Supabase Auth + RLS)
                                ├──► scrapers + scoring (Python) ──► Supabase Postgres
 Dashboard "Fetch live jobs" ───┘                                         ├── Streamlit dashboard (legacy)
-                                                                         └──► ntfy push summary
+                                                                         └──► e-mail summary
 ```
 
 - `job_finder/sources/` — one adapter per board, all returning the common `Job` model.
@@ -49,7 +49,7 @@ pip install -r requirements-dev.txt
 pytest -q
 streamlit run streamlit_app.py
 python -m job_finder.cli fetch          # one fetch from the terminal
-python -m job_finder.cli notify-summary # prints the summary if NTFY_TOPIC is unset
+python -m job_finder.cli notify-summary # prints the summary if SMTP_USER is unset
 ```
 
 Without `DATABASE_URL` everything runs against a local `jobs.db` SQLite file.
@@ -84,11 +84,10 @@ settings add:
 | Kind | Name | Value |
 |---|---|---|
 | Secret | `DATABASE_URL` | same Supabase session-pooler URL as the dashboard |
-| Secret | `NTFY_TOPIC` | a long random string, e.g. `joffers-` + 24 random characters |
-| Variable | `APP_URL` | dashboard URL (opened when you tap the notification) |
-
-Then install the ntfy app on your phone and subscribe to the same topic. The
-topic name is the only thing protecting the feed, so keep it random and secret.
+| Secret | `SMTP_USER` | Gmail address the summary is sent from |
+| Secret | `SMTP_PASSWORD` | a Gmail app password (myaccount.google.com/apppasswords) |
+| Variable | `SUMMARY_TO` | recipient; defaults to `SMTP_USER` |
+| Variable | `APP_URL` | web app URL, linked at the bottom of the e-mail |
 Run it once by hand from *Actions → Daily fetch → Run workflow*.
 
 GitHub pauses scheduled workflows after 60 days without repository activity.

@@ -14,7 +14,7 @@ the way the author does today.
 ## Stage 2 — fetch in the background ✅
 - [x] Scheduled fetch in GitHub Actions at 18:00 Europe/Warsaw
 - [x] Fetch history stored in the database (diagnostics survive reloads)
-- [x] Daily push summary via ntfy
+- [x] Daily summary e-mail (Gmail SMTP)
 - [ ] Check whether boards block GitHub-hosted runners; mitigate if they do
 - [ ] Alert when a source returns nothing for several runs in a row
 
