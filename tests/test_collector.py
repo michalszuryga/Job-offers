@@ -128,3 +128,44 @@ def test_collect_live_jobs_seeds_dedup_from_existing_rows(monkeypatch, tmp_path)
     by_name = {r.name: r for r in results}
     assert by_name["CzyJestEldorado"].inserted == 0
     assert by_name["CzyJestEldorado"].duplicate == 1
+
+
+def test_fetch_expires_only_offers_gone_from_a_loaded_listing(monkeypatch, tmp_path):
+    db = tmp_path / "jobs.db"
+    store = JobStore(str(db))
+    still_listed = Job("QA Known", "A", "https://justjoin.it/job-offer/known", "JustJoin.IT")
+    gone = Job("QA Gone", "B", "https://justjoin.it/job-offer/gone", "JustJoin.IT")
+    blocked_source_job = Job("QA Pracuj", "C", "https://pracuj.pl/oferta/1", "Pracuj.pl")
+    for job in (still_listed, gone, blocked_source_job):
+        store.upsert(job)
+    import sqlite3
+    with sqlite3.connect(db) as conn:
+        conn.execute("UPDATE jobs SET last_seen_at='2020-01-01 00:00:00'")
+
+    class _SkipsKnown:
+        name = "JustJoin.IT"
+        sensitive = False
+
+        def fetch(self, known_urls=None):
+            # Like the real boards: the known offer is on the listing but skipped.
+            assert still_listed.external_id in known_urls
+            self.candidates, self.parsed = 1, 0
+            return []
+
+    class _Blocked:
+        name = "Pracuj.pl"
+        sensitive = False
+
+        def fetch(self, known_urls=None):
+            raise RuntimeError("403")
+
+    for attr in ("NoFluffSource", "RemoteOKSource", "WeWorkRemotelySource",
+                 "BulldogJobSource", "TestDevJobsSource", "EldoradoSource"):
+        monkeypatch.setattr(collector_mod, attr, lambda: _fake_source("x", []))
+    monkeypatch.setattr(collector_mod, "JustJoinSource", _SkipsKnown)
+    monkeypatch.setattr(collector_mod, "PracujSource", _Blocked)
+
+    results = collector_mod.collect_live_jobs(store=store)
+    remaining = {row["external_id"] for row in store.list_all()}
+    assert remaining == {still_listed.external_id, blocked_source_job.external_id}
+    assert next(r for r in results if r.name == "JustJoin.IT").expired == 1

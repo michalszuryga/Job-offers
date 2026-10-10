@@ -6,7 +6,7 @@ from pathlib import Path
 from .models import Job, canonical_job_url
 
 
-DEFAULT_STATUSES = ["NEW", "REVIEW", "INTERESTED", "CV_GENERATED", "READY_TO_APPLY", "APPLIED", "INTERVIEW", "REJECTED", "WITHDRAWN"]
+DEFAULT_STATUSES = ["TO_REVIEW", "REVIEW", "INTERESTED", "CV_GENERATED", "READY_TO_APPLY", "APPLIED", "INTERVIEW", "REJECTED", "WITHDRAWN"]
 
 # All timestamp columns are plain TEXT (matches how SQLite already stores
 # job.published_at.isoformat() etc.). SQLite's CURRENT_TIMESTAMP already
@@ -84,7 +84,7 @@ class JobStore:
                     description TEXT, location TEXT, remote INTEGER, contract TEXT, salary_min REAL,
                     salary_max REAL, salary_currency TEXT, salary_period TEXT DEFAULT '', seniority TEXT, published_at TEXT,
                     score REAL, recency_score REAL DEFAULT 0, matched_keywords TEXT, penalties TEXT,
-                    application_status TEXT DEFAULT 'NEW', ai_analysis TEXT, tailored_cv_path TEXT,
+                    application_status TEXT DEFAULT 'TO_REVIEW', ai_analysis TEXT, tailored_cv_path TEXT,
                     first_seen_at TEXT DEFAULT ({now}), last_seen_at TEXT DEFAULT ({now}),
                     analyzed_at TEXT
                 )""".format(now=_NOW),
@@ -93,7 +93,7 @@ class JobStore:
             existing = self._existing_columns(conn)
             migrations = {
                 "recency_score": "REAL DEFAULT 0",
-                "application_status": "TEXT DEFAULT 'NEW'",
+                "application_status": "TEXT DEFAULT 'TO_REVIEW'",
                 "ai_analysis": "TEXT",
                 "tailored_cv_path": "TEXT",
                 "last_seen_at": "TEXT",
@@ -110,12 +110,20 @@ class JobStore:
                 if column not in existing:
                     self._exec(conn, f"ALTER TABLE jobs ADD COLUMN {column} {definition}")
             self._exec(conn, f"UPDATE jobs SET last_seen_at=COALESCE(last_seen_at, {_NOW})")
+            # "NEW" used to mean "not triaged yet"; it now reads as "new in the
+            # last fetch" in the UI, so the untouched state was renamed.
+            self._exec(conn, "UPDATE jobs SET application_status='TO_REVIEW' "
+                             "WHERE application_status='NEW' OR application_status IS NULL")
             self._exec(conn, "CREATE TABLE IF NOT EXISTS meta (meta_key TEXT PRIMARY KEY, meta_value TEXT)")
 
     def get_meta(self, key, default=None):
         with self._connect() as conn:
             row = self._exec(conn, "SELECT meta_value FROM meta WHERE meta_key=?", (key,)).fetchone()
         return row[0] if row else default
+
+    def get_all_meta(self):
+        with self._connect() as conn:
+            return dict(self._exec(conn, "SELECT meta_key, meta_value FROM meta").fetchall())
 
     def set_meta(self, key, value):
         with self._connect() as conn:
@@ -130,15 +138,19 @@ class JobStore:
                        "salary_min,salary_max,salary_currency,salary_period,seniority,published_at,score,recency_score,"
                        "matched_keywords,penalties,application_status,first_seen_at,last_seen_at,rejected,reject_reason,score_breakdown")
 
-    _UPSERT_CONFLICT_CLAUSE = """ON CONFLICT(external_id) DO UPDATE SET
-                title=excluded.title, company=excluded.company, description=excluded.description,
+    _CONFLICT_SET = """title=excluded.title, company=excluded.company, description=excluded.description,
                 location=excluded.location, remote=excluded.remote, contract=excluded.contract,
                 salary_min=excluded.salary_min, salary_max=excluded.salary_max, salary_currency=excluded.salary_currency,
                 salary_period=excluded.salary_period,
                 seniority=excluded.seniority, published_at=excluded.published_at, score=excluded.score,
                 recency_score=excluded.recency_score, matched_keywords=excluded.matched_keywords,
-                penalties=excluded.penalties, last_seen_at={now}, rejected=excluded.rejected,
-                reject_reason=excluded.reject_reason, score_breakdown=excluded.score_breakdown""".format(now=_NOW)
+                penalties=excluded.penalties, rejected=excluded.rejected,
+                reject_reason=excluded.reject_reason, score_breakdown=excluded.score_breakdown"""
+
+    # last_seen_at drives expiry, so only a real fetch may bump it — a rescore
+    # after a config change must not make every stored offer look freshly seen.
+    _UPSERT_CONFLICT_CLAUSE = f"ON CONFLICT(external_id) DO UPDATE SET {_CONFLICT_SET}, last_seen_at={_NOW}"
+    _RESCORE_CONFLICT_CLAUSE = f"ON CONFLICT(external_id) DO UPDATE SET {_CONFLICT_SET}"
 
     # 20 values supplied per row, then the two server-side NOW() timestamps,
     # then 3 more supplied values — see _upsert_params()'s 23-item tuple.
@@ -164,7 +176,7 @@ class JobStore:
             self._exec(conn, self._UPSERT_SQL, self._upsert_params(job))
         return old is None
 
-    def upsert_many(self, jobs):
+    def upsert_many(self, jobs, touch_last_seen=True):
         """Like upsert(), but as one bulk statement instead of one round trip
         per row — critical for refresh_scores_for_config(), which can rewrite
         hundreds of rows at once. A per-row loop (even reusing one connection)
@@ -173,21 +185,58 @@ class JobStore:
         rows into a multi-minute wait. Postgres gets a true multi-row INSERT
         via execute_values (1-2 round trips total); SQLite (no meaningful
         per-call latency) just loops with a single connection."""
-        jobs = list(jobs)
+        # Postgres rejects one statement touching the same row twice, and a
+        # stable key order keeps two concurrent bulk writers from deadlocking.
+        unique = {job.external_id: job for job in jobs}
+        jobs = [unique[key] for key in sorted(unique)]
         if not jobs:
             return
+        conflict = self._UPSERT_CONFLICT_CLAUSE if touch_last_seen else self._RESCORE_CONFLICT_CLAUSE
         if self.backend == "postgres":
             from psycopg2.extras import execute_values
 
-            sql = f"INSERT INTO jobs ({self._UPSERT_COLUMNS}) VALUES %s {self._UPSERT_CONFLICT_CLAUSE}"
+            sql = f"INSERT INTO jobs ({self._UPSERT_COLUMNS}) VALUES %s {conflict}"
             template = self._q(self._UPSERT_ROW_TEMPLATE)
             with self._connect() as conn:
                 cur = conn.cursor()
                 execute_values(cur, sql, [self._upsert_params(job) for job in jobs], template=template)
         else:
+            sql = f"INSERT INTO jobs ({self._UPSERT_COLUMNS}) VALUES {self._UPSERT_ROW_TEMPLATE} {conflict}"
             with self._connect() as conn:
                 for job in jobs:
-                    self._exec(conn, self._UPSERT_SQL, self._upsert_params(job))
+                    self._exec(conn, sql, self._upsert_params(job))
+
+    def touch_seen(self, external_ids):
+        """Mark offers as still listed on their board. Sources skip already-known
+        offers without re-parsing them, so without this their last_seen_at
+        would go stale and they would be expired while still live."""
+        ids = sorted(set(external_ids))
+        if not ids:
+            return
+        with self._connect() as conn:
+            if self.backend == "postgres":
+                self._exec(conn, f"UPDATE jobs SET last_seen_at={_NOW} WHERE external_id = ANY(?)", (ids,))
+            else:
+                for start in range(0, len(ids), 500):
+                    chunk = ids[start:start + 500]
+                    marks = ",".join("?" * len(chunk))
+                    self._exec(conn, f"UPDATE jobs SET last_seen_at={_NOW} WHERE external_id IN ({marks})", chunk)
+
+    def delete_expired(self, source, older_than_days=3):
+        """Drop offers of `source` not seen on its listing for N days. Only
+        untouched (TO_REVIEW) offers go — anything you've triaged or applied
+        to is kept, even after the posting disappears."""
+        if self.backend == "postgres":
+            cutoff = f"CAST(CURRENT_TIMESTAMP - INTERVAL '{int(older_than_days)} days' AS TEXT)"
+        else:
+            cutoff = f"datetime('now', '-{int(older_than_days)} days')"
+        with self._connect() as conn:
+            cur = self._exec(
+                conn,
+                f"DELETE FROM jobs WHERE source=? AND application_status='TO_REVIEW' AND last_seen_at < {cutoff}",
+                (source,),
+            )
+            return cur.rowcount
 
     def list(self, min_score=0, status=None, limit=None, remote_only=False):
         sql = "SELECT * FROM jobs WHERE score>=? AND COALESCE(rejected, 0)=0"

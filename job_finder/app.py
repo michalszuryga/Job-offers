@@ -28,8 +28,19 @@ except Exception:
     pass
 
 
-def get_stats(store, cfg):
-    jobs = store.list(0, remote_only=cfg.get("filters", {}).get("remote_only", False))
+def filter_jobs(rows, cfg, min_score=0, status=None):
+    """Rows come pre-sorted from the snapshot; this keeps that order."""
+    remote_only = cfg.get("filters", {}).get("remote_only", False)
+    return [
+        r for r in rows
+        if float(r.get("score") or 0) >= min_score
+        and (not remote_only or r.get("remote") == 1)
+        and (status is None or r.get("application_status") == status)
+    ]
+
+
+def get_stats(rows, cfg, new_ids):
+    jobs = filter_jobs(rows, cfg)
     return {
         "jobs": jobs,
         "offers": len(jobs),
@@ -37,8 +48,15 @@ def get_stats(store, cfg):
             float(j.get("score") or 0) >= cfg["filters"]["high_match_threshold"]
             for j in jobs
         ),
-        "new": sum(j.get("application_status", "NEW") == "NEW" for j in jobs),
+        "new": sum(j["external_id"] in new_ids for j in jobs),
     }
+
+
+def new_ids_from(meta):
+    try:
+        return set(json.loads(meta.get("last_fetch_new_ids") or "[]"))
+    except json.JSONDecodeError:
+        return set()
 
 
 def format_published_at(value):
@@ -136,12 +154,17 @@ def format_description(text):
     return text.strip()
 
 
-def refresh_scores_for_config(store, cfg):
-    """Reapply changed filters and scoring rules to existing rows once per session/config."""
+def refresh_scores_for_config(store, cfg, meta):
+    """Reapply changed scoring rules to stored rows. The signature lives in the
+    DB, so this runs once per actual config change — not once per new browser
+    session (every phone visit or new tab used to rescore the whole table)."""
     scoring_inputs = {key: cfg.get(key) for key in ("candidate", "scoring", "filters", "hard_exclusions")}
     signature = json.dumps(scoring_inputs, sort_keys=True, ensure_ascii=False)
     if st.session_state.get("score_config_signature") == signature:
-        return
+        return False
+    if meta.get("score_config_signature") == signature:
+        st.session_state["score_config_signature"] = signature
+        return False
 
     rescored = []
     for row in store.list_all():
@@ -162,8 +185,11 @@ def refresh_scores_for_config(store, cfg):
                   seniority=row.get("seniority") or "",
                   published_at=published_at)
         rescored.append(score_job(job, cfg))
-    store.upsert_many(rescored)
+    store.upsert_many(rescored, touch_last_seen=False)
+    store.set_meta("score_config_signature", signature)
     st.session_state["score_config_signature"] = signature
+    load_snapshot.clear()
+    return True
 
 
 def render_scoring_controls(cfg):
@@ -274,6 +300,7 @@ def render_fetch_diagnostics():
             "Updated": result["updated"],
             "Rejected": result["rejected"],
             "Duplicate": result.get("duplicate", 0),
+            "Expired": result.get("expired", 0),
             "Seconds": result["seconds"],
         })
 
@@ -296,7 +323,7 @@ def render_fetch_diagnostics():
 
 
 @st.cache_resource
-def get_store():
+def get_store(_class_id):
     # Streamlit reruns this whole script on every interaction (any click,
     # slider drag, etc). Without caching, JobStore() would reopen a fresh
     # Postgres connection and rerun its migration checks (including a
@@ -304,6 +331,15 @@ def get_store():
     # any network hiccup between Streamlit Cloud and the DB host. Caching
     # means that work happens once per container lifetime instead.
     return JobStore()
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def load_snapshot(_store):
+    """Every widget interaction reruns the script; reading from the DB each
+    time (4 round trips, full table) made every click slow on Cloud. One cached
+    read instead, cleared after any write and refreshed at most every 5 min
+    to pick up writes from another instance (e.g. local dev)."""
+    return {"jobs": _store.list(0), "meta": _store.get_all_meta()}
 
 
 def format_last_fetch(iso_value):
@@ -334,18 +370,23 @@ def main():
 
     cfg = load_config()
     cfg = render_scoring_controls(cfg)
-    store = get_store()
-    refresh_scores_for_config(store, cfg)
+    # Keyed on the class object so a hot code reload on Cloud (new JobStore
+    # class) gets a fresh instance instead of a cached one missing new methods.
+    store = get_store(id(JobStore))
+    snapshot = load_snapshot(store)
+    if refresh_scores_for_config(store, cfg, snapshot["meta"]):
+        snapshot = load_snapshot(store)
+    new_ids = new_ids_from(snapshot["meta"])
 
-    stats = get_stats(store, cfg)
+    stats = get_stats(snapshot["jobs"], cfg, new_ids)
 
     # Counters are always calculated from the current database state.
     col1, col2, col3 = st.columns(3)
     col1.metric("Eligible offers", stats["offers"])
     col2.metric("High match", stats["high_match"])
-    col3.metric("New", stats["new"])
+    col3.metric("New in last fetch", stats["new"])
     st.caption("Offer count includes remote jobs that passed hard exclusions; fetch diagnostics show listing candidates, parsed offers and exclusion reasons.")
-    st.caption(format_last_fetch(store.get_meta("last_fetch_at")))
+    st.caption(format_last_fetch(snapshot["meta"].get("last_fetch_at")))
 
     skip_sensitive = st.checkbox(
         "Skip rate-limit-sensitive sources (Pracuj.pl, No Fluff Jobs, CzyJestEldorado)",
@@ -404,9 +445,11 @@ def main():
                         column_config={"Offer link": st.column_config.LinkColumn("Offer link", display_text="Open")},
                     )
 
-        results = collect_live_jobs(on_source_fetched=_on_source_fetched, skip_sensitive=skip_sensitive)
+        results = collect_live_jobs(on_source_fetched=_on_source_fetched, skip_sensitive=skip_sensitive, store=store)
         progress_box.empty()
         store.set_meta("last_fetch_at", datetime.now(timezone.utc).isoformat(timespec="seconds"))
+        store.set_meta("last_fetch_new_ids", json.dumps(sorted({url for r in results for url in r.inserted_urls})))
+        load_snapshot.clear()
 
         st.session_state["last_fetch_results"] = [
             {
@@ -416,6 +459,7 @@ def main():
                 "updated": r.updated,
                 "rejected": r.rejected,
                 "duplicate": r.duplicate,
+                "expired": r.expired,
                 "candidates": r.candidates,
                 "parsed": r.parsed,
                 "skipped_known": r.skipped_known,
@@ -426,17 +470,11 @@ def main():
             }
             for r in results
         ]
-        # Remembered until the next fetch, so newly inserted offers can be
-        # marked "NEW" in the table below regardless of how they're sorted/filtered.
-        st.session_state["newly_inserted_urls"] = {url for r in results for url in r.inserted_urls}
-
         # Explicitly re-read the database after collection before rerunning.
         # This makes the next render use the newly inserted rows.
         st.success("Live offers fetched.")
         st.rerun()
 
-    # Re-read after possible actions. Never use the pre-fetch snapshot here.
-    stats = get_stats(store, cfg)
 
     if not stats["jobs"]:
         st.info(
@@ -482,11 +520,7 @@ def main():
     # it in this order (rather than capping in SQL first) means a tight
     # published-window filter can't hide offers that were pushed out by the
     # cap before it had a chance to see them.
-    matching = store.list(
-        min_score,
-        None if status == "ALL" else status,
-        remote_only=cfg.get("filters", {}).get("remote_only", False),
-    )
+    matching = filter_jobs(snapshot["jobs"], cfg, min_score, None if status == "ALL" else status)
     matching = filter_by_published_window(matching, published_window)
     jobs = matching[: int(limit)]
     if published_window != "Any time":
@@ -502,15 +536,13 @@ def main():
         render_fetch_diagnostics()
         return
 
-    newly_inserted = st.session_state.get("newly_inserted_urls", set())
-
     rows = []
     for i, j in enumerate(jobs, start=1):
         rows.append(
             {
                 "No.": i,
                 "Score": j["score"],
-                "Title": ("🆕 " if j["url"] in newly_inserted else "") + j["title"],
+                "Title": ("🆕 " if j["external_id"] in new_ids else "") + j["title"],
                 "Salary": format_salary(j),
                 "Published": format_published_at(j.get("published_at")),
                 "Company": j.get("company") or "Brak w danych",
@@ -520,7 +552,7 @@ def main():
                 "Freshness points (0-10)": j.get("recency_score", 0),
                 "Location": j["location"],
                 "Contract": j["contract"],
-                "Status": j.get("application_status", "NEW"),
+                "Status": j.get("application_status") or "TO_REVIEW",
             }
         )
 
@@ -586,7 +618,7 @@ def main():
         new_status = st.selectbox(
             "Status",
             DEFAULT_STATUSES,
-            index=DEFAULT_STATUSES.index(job.get("application_status", "NEW")),
+            index=DEFAULT_STATUSES.index(job.get("application_status") or "TO_REVIEW"),
         )
         new_rate = st.text_input(
             "Rate you quoted them", value=job.get("applied_rate") or "",
@@ -602,6 +634,7 @@ def main():
         if st.button("Save"):
             store.set_status(job["external_id"], new_status)
             store.save_application_details(job["external_id"], new_rate, new_notice)
+            load_snapshot.clear()
             st.success("Saved.")
             st.rerun()
 

@@ -99,3 +99,56 @@ def test_meta_roundtrip_and_overwrite(tmp_path):
     store.set_meta("last_fetch_at", "2026-10-05T10:00:00+00:00")
     store.set_meta("last_fetch_at", "2026-10-05T11:00:00+00:00")
     assert store.get_meta("last_fetch_at") == "2026-10-05T11:00:00+00:00"
+
+
+def _set_last_seen(db_path, external_id, value):
+    import sqlite3
+    with sqlite3.connect(db_path) as conn:
+        conn.execute("UPDATE jobs SET last_seen_at=? WHERE external_id=?", (value, external_id))
+
+
+def _last_seen(db_path, external_id):
+    import sqlite3
+    with sqlite3.connect(db_path) as conn:
+        return conn.execute("SELECT last_seen_at FROM jobs WHERE external_id=?", (external_id,)).fetchone()[0]
+
+
+def test_legacy_new_status_is_migrated_to_to_review(tmp_path):
+    import sqlite3
+    db = tmp_path / "jobs.db"
+    store = JobStore(db)
+    store.upsert(Job("QA Engineer", "Example", "https://example.com/jobs/1", "test"))
+    with sqlite3.connect(db) as conn:
+        conn.execute("UPDATE jobs SET application_status='NEW'")
+    JobStore(db)
+    assert store.list()[0]["application_status"] == "TO_REVIEW"
+
+
+def test_rescore_does_not_refresh_last_seen(tmp_path):
+    db = tmp_path / "jobs.db"
+    store = JobStore(db)
+    job = Job("QA Engineer", "Example", "https://example.com/jobs/1", "test")
+    store.upsert(job)
+    _set_last_seen(db, job.external_id, "2020-01-01 00:00:00")
+    store.upsert_many([job], touch_last_seen=False)
+    assert _last_seen(db, job.external_id) == "2020-01-01 00:00:00"
+    store.upsert_many([job])
+    assert _last_seen(db, job.external_id) > "2020-01-01 00:00:00"
+
+
+def test_delete_expired_keeps_triaged_and_recently_seen(tmp_path):
+    db = tmp_path / "jobs.db"
+    store = JobStore(db)
+    stale = Job("QA 1", "A", "https://example.com/jobs/1", "src")
+    applied = Job("QA 2", "B", "https://example.com/jobs/2", "src")
+    touched = Job("QA 3", "C", "https://example.com/jobs/3", "src")
+    other_source = Job("QA 4", "D", "https://example.com/jobs/4", "other")
+    for job in (stale, applied, touched, other_source):
+        store.upsert(job)
+        _set_last_seen(db, job.external_id, "2020-01-01 00:00:00")
+    store.set_status(applied.external_id, "APPLIED")
+    store.touch_seen([touched.external_id])
+
+    assert store.delete_expired("src", older_than_days=3) == 1
+    remaining = {row["external_id"] for row in store.list_all()}
+    assert remaining == {applied.external_id, touched.external_id, other_source.external_id}

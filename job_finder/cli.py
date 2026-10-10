@@ -32,7 +32,7 @@ def main():
             print(
                 f"[{job['score']:>5}] {job['title']} — {job['company']}\n"
                 f"  {job['location']} | {job['contract']} | freshness +{job.get('recency_score', 0)} | "
-                f"{job.get('application_status', 'NEW')}\n  {job['url']}"
+                f"{job.get('application_status', 'TO_REVIEW')}\n  {job['url']}"
             )
 
 

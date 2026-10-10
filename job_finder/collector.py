@@ -31,7 +31,22 @@ class SourceResult:
     seconds: float = 0.0
     error: str = ""
     error_type: str = ""
+    expired: int = 0
     inserted_urls: list = field(default_factory=list)
+
+
+class _SeenRecorder(set):
+    """known_urls stand-in that records every URL a source checks against it,
+    i.e. every offer still on its listing — including known ones it skips
+    without re-parsing, which would otherwise never be marked as still live."""
+
+    def __init__(self, known):
+        super().__init__(known)
+        self.asked = set()
+
+    def __contains__(self, item):
+        self.asked.add(item)
+        return super().__contains__(item)
 
 
 def _fetch_and_score(source, cfg, known_urls):
@@ -74,9 +89,10 @@ SOURCE_COUNT = 8
 SENSITIVE_SOURCE_COUNT = 3  # Pracuj.pl, No Fluff Jobs, CzyJestEldorado
 
 
-def collect_live_jobs(config_path="config/profile.yaml", on_source_fetched=None, skip_sensitive=False):
+def collect_live_jobs(config_path="config/profile.yaml", on_source_fetched=None, skip_sensitive=False,
+                      store=None, expire_after_days=3):
     cfg = load_config(config_path)
-    store = JobStore()
+    store = store or JobStore()
     sources = [
         NoFluffSource(), PracujSource(), JustJoinSource(),
         RemoteOKSource(), WeWorkRemotelySource(), BulldogJobSource(), TestDevJobsSource(),
@@ -92,6 +108,7 @@ def collect_live_jobs(config_path="config/profile.yaml", on_source_fetched=None,
     # protection happy) once the first cold run has populated the store.
     existing_rows = store.list_all()
     known_urls = {row["url"] for row in existing_rows}
+    known_ids = {row["external_id"] for row in existing_rows}
     # Aggregators (e.g. CzyJestEldorado) re-host postings that already exist
     # under a different URL on a direct board — URL-based known_urls can't
     # catch that, so seed a title+company dedup set from what's already stored.
@@ -110,9 +127,10 @@ def collect_live_jobs(config_path="config/profile.yaml", on_source_fetched=None,
     # order, not the list order above — e.g. if an aggregator happens to finish
     # first, its copy is what gets kept and the direct board's is the duplicate.
     results = []
+    recorders = {source: _SeenRecorder(known_urls) for source in sources}
     with ThreadPoolExecutor(max_workers=len(sources)) as executor:
         futures = {
-            executor.submit(_fetch_and_score, source, cfg, known_urls): source
+            executor.submit(_fetch_and_score, source, cfg, recorders[source]): source
             for source in sources
         }
         for future in as_completed(futures):
@@ -123,15 +141,16 @@ def collect_live_jobs(config_path="config/profile.yaml", on_source_fetched=None,
             rejected_by_reason = {}
             inserted_urls = []
             new_jobs = []
+            to_store = []
             for scored in raw["scored_jobs"]:
                 if getattr(scored, "rejected", False):
                     rejected += 1
                     reason = scored.reject_reason or "Unknown"
                     rejected_by_reason[reason] = rejected_by_reason.get(reason, 0) + 1
                     # Store rejected offers too (hidden from the dashboard by
-                    # store.list()'s rejected=0 filter) so their URL is known
-                    # next time and its detail page doesn't need re-fetching.
-                    store.upsert(scored)
+                    # the rejected=0 filter) so their URL is known next time
+                    # and its detail page doesn't need re-fetching.
+                    to_store.append(scored)
                     continue
 
                 key = dedup_key(scored.title, scored.company)
@@ -140,14 +159,26 @@ def collect_live_jobs(config_path="config/profile.yaml", on_source_fetched=None,
                     continue
                 seen_dedup_keys.add(key)
 
-                existed = store.contains(scored.url)
-                store.upsert(scored)
-                if existed:
+                to_store.append(scored)
+                if scored.external_id in known_ids:
                     updated += 1
                 else:
+                    known_ids.add(scored.external_id)
                     inserted += 1
                     inserted_urls.append(scored.external_id)
                     new_jobs.append(scored)
+
+            # One bulk write per source: per-offer writes cost a full network
+            # round trip each against a remote Postgres.
+            store.upsert_many(to_store)
+            expired = 0
+            listing_ok = raw["candidates"] > 0 and raw["error_type"] in ("", "OfferParseError")
+            if listing_ok:
+                seen = recorders[source].asked | {job.external_id for job in raw["scored_jobs"]}
+                store.touch_seen(seen)
+                # Only for a source whose listing actually loaded — a blocked or
+                # failed source would otherwise make all its offers look expired.
+                expired = store.delete_expired(source.name, expire_after_days)
 
             result = SourceResult(
                 name=source.name,
@@ -163,6 +194,7 @@ def collect_live_jobs(config_path="config/profile.yaml", on_source_fetched=None,
                 seconds=raw["seconds"],
                 error=raw["error"],
                 error_type=raw["error_type"],
+                expired=expired,
                 inserted_urls=inserted_urls,
             )
             results.append(result)
