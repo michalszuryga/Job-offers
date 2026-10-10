@@ -1,0 +1,193 @@
+/* Reset and document defaults. Everything here reads tokens; components live in app.css. */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+* {
+  margin: 0;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  /* Keeps focused/anchored elements clear of the sticky app bar (WCAG 2.4.11). */
+  scroll-padding-top: var(--sticky-h);
+  accent-color: var(--brand);
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  min-height: 100dvh;
+  background: var(--canvas);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  font-weight: var(--fw-body);
+  font-optical-sizing: auto;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Sheets and the phone details view lock the page behind them (used from P5).
+   Two rules: Firefox 120 has no :has() and would drop a shared selector list. */
+html:has(dialog[open]) {
+  overflow: hidden;
+}
+
+html.details-open {
+  overflow: hidden;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  text-wrap: balance;
+}
+
+p,
+li {
+  text-wrap: pretty;
+}
+
+h1,
+h2,
+h3,
+h4,
+p,
+li {
+  overflow-wrap: break-word;
+}
+
+ul,
+ol {
+  padding: 0;
+}
+
+img,
+picture,
+svg,
+video,
+canvas {
+  display: block;
+  max-width: 100%;
+}
+
+/* Numbers line up in lists and tables. */
+table,
+time,
+data,
+output,
+progress,
+meter {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Element defaults below sit in :where() (zero specificity), so any component class
+   overrides them regardless of source order. */
+:where(a) {
+  color: var(--brand);
+  text-underline-offset: 0.2em;
+}
+
+:where(button, input, select, textarea) {
+  font: inherit;
+  color: inherit;
+  letter-spacing: inherit;
+}
+
+:where(button, [role='button'], label[for], select, summary) {
+  cursor: pointer;
+}
+
+:where(:disabled) {
+  cursor: not-allowed;
+}
+
+/* Fields: 16px so iOS never zooms, borders strong enough for 1.4.11 (≥3:1). */
+:where(input:not([type='checkbox'], [type='radio'], [type='range'], [type='color']), select, textarea) {
+  font-size: var(--fs-input);
+  line-height: var(--lh-body);
+  min-height: var(--control-h);
+  padding: 0 var(--space-3);
+  background-color: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-md);
+  transition: border-color var(--dur-fast) var(--ease-out);
+}
+
+:where(textarea) {
+  padding-block: var(--space-2);
+}
+
+/* Separate rules: a selector list with an unknown -webkit- pseudo would be dropped whole in Firefox. */
+:where(input[type='search']) {
+  appearance: none;
+}
+
+:where(input[type='search'])::-webkit-search-decoration {
+  appearance: none;
+}
+
+::placeholder {
+  color: var(--fg-muted);
+  opacity: 1;
+}
+
+/* Native select drawn flat with a CSS caret, so no image (or colour literal) is needed.
+   One conic wedge rather than two half-gradients: those left a hairline seam at fractional DPRs. */
+:where(select) {
+  appearance: none;
+  padding-inline-end: var(--space-8);
+  background-image: conic-gradient(from -45deg at 50% 100%, var(--fg-muted) 90deg, transparent 0);
+  background-position: right 13px center;
+  background-size: 10px 5px;
+  background-repeat: no-repeat;
+  text-overflow: ellipsis;
+}
+
+@media (hover: hover) {
+  :where(input:not([type='checkbox'], [type='radio'], [type='range'], [type='color']), select, textarea):hover {
+    border-color: var(--fg-muted);
+  }
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+:where(input, select, textarea):focus-visible {
+  border-color: var(--focus);
+}
+
+/* Minimum targets: 32px with a mouse, 44px on touch. */
+:where(button, .button) {
+  min-height: var(--target);
+}
+
+::selection {
+  background: var(--brand-tint);
+  color: var(--fg);
+}
+
+[hidden] {
+  display: none !important;
+}
+
+/* Reduced motion: transitions already shrink to ≤100ms fades through the tokens (--dur-*,
+   --lift, --press), so components must animate with them. Keyframes and smooth scrolling
+   usually mean movement, so they are cut outright. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+}

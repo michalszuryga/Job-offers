@@ -25,6 +25,12 @@ jobs:
     defaults:
       run:
         working-directory: web
+    # Supabase is mocked at the network level, so no secrets are needed: the
+    # build uses the same fake project and base path as playwright.config.ts.
+    env:
+      VITE_SUPABASE_URL: http://supabase.test
+      VITE_SUPABASE_PUBLISHABLE_KEY: test-publishable-key
+      BASE_PATH: /Job-offers/
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -34,9 +40,14 @@ jobs:
           cache-dependency-path: web/package-lock.json
       - run: npm ci
       - run: npm run lint
+      - run: npm run test:unit
+      - run: npm run build
+      - run: node scripts/check-bundle.mjs
       - run: npx playwright install --with-deps chromium
-      # Supabase is mocked at the network level, so no secrets are needed.
+      # Reuses the build above: the web server only runs vite preview.
       - run: npx playwright test
+        env:
+          PW_PREBUILT: "1"
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

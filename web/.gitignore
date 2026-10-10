@@ -26,3 +26,5 @@ dist-ssr
 # Playwright
 test-results/
 playwright-report/
+# npm run test:screens output, reviewed by hand
+screens/

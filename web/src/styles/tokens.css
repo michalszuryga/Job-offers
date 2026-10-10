@@ -1,0 +1,145 @@
+/*
+ * Design tokens (plan §2). The ONLY file allowed to contain colour literals:
+ * contrast.test.ts checks every fg/bg pair below and fails on a hex value anywhere else.
+ * Colours resolve per element through color-scheme, so light-dark() follows the
+ * OS by default and the head script's data-theme when the user picked one.
+ */
+
+:root{color-scheme:light dark}
+:root[data-theme=light]{color-scheme:light}
+:root[data-theme=dark]{color-scheme:dark}
+
+/* §2.2 colours, verbatim. */
+:root{
+--canvas:light-dark(#F5F6FA,#0A0C14);   --surface:light-dark(#FFFFFF,#131726);
+--surface-2:light-dark(#EEF0F5,#1A1F31); --surface-raised:light-dark(#FFFFFF,#20263A);
+--line:light-dark(#E4E7EF,#252B3D);      /* decorative only */
+--line-strong:light-dark(#737B8F,#727C92);/* control borders: 3.71 on light surface-2; 3.58 on dark raised, 4.26 on dark surface */
+--fg:light-dark(#0E1120,#E6E9F2);        --fg-muted:light-dark(#586074,#99A1B5); /* ≥5.4:1 everywhere */
+--brand:light-dark(#4B3BE8,#9A90FF);     --brand-hover:light-dark(#3B2BC9,#B0A8FF);
+--on-brand:light-dark(#FFFFFF,#0A0C14);  --brand-tint:light-dark(#EEECFF,#211C47);
+--brand-ink:light-dark(#4B3BE8,#A99FFF); --focus:var(--brand);
+--success:light-dark(#047857,#3DD68C);   --success-tint:light-dark(#E1F5EC,#0F2A20);
+--info:light-dark(#0369A1,#5BB6F2);      --info-tint:light-dark(#E2EFFA,#0D2335);
+--warning:light-dark(#9A5B00,#F0B44C);   --warning-tint:light-dark(#FCF1DC,#2D2210);
+--danger:light-dark(#B42318,#FF8A80);    --danger-tint:light-dark(#FDECEA,#2E1517);
+}
+
+:root {
+  /* Shadow colours. Dark mode leans on the surface step (surface → surface-raised)
+     for elevation, so its drops are dark and its ring/highlight are faint light. */
+  --sh-ring: light-dark(rgb(14 17 32 / 0.07), rgb(255 255 255 / 0.06));
+  --sh-hi: light-dark(rgb(255 255 255 / 0.8), rgb(255 255 255 / 0.05));
+  --sh-drop: light-dark(rgb(14 17 32 / 0.06), rgb(0 0 0 / 0.35));
+  --sh-drop-strong: light-dark(rgb(14 17 32 / 0.12), rgb(0 0 0 / 0.5));
+
+  --shadow-card: 0 0 0 1px var(--sh-ring), 0 1px 2px var(--sh-drop), inset 0 1px 0 var(--sh-hi);
+  --shadow-md: 0 0 0 1px var(--sh-ring), 0 6px 16px -4px var(--sh-drop-strong), 0 2px 4px var(--sh-drop),
+    inset 0 1px 0 var(--sh-hi);
+  --shadow-lg: 0 0 0 1px var(--sh-ring), 0 24px 48px -12px var(--sh-drop-strong), 0 8px 16px -8px var(--sh-drop),
+    inset 0 1px 0 var(--sh-hi);
+
+  /* §2.5 typography. Sizes are mobile-first; the ≥640 block below holds the larger variants. */
+  --font-sans: 'Inter Variable', 'Inter Fallback', system-ui, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --fw-heading: 650;
+  --fw-bold: 700;
+
+  --fs-display: 36px;  --lh-display: 40px;  --fw-display: var(--fw-bold);     --ls-display: -0.03em;
+  --fs-h1: 24px;       --lh-h1: 30px;       --fw-h1: var(--fw-bold);          --ls-h1: -0.02em;
+  --fs-h2: 22px;       --lh-h2: 28px;       --fw-h2: var(--fw-heading);       --ls-h2: -0.015em;
+  --fs-h3: 17px;       --lh-h3: 24px;       --fw-h3: var(--fw-semibold);
+  --fs-h4: 15px;       --lh-h4: 22px;       --fw-h4: var(--fw-heading);
+  --fs-title: 16px;    --lh-title: 22px;    --fw-title: var(--fw-medium);     --fw-title-unread: var(--fw-heading);
+  --fs-body-lg: 16px;  --lh-body-lg: 26px;  --fw-body-lg: var(--fw-regular);  --measure: 68ch;
+  --fs-body: 15px;     --lh-body: 22px;     --fw-body: var(--fw-regular);
+  --fs-sm: 13px;       --lh-sm: 18px;       --fw-sm: var(--fw-medium);
+  --fs-xs: 12px;       --lh-xs: 16px;       --fw-xs: var(--fw-semibold);      --ls-xs: 0.02em;
+  --fs-num-lg: 28px;   --lh-num-lg: 1;      --fw-num-lg: var(--fw-bold);
+  /* Form fields stay at 16px so iOS Safari never zooms on focus. */
+  --fs-input: 16px;
+
+  /* §2.6 spacing (4–64), gutters and layout. */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --gutter: 16px;
+  --container-max: 1280px;
+  --card-pad-y: 14px;
+  --card-pad-x: 16px;
+  --card-gap: 8px;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-full: 999px;
+
+  /* Hit targets: 32px with a mouse, 44px on touch (WCAG 2.5.8 / Apple HIG). */
+  --target: 32px;
+  --control-h: 40px;
+
+  /* Motion. --lift/--press are zeroed for reduced motion, so components can use them freely. */
+  --dur-fast: 120ms;
+  --dur-base: 200ms;
+  --dur-slow: 280ms;
+  --ease-out: cubic-bezier(.22, 1, .36, 1);
+  --lift: -1px;
+  --press: .98;
+
+  /* Sticky chrome. --sticky-h feeds html{scroll-padding-top} so focus never hides under it;
+     the toaster raises --toast-h while a toast is visible. */
+  --appbar-h: 56px;
+  --sticky-h: var(--appbar-h);
+  --toast-h: 0px;
+
+  --z-sticky: 10;
+  --z-details: 20;
+  --z-overlay: 30;
+  --z-popover: 40;
+  --z-toast: 50;
+  --z-skip: 60;
+}
+
+@media (min-width: 640px) {
+  :root {
+    --fs-display: 48px;  --lh-display: 52px;
+    --fs-h1: 30px;       --lh-h1: 36px;
+    --fs-body-lg: 17px;  --lh-body-lg: 28px;
+    --gutter: 24px;
+  }
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --gutter: 32px;
+  }
+}
+
+@media (pointer: coarse) {
+  :root {
+    --target: 44px;
+    --control-h: 44px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-fast: 100ms;
+    --dur-base: 100ms;
+    --dur-slow: 100ms;
+    --lift: 0px;
+    --press: 1;
+  }
+}

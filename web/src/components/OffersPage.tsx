@@ -1,10 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
 import { applyFilters, DEFAULT_FILTERS, formatAge, formatSalary, WINDOW_LABELS, type Filters, type PublishedWindow } from '../lib/format'
 import { loadDashboard } from '../lib/offers'
+import { scoreBand } from '../lib/score'
 import { STATUSES, type Dashboard, type Offer } from '../lib/types'
 import { OfferDetailsPanel } from './OfferDetails'
 
 const FILTERS_KEY = 'joffers-filters'
+
+// Card meta wraps between items, never inside "3 h ago" or before a "·".
+const META_SEPARATOR = '\u00a0· '
+const unbroken = (text: string) => text.replaceAll(' ', '\u00a0')
 
 function storedFilters(): Filters {
   try {
@@ -127,16 +132,18 @@ export function OffersPage() {
                 className={`offer${offer.external_id === selectedId ? ' selected' : ''}`}
                 onClick={() => setSelectedId(offer.external_id)}
               >
-                <span className="score">{Math.round(offer.score ?? 0)}</span>
+                <span className="score" data-band={scoreBand(offer.score)}>
+                  {offer.score == null ? '–' : Math.round(offer.score)}
+                </span>
                 <span className="offer-main">
                   <span className="offer-title">
                     {dashboard.newIds.has(offer.external_id) && <span className="badge-new">NEW</span>}
                     {offer.title}
                   </span>
                   <span className="muted">
-                    {[offer.company, formatSalary(offer), formatAge(offer.published_at), offer.source]
+                    {[offer.company, unbroken(formatSalary(offer)), unbroken(formatAge(offer.published_at)), offer.source]
                       .filter(Boolean)
-                      .join(' · ')}
+                      .join(META_SEPARATOR)}
                   </span>
                 </span>
                 {offer.application_status && offer.application_status !== 'TO_REVIEW' && (

@@ -2,8 +2,31 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
+    <script>
+      // Runs before any stylesheet so a saved theme or language never flashes.
+      // ES5 on purpose; storage access can throw (private mode, blocked cookies).
+      (function () {
+        var root = document.documentElement
+        var supported = ['en']
+        var theme = null
+        var lang = null
+        try {
+          theme = localStorage.getItem('joffers-theme')
+          lang = localStorage.getItem('joffers-lang')
+        } catch (e) {}
+        // 'light' | 'dark' forces a theme; anything else leaves it on auto (color-scheme).
+        if (theme === 'light' || theme === 'dark') {
+          root.setAttribute('data-theme', theme)
+          var meta = document.querySelector('meta[name="color-scheme"]')
+          if (meta) meta.setAttribute('content', theme)
+        }
+        if (supported.indexOf(lang) < 0) lang = String(navigator.language || '').slice(0, 2).toLowerCase()
+        root.lang = supported.indexOf(lang) < 0 ? 'en' : lang
+      })()
+    </script>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>JOffers</title>
   </head>
   <body>

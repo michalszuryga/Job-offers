@@ -168,7 +168,7 @@ Use `lucide-react` with stroke 1.75: 16 px inline, 20 px in buttons, always `ari
 - Chrome/Edge ≥ 123
 - Firefox ≥ 120
 
-Set `build.target` and `build.cssTarget` to `['es2022','chrome123','edge123','firefox120','safari17.5','ios17.5']`, so Lightning CSS never lowers `light-dark()`. `check-bundle` asserts the built CSS still contains `light-dark(` and no `--lightningcss-`.
+Set `build.target` to `['es2022','chrome123','edge123','firefox120','safari17.5','ios17.5']` and `build.cssTarget` to the same list **without `'es2022'`**, so Lightning CSS never lowers `light-dark()`. Vite expands `es2022` to Chrome 94 / Safari 16.4 and keeps the lowest version per browser, which would lower it. `check-bundle` asserts the built CSS still contains `light-dark(` and no `--lightningcss-`.
 
 Every feature in the plan is native at this floor except `content-visibility`. It is progressive and always paired with `contain-intrinsic-size:auto 120px`. The account menu uses `popover` but feature-detects it and falls back to a toggled element. Sign out also appears on the AccessGate and Privacy pages.
 

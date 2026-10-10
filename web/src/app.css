@@ -1,0 +1,566 @@
+/*
+ * Component styles for the current markup, on tokens only (plan §2).
+ * .offers, .offer and .offer-title are e2e hooks: keep them.
+ */
+
+/* ---------- Buttons ---------- */
+
+/* Primary by default. Zero specificity, so any class below overrides it without !important. */
+:where(button, .button) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: var(--control-h);
+  padding: 0 var(--space-4);
+  /* Transparent, not none: forced-colors (Windows contrast themes) paints it, so buttons keep an edge. */
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: var(--brand);
+  color: var(--on-brand);
+  font-weight: var(--fw-semibold);
+  text-decoration: none;
+  transition:
+    background-color var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
+}
+
+@media (hover: hover) {
+  :where(button, .button):where(:not(:disabled):hover) {
+    background: var(--brand-hover);
+  }
+}
+
+:where(button, .button):where(:not(:disabled):active) {
+  transform: scale(var(--press));
+}
+
+:where(button:disabled) {
+  opacity: 0.6;
+}
+
+button.link {
+  min-height: var(--target);
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--brand);
+  font-weight: var(--fw-medium);
+}
+
+@media (hover: hover) {
+  button.link:hover {
+    background: var(--surface-2);
+  }
+}
+
+/* ---------- App bar ---------- */
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  height: var(--appbar-h);
+  /* Lines the content up with .layout below without an extra wrapper. */
+  padding-inline: max(var(--gutter), (100% - var(--container-max)) / 2 + var(--gutter));
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+
+/* Wordmark until the logo lands (P2). */
+.topbar h1 {
+  font-size: var(--fs-h3);
+  line-height: var(--lh-h3);
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--ls-display);
+}
+
+.topbar-user {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  font-size: var(--fs-sm);
+  line-height: var(--lh-sm);
+  font-weight: var(--fw-sm);
+}
+
+.topbar-user .muted {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---------- Sign-in ---------- */
+
+.login {
+  width: min(100% - 2 * var(--gutter), 400px);
+  margin: max(var(--space-12), 12vh) auto var(--space-12);
+  padding: var(--space-8) var(--space-6);
+  background: var(--surface);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-card);
+}
+
+.login h1 {
+  font-size: var(--fs-h1);
+  line-height: var(--lh-h1);
+  font-weight: var(--fw-h1);
+  letter-spacing: var(--ls-display);
+}
+
+.login h1 + .muted {
+  margin-top: var(--space-1);
+}
+
+.login form {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-6);
+}
+
+.login label {
+  font-size: var(--fs-sm);
+  line-height: var(--lh-sm);
+  font-weight: var(--fw-sm);
+}
+
+.login button {
+  margin-top: var(--space-2);
+}
+
+.login .error {
+  font-size: var(--fs-sm);
+  line-height: var(--lh-sm);
+  font-weight: var(--fw-sm);
+}
+
+.login [role='status'] {
+  margin-top: var(--space-6);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--success-tint);
+}
+
+/* ---------- List pane ---------- */
+
+.layout {
+  max-width: var(--container-max);
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+}
+
+.list-pane {
+  /* Filters pick their column count from the pane width, not the viewport. */
+  container-type: inline-size;
+  padding-block: var(--space-4) var(--space-12);
+}
+
+.fetch-line,
+.count {
+  font-size: var(--fs-sm);
+  line-height: var(--lh-sm);
+  font-weight: var(--fw-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.fetch-line {
+  margin-bottom: var(--space-3);
+}
+
+.fetch-line .warn {
+  font-weight: var(--fw-semibold);
+}
+
+.count {
+  margin-block: var(--space-4) var(--space-3);
+}
+
+.filters {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.filters input[type='search'] {
+  grid-column: 1 / -1;
+}
+
+@container (min-width: 520px) {
+  .filters {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .filters input[type='search'] {
+    grid-column: span 2;
+  }
+}
+
+/* Drawn as one field with an inline label; the number input inside is borderless. */
+.min-score {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-height: var(--control-h);
+  padding-inline-start: var(--space-3);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--fg-muted);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  white-space: nowrap;
+  cursor: text;
+}
+
+.min-score:focus-within {
+  border-color: var(--focus);
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.min-score input {
+  width: 72px;
+  min-height: calc(var(--control-h) - 2px);
+  padding-inline: 0 var(--space-3);
+  border: 0;
+  background: transparent;
+  color: var(--fg);
+  text-align: right;
+  font-weight: var(--fw-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+.min-score input:focus-visible {
+  outline: none;
+}
+
+/* ---------- Offer cards ---------- */
+
+.offers {
+  list-style: none;
+  display: grid;
+  gap: var(--card-gap);
+}
+
+.offer {
+  /* The edge is a shadow, so no border here (a transparent one would show the selected tint
+     outside its inset ring). Forced-colors, which drops shadows, sets one at the end of this file. */
+  --card-border: 0px;
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: var(--space-3);
+  padding: calc(var(--card-pad-y) - var(--card-border)) calc(var(--card-pad-x) - var(--card-border));
+  border: var(--card-border) solid transparent;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  color: var(--fg);
+  box-shadow: var(--shadow-card);
+  font-weight: var(--fw-body);
+  text-align: start;
+}
+
+@media (hover: hover) {
+  /* In dark mode surface-raised is a step lighter, so hover reads as elevation there too. */
+  .offer:hover {
+    background: var(--surface-raised);
+    box-shadow: var(--shadow-md);
+    transform: translateY(var(--lift));
+  }
+}
+
+.offer:active {
+  transform: scale(var(--press));
+}
+
+.offer.selected,
+.offer.selected:hover {
+  background: var(--brand-tint);
+  box-shadow: inset 0 0 0 1.5px var(--brand), var(--shadow-card);
+}
+
+/* Score bands (plan §2.3): the number stays --fg; the band shows as ring + tint. */
+.score {
+  --band: var(--line-strong);
+  --band-tint: transparent;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-full);
+  background: var(--band-tint);
+  box-shadow: inset 0 0 0 2.5px var(--band);
+  color: var(--fg);
+  font-size: var(--fs-body);
+  line-height: 1;
+  font-weight: var(--fw-bold);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.score[data-band='top'] {
+  --band: var(--success);
+  --band-tint: var(--success-tint);
+}
+
+.score[data-band='strong'] {
+  --band: var(--info);
+  --band-tint: var(--info-tint);
+}
+
+.score[data-band='fair'] {
+  --band: var(--warning);
+  --band-tint: var(--warning-tint);
+}
+
+.score[data-band='low'] {
+  --band: var(--fg-muted);
+  --band-tint: var(--surface-2);
+}
+
+.score[data-band='none'] {
+  box-shadow: none;
+  border: 2px dashed var(--line-strong);
+}
+
+.offer-main {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: var(--space-1);
+}
+
+.offer-title {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  font-size: var(--fs-title);
+  line-height: var(--lh-title);
+  font-weight: var(--fw-semibold);
+}
+
+.offer-main .muted {
+  font-size: var(--fs-sm);
+  line-height: var(--lh-sm);
+  font-weight: var(--fw-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Same literal "NEW" text and position as before; only the look changed (plan §2.4). */
+.badge-new {
+  display: inline-block;
+  margin-inline-end: var(--space-2);
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--brand);
+  color: var(--on-brand);
+  font-size: var(--fs-xs);
+  line-height: var(--lh-xs);
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  /* Centres the 18px badge on the title's cap height. */
+  vertical-align: 2px;
+}
+
+.status {
+  flex: none;
+  margin-inline-start: auto;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-full);
+  background: var(--surface-2);
+  color: var(--fg-muted);
+  font-size: var(--fs-xs);
+  line-height: var(--lh-xs);
+  font-weight: var(--fw-xs);
+  letter-spacing: var(--ls-xs);
+}
+
+/* ---------- Offer details ---------- */
+
+/* Phone: details cover the whole screen, with a sticky back bar. */
+.details {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-details);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scroll-padding-top: var(--appbar-h);
+  padding: 0 var(--gutter) calc(var(--space-12) + env(safe-area-inset-bottom));
+  background: var(--surface);
+}
+
+.details .close {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  justify-content: flex-start;
+  width: calc(100% + 2 * var(--gutter));
+  min-height: var(--appbar-h);
+  margin-inline: calc(-1 * var(--gutter));
+  padding-inline: var(--gutter);
+  border-radius: 0;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+  font-size: var(--fs-body);
+}
+
+/* The bar is as wide as its scroller, which clips anything outside it: ring goes inside. */
+.details .close:focus-visible {
+  outline-offset: -4px;
+}
+
+/* Full-bleed, so a press scale would uncover the scrolled text at its edges. */
+.details .close:active {
+  transform: none;
+  background: var(--surface-2);
+}
+
+.details h2 {
+  margin-top: var(--space-5);
+  font-size: var(--fs-h2);
+  line-height: var(--lh-h2);
+  font-weight: var(--fw-h2);
+  letter-spacing: var(--ls-h2);
+}
+
+.details h2 + p {
+  margin-top: var(--space-1);
+}
+
+/* Salary line. */
+.details h2 + p + p {
+  margin-top: var(--space-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.details > .button {
+  width: 100%;
+  margin-top: var(--space-4);
+}
+
+.details section {
+  margin-top: var(--space-8);
+}
+
+.details h3 {
+  font-size: var(--fs-h3);
+  line-height: var(--lh-h3);
+  font-weight: var(--fw-h3);
+}
+
+.details section > * + * {
+  margin-top: var(--space-2);
+}
+
+.tracking {
+  display: grid;
+  gap: var(--space-3);
+  margin-top: var(--space-6);
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  background: var(--surface-2);
+}
+
+.tracking label {
+  display: grid;
+  gap: var(--space-1);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-sm);
+  font-weight: var(--fw-sm);
+}
+
+.tracking button {
+  justify-self: start;
+  min-width: 96px;
+}
+
+.tracking [role='status'],
+.tracking .error {
+  font-size: var(--fs-sm);
+  line-height: var(--lh-sm);
+  font-weight: var(--fw-medium);
+}
+
+.tracking [role='status'] {
+  color: var(--success);
+}
+
+.points {
+  display: grid;
+  gap: var(--space-1);
+  padding-inline-start: var(--space-5);
+  font-variant-numeric: tabular-nums;
+}
+
+.points li::marker {
+  color: var(--fg-muted);
+}
+
+.description {
+  max-width: var(--measure);
+  font-size: var(--fs-body-lg);
+  line-height: var(--lh-body-lg);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* Laptop: list and details side by side; details is a sticky pane with its own scroller. */
+@media (min-width: 900px) {
+  .layout {
+    display: grid;
+    grid-template-columns: minmax(360px, 5fr) minmax(0, 6fr);
+    gap: var(--space-6);
+    align-items: start;
+  }
+
+  .details {
+    position: sticky;
+    inset: auto;
+    top: calc(var(--appbar-h) + var(--space-4));
+    z-index: auto;
+    height: calc(100dvh - var(--appbar-h) - var(--space-8));
+    margin-top: var(--space-4);
+    padding: var(--space-1) var(--space-6) var(--space-8);
+    scroll-padding-top: 0;
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-card);
+  }
+
+  .details .close {
+    display: none;
+  }
+
+  .details > .button {
+    width: auto;
+  }
+}
+
+/* Windows contrast themes drop box-shadows and author backgrounds, which carry the card
+   edges, the score ring and the selected card here. System colours bring those cues back. */
+@media (forced-colors: active) {
+  .score {
+    border: 2px solid CanvasText;
+  }
+
+  .offer {
+    --card-border: 1px;
+    border-color: CanvasText;
+  }
+
+  .offer.selected {
+    --card-border: 3px;
+    border-color: Highlight;
+  }
+}

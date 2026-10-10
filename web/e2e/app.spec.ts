@@ -3,7 +3,7 @@ import { mockSupabase, OWNER, signIn } from './supabase-mock'
 
 test('signed-out visitor can request a sign-in link', async ({ page }) => {
   const supabase = await mockSupabase(page)
-  await page.goto('/')
+  await page.goto('./')
 
   await page.getByLabel('Email').fill(OWNER.email)
   await page.getByRole('button', { name: 'Send sign-in link' }).click()
@@ -15,7 +15,7 @@ test('signed-out visitor can request a sign-in link', async ({ page }) => {
 test('signed-in account without membership gets no data', async ({ page }) => {
   await mockSupabase(page, { member: false })
   await signIn(page)
-  await page.goto('/')
+  await page.goto('./')
 
   await expect(page.getByText("This account doesn't have access yet.")).toBeVisible()
   await expect(page.locator('.offers')).toHaveCount(0)
@@ -24,7 +24,7 @@ test('signed-in account without membership gets no data', async ({ page }) => {
 test('defaults to the last 24 hours, best score first, with new offers marked', async ({ page }) => {
   await mockSupabase(page)
   await signIn(page)
-  await page.goto('/')
+  await page.goto('./')
 
   const titles = page.locator('.offer-title')
   await expect(titles).toHaveText(['NEWSenior QA Engineer', 'QA Analyst'])
@@ -37,7 +37,7 @@ test('defaults to the last 24 hours, best score first, with new offers marked', 
 test('filters by time window, score, source and text, and remembers them', async ({ page }) => {
   await mockSupabase(page)
   await signIn(page)
-  await page.goto('/')
+  await page.goto('./')
 
   await page.getByLabel('Published').selectOption({ label: 'Any time' })
   await expect(page.locator('.offer')).toHaveCount(4)
@@ -61,7 +61,7 @@ test('filters by time window, score, source and text, and remembers them', async
 test('saves application status, quoted rate and notice period', async ({ page }) => {
   const supabase = await mockSupabase(page)
   await signIn(page)
-  await page.goto('/')
+  await page.goto('./')
 
   await page.getByRole('button', { name: /Senior QA Engineer/ }).click()
   const details = page.getByRole('complementary', { name: 'Offer details' })
