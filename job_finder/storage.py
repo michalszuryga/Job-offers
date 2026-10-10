@@ -222,7 +222,7 @@ class JobStore:
                     marks = ",".join("?" * len(chunk))
                     self._exec(conn, f"UPDATE jobs SET last_seen_at={_NOW} WHERE external_id IN ({marks})", chunk)
 
-    def delete_expired(self, source, older_than_days=3):
+    def delete_expired(self, source, older_than_days=14):
         """Drop offers of `source` not seen on its listing for N days. Only
         untouched (TO_REVIEW) offers go — anything you've triaged or applied
         to is kept, even after the posting disappears."""

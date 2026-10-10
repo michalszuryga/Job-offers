@@ -90,7 +90,7 @@ SENSITIVE_SOURCE_COUNT = 3  # Pracuj.pl, No Fluff Jobs, CzyJestEldorado
 
 
 def collect_live_jobs(config_path="config/profile.yaml", on_source_fetched=None, skip_sensitive=False,
-                      store=None, expire_after_days=3):
+                      store=None, expire_after_days=14):
     cfg = load_config(config_path)
     store = store or JobStore()
     sources = [
