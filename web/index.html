@@ -4,12 +4,17 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="light dark" />
+    <!-- The app bar's --surface in each theme (tokens.css); the head script below
+         pins both to one theme when the user forces it. brand.spec keeps them in sync. -->
+    <meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#131726" media="(prefers-color-scheme: dark)" />
     <script>
       // Runs before any stylesheet so a saved theme or language never flashes.
       // ES5 on purpose; storage access can throw (private mode, blocked cookies).
       (function () {
         var root = document.documentElement
         var supported = ['en']
+        var themeColors = { light: '#FFFFFF', dark: '#131726' }
         var theme = null
         var lang = null
         try {
@@ -21,13 +26,33 @@
           root.setAttribute('data-theme', theme)
           var meta = document.querySelector('meta[name="color-scheme"]')
           if (meta) meta.setAttribute('content', theme)
+          // Both media variants get the forced colour, so the browser UI matches the page.
+          var bars = document.querySelectorAll('meta[name="theme-color"]')
+          for (var i = 0; i < bars.length; i++) bars[i].setAttribute('content', themeColors[theme])
         }
         if (supported.indexOf(lang) < 0) lang = String(navigator.language || '').slice(0, 2).toLowerCase()
         root.lang = supported.indexOf(lang) < 0 ? 'en' : lang
       })()
     </script>
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>JOffers</title>
+    <meta name="description" content="Every evening at 18:00 JOffers checks job boards, scores each QA offer 0–100 against your profile and shows why." />
+    <!-- Safari before 26 ignores SVG favicons, so it takes the PNG (the same mark).
+         The usual order: the sized PNG first, so browsers with SVG support still prefer it. -->
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <!-- Link previews need absolute URLs: vite.config.ts swaps in the public app URL (SITE_URL). -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="JOffers" />
+    <meta property="og:title" content="JOffers — QA jobs, scored for you." />
+    <meta property="og:description" content="Every evening at 18:00 JOffers checks job boards, scores each QA offer 0–100 against your profile and shows why." />
+    <meta property="og:url" content="%SITE_URL%" />
+    <meta property="og:image" content="%SITE_URL%og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="JOffers logo and the line “QA jobs, scored for you.” next to a match ring showing 92, Top match." />
+    <meta name="twitter:card" content="summary_large_image" />
   </head>
   <body>
     <div id="root"></div>

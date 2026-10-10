@@ -13,7 +13,8 @@
     "test:screens": "VISUAL=1 playwright test --grep @screens",
     "test:visual": "VISUAL=1 playwright test --grep @visual",
     "test:visual:update": "docker run --rm -v $PWD:/w -v /w/node_modules -w /w mcr.microsoft.com/playwright:v1.64.0-noble sh -c \"npm ci && VISUAL=1 npx playwright test --grep @visual --update-snapshots\"",
-    "check-bundle": "node scripts/check-bundle.mjs"
+    "check-bundle": "node scripts/check-bundle.mjs",
+    "brand": "node scripts/render-brand-assets.mjs"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.3.0",

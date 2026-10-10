@@ -72,7 +72,7 @@ button.link {
   border-bottom: 1px solid var(--line);
 }
 
-/* Wordmark until the logo lands (P2). */
+/* Text wordmark until the Logo component lands (P4). */
 .topbar h1 {
   font-size: var(--fs-h3);
   line-height: var(--lh-h3);
