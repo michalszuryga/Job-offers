@@ -154,20 +154,27 @@ def format_description(text):
     return text.strip()
 
 
-def refresh_scores_for_config(store, cfg, meta):
-    """Reapply changed scoring rules to stored rows. The signature lives in the
-    DB, so this runs once per actual config change — not once per new browser
-    session (every phone visit or new tab used to rescore the whole table)."""
+def refresh_scores_for_config(store, cfg, meta, visible_rows):
+    """Reapply scoring rules to stored rows on a config change, and once a day
+    to keep date-based points current. State lives in the DB, so a new browser
+    session (phone visit, new tab) doesn't trigger a rescore on its own."""
     scoring_inputs = {key: cfg.get(key) for key in ("candidate", "scoring", "filters", "hard_exclusions")}
     signature = json.dumps(scoring_inputs, sort_keys=True, ensure_ascii=False)
-    if st.session_state.get("score_config_signature") == signature:
+    today = datetime.now(timezone.utc).date().isoformat()
+    if st.session_state.get("scores_checked") == (signature, today):
         return False
-    if meta.get("score_config_signature") == signature:
-        st.session_state["score_config_signature"] = signature
+    config_changed = meta.get("score_config_signature") != signature
+    if not config_changed and meta.get("scores_refreshed_on") == today:
+        st.session_state["scores_checked"] = (signature, today)
         return False
 
+    # A config change can flip hard rejections, so it needs every row. A new
+    # day only moves freshness and stale-offer points, which matter just for
+    # offers that are visible — known offers skipped by a fetch are never
+    # re-scored otherwise, so their freshness would stay frozen.
+    rows = store.list_all() if config_changed else visible_rows
     rescored = []
-    for row in store.list_all():
+    for row in rows:
         published_at = row.get("published_at")
         try:
             published_at = datetime.fromisoformat(published_at.replace("Z", "+00:00")) if published_at else None
@@ -187,7 +194,8 @@ def refresh_scores_for_config(store, cfg, meta):
         rescored.append(score_job(job, cfg))
     store.upsert_many(rescored, touch_last_seen=False)
     store.set_meta("score_config_signature", signature)
-    st.session_state["score_config_signature"] = signature
+    store.set_meta("scores_refreshed_on", today)
+    st.session_state["scores_checked"] = (signature, today)
     load_snapshot.clear()
     return True
 
@@ -374,7 +382,7 @@ def main():
     # class) gets a fresh instance instead of a cached one missing new methods.
     store = get_store(id(JobStore))
     snapshot = load_snapshot(store)
-    if refresh_scores_for_config(store, cfg, snapshot["meta"]):
+    if refresh_scores_for_config(store, cfg, snapshot["meta"], snapshot["jobs"]):
         snapshot = load_snapshot(store)
     new_ids = new_ids_from(snapshot["meta"])
 
