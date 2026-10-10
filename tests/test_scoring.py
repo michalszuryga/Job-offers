@@ -34,5 +34,18 @@ def test_recency_buckets():
 def test_profile_exposes_current_tunable_preferences():
     config = load_config()
     assert config["filters"]["remote_only"] is True
-    assert config["scoring"]["penalties"]["automation_title"] == 15
+    assert config["scoring"]["penalties"]["automation_title"] == 30
     assert config["scoring"]["penalties"]["stale_after_days"] == 10
+
+
+def test_keywords_match_whole_words_only():
+    cfg = {"candidate": {"target_roles": [], "technologies": {"strong": ["Git"]}, "domains": [], "ai": ["AI"]},
+           "scoring": {"weights": {"technologies": 25, "ai": 5}}, "hard_exclusions": {}, "filters": {}}
+    tricky = score_job(Job("QA Engineer", "X", "https://x/3", "test",
+                           "Maintain digital test details", remote=True), cfg)
+    assert tricky.score_breakdown["matched_ai"] == []
+    assert tricky.score_breakdown["matched_technologies"] == []
+    real = score_job(Job("QA Engineer", "X", "https://x/4", "test",
+                         "AI-assisted testing, Git workflow", remote=True), cfg)
+    assert real.score_breakdown["matched_ai"] == ["ai"]
+    assert real.score_breakdown["matched_technologies"] == ["git"]

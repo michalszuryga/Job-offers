@@ -2,6 +2,9 @@ import re
 from datetime import datetime, timezone
 from .salary import monthly_salary_pln
 
+# Bump when scoring logic changes so stored scores get recomputed on next load.
+SCORING_VERSION = 2
+
 
 def _text(job):
     return " ".join(str(x or "") for x in (
@@ -132,10 +135,12 @@ def score_job(job, cfg, now=None):
     domain_terms = [str(v).lower() for v in candidate.get("domains", [])]
     contracts = [str(v).lower() for v in candidate.get("contracts", [])]
     ai_terms = [str(v).lower() for v in candidate.get("ai", [])]
-    matched_roles = [v for v in role_terms if v in text]
-    matched_tech = [v for v in tech_terms if v in text]
-    matched_domains = [v for v in domain_terms if v in text]
-    matched_ai = [v for v in ai_terms if v in text]
+    # Whole-word/phrase matches only: a plain substring test let "AI" match
+    # "maintain"/"detail" and "Git" match "digital".
+    matched_roles = [v for v in role_terms if _phrase(text, v)]
+    matched_tech = [v for v in tech_terms if _phrase(text, v)]
+    matched_domains = [v for v in domain_terms if _phrase(text, v)]
+    matched_ai = [v for v in ai_terms if _phrase(text, v)]
 
     def points(key, hits, denominator):
         return round(weights.get(key, 0) * min(1, len(set(hits)) / max(1, denominator)))

@@ -11,11 +11,22 @@ def test_javascript_not_rejected():
     j=score_job(j,cfg())
     assert not j.rejected and j.score > 0
 
-def test_java_rejected():
-    j=Job("QA Engineer","X","https://x.test/2","x","Java Playwright",remote=True,contract="B2B")
+def test_java_required_skill_rejected():
+    j=Job("QA Engineer","X","https://x.test/2","x","Experience with Java and Playwright is required.",remote=True,contract="B2B")
     c=cfg(); c["hard_exclusions"]["technologies"]=["Java"]
     j=score_job(j,c)
     assert j.rejected and j.score == 0
+
+def test_java_role_in_title_rejected():
+    j=Job("Java QA Engineer","X","https://x.test/5","x","Playwright",remote=True,contract="B2B")
+    c=cfg(); c["hard_exclusions"]["technologies"]=["Java"]
+    assert score_job(j,c).rejected
+
+def test_java_as_product_stack_not_rejected():
+    # Testing a Java backend is fine; only Java as a skill gate is excluded.
+    j=Job("QA Engineer","X","https://x.test/6","x","Java Playwright",remote=True,contract="B2B")
+    c=cfg(); c["hard_exclusions"]["technologies"]=["Java"]
+    assert not score_job(j,c).rejected
 
 def test_demo_can_be_deleted(tmp_path):
     store=JobStore(tmp_path/"jobs.db")

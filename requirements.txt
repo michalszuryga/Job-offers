@@ -1,8 +1,12 @@
-PyYAML>=6.0
-requests>=2.32
-beautifulsoup4>=4.12
-python-dateutil>=2.9
-streamlit>=1.40
-pandas>=2.2
-pytest>=8.0
-psycopg2-binary>=2.9
+# Pinned to the versions running in production (Streamlit Cloud) so local,
+# CI and the scheduled fetch all install exactly the same, known-good set.
+PyYAML==6.0.3
+requests==2.34.2
+beautifulsoup4==4.15.0
+python-dateutil==2.9.0.post0
+streamlit==1.64.0
+pandas==3.0.6
+psycopg2-binary==2.9.13
+# 25.0.1 has a known segfault (apache/arrow#50471); Streamlit Cloud already
+# downgrades it on its own, this just makes every environment agree.
+pyarrow==24.0.0
