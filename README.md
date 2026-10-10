@@ -69,7 +69,8 @@ npx playwright install chromium && npm run test:e2e   # Supabase is mocked
 ## Deployment
 
 **Web app** — `.github/workflows/web-pages.yml` deploys `web/` to GitHub Pages.
-Enable *Settings → Pages → Source: GitHub Actions*, add repository variables
+In Supabase enable the Data API (*Integrations → Data API*) with `public`
+exposed. Enable *Settings → Pages → Source: GitHub Actions*, add repository variables
 `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY`, and apply `db/web_access.sql`.
 Access is limited to users listed in `app_members`; in Supabase Auth set the
 Site URL to the Pages URL and turn off new sign-ups once your account exists.
