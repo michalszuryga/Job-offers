@@ -1,5 +1,12 @@
+import json
 from pathlib import Path
+
 import yaml
+
+# Scoring tweaks made in the dashboard live in the DB (not a file on disk) so
+# they survive Streamlit Cloud restarts, are shared across devices, and are
+# seen by the scheduled fetch running in GitHub Actions.
+OVERRIDES_META_KEY = "config_overrides"
 
 
 def _merge(base, overrides):
@@ -11,20 +18,14 @@ def _merge(base, overrides):
     return base
 
 
-def load_config(path="config/profile.yaml"):
-    config_path = Path(path)
-    with config_path.open(encoding="utf-8") as f:
+def overrides_from_meta(meta):
+    try:
+        return json.loads(meta.get(OVERRIDES_META_KEY) or "{}")
+    except json.JSONDecodeError:
+        return {}
+
+
+def load_config(path="config/profile.yaml", overrides=None):
+    with Path(path).open(encoding="utf-8") as f:
         config = yaml.safe_load(f) or {}
-    override_path = config_path.with_name("user_overrides.yaml")
-    if override_path.exists():
-        with override_path.open(encoding="utf-8") as f:
-            _merge(config, yaml.safe_load(f) or {})
-    return config
-
-
-def save_user_overrides(overrides, path="config/profile.yaml"):
-    config_path = Path(path)
-    override_path = config_path.with_name("user_overrides.yaml")
-    override_path.parent.mkdir(parents=True, exist_ok=True)
-    with override_path.open("w", encoding="utf-8") as f:
-        yaml.safe_dump(overrides, f, allow_unicode=True, sort_keys=False)
+    return _merge(config, overrides)

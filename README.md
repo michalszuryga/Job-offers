@@ -1,94 +1,81 @@
-# Michal Job Finder
+# JOffers — job finder
 
-Personal job-search engine for collecting, scoring, analyzing and tracking QA job opportunities.
+[![Tests](https://github.com/michalszuryga/Job-offers/actions/workflows/tests.yml/badge.svg)](https://github.com/michalszuryga/Job-offers/actions/workflows/tests.yml)
 
-## V1.1
-- Deterministic profile matching
-- Recency scoring
-- Application status tracking
-- Streamlit dashboard
-- Provider-agnostic AI analysis payload
-- Dual-backend persistence: SQLite locally, PostgreSQL (via `DATABASE_URL`) when hosted
+Collects QA job offers from Polish and international job boards, scores them
+against a candidate profile, and tracks applications. Runs a scheduled fetch
+every evening and pushes a summary of new offers to your phone.
+
+## What it does
+
+- **8 sources:** No Fluff Jobs, Pracuj.pl, JustJoin.IT, Bulldogjob, TestDevJobs,
+  CzyJestEldorado (aggregator), RemoteOK, We Work Remotely.
+- **Scoring:** deterministic, explainable 0–100 match score from the profile in
+  `config/profile.yaml` (roles, technologies, domains, contract, seniority,
+  salary, freshness) plus hard exclusions (e.g. Java-as-a-requirement, junior-only).
+- **Deduplication** across boards by normalized title + company.
+- **Lifecycle:** offers you haven't touched (`TO_REVIEW`) are removed after 14
+  days without appearing on their board; anything you've triaged is kept.
+- **Tracking:** application status, the rate and notice period you quoted, CV
+  highlights matched to each offer.
+- **Daily summary** at 18:00 Europe/Warsaw via [ntfy](https://ntfy.sh) push.
+
+## Architecture
+
+```
+GitHub Actions (18:00 daily) ──┐
+                               ├──► scrapers + scoring (Python) ──► Supabase Postgres ◄── Streamlit dashboard
+Dashboard "Fetch live jobs" ───┘                                         │
+                                                                         └──► ntfy push summary
+```
+
+- `job_finder/sources/` — one adapter per board, all returning the common `Job` model.
+- `job_finder/collector.py` — runs sources concurrently, dedups, bulk-stores, expires stale offers.
+- `job_finder/scoring.py` — the match score.
+- `job_finder/storage.py` — Postgres when `DATABASE_URL` is set, SQLite otherwise (local dev, tests).
+- `job_finder/app.py` — Streamlit dashboard.
+- `job_finder/cli.py` — `fetch` and `notify-summary` for the scheduled run.
 
 ## Run locally
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
-python -m job_finder.cli demo
-python -m job_finder.cli list --min-score 55
-streamlit run job_finder/app.py
+pip install -r requirements-dev.txt
+pytest -q
+streamlit run streamlit_app.py
+python -m job_finder.cli fetch          # one fetch from the terminal
+python -m job_finder.cli notify-summary # prints the summary if NTFY_TOPIC is unset
 ```
 
-Do not commit API keys, `.env` files or local databases.
+Without `DATABASE_URL` everything runs against a local `jobs.db` SQLite file.
+To use the shared database, copy `.streamlit/secrets.toml.example` to
+`.streamlit/secrets.toml` (gitignored) and fill in the Supabase session-pooler URL.
 
+## Deployment
 
-## Hosted MVP
+**Dashboard** — Streamlit Community Cloud, entrypoint `streamlit_app.py`, with
+`DATABASE_URL` set under *App settings → Secrets*.
 
-Deploy `streamlit_app.py` to Streamlit Community Cloud. After deployment,
-open the app and click **Fetch live jobs** to collect and score current offers.
+**Scheduled fetch** — `.github/workflows/daily-fetch.yml`. In the GitHub repo
+settings add:
 
-The hosted app uses PostgreSQL (Supabase) for persistence, configured via a
-`DATABASE_URL` secret — see `.streamlit/secrets.toml.example`. Without that
-secret set, the app falls back to a local SQLite file, which does not survive
-a Streamlit Cloud restart/redeploy.
+| Kind | Name | Value |
+|---|---|---|
+| Secret | `DATABASE_URL` | same Supabase session-pooler URL as the dashboard |
+| Secret | `NTFY_TOPIC` | a long random string, e.g. `joffers-` + 24 random characters |
+| Variable | `APP_URL` | dashboard URL (opened when you tap the notification) |
 
+Then install the ntfy app on your phone and subscribe to the same topic. The
+topic name is the only thing protecting the feed, so keep it random and secret.
+Run it once by hand from *Actions → Daily fetch → Run workflow*.
 
-## Live job sources
+GitHub pauses scheduled workflows after 60 days without repository activity.
 
-The hosted MVP can fetch jobs from:
-- No Fluff Jobs
-- Pracuj.pl
-- JustJoin.IT
-- RemoteOK (public JSON API, international remote roles)
-- We Work Remotely (RSS feeds, international remote roles)
-- Bulldogjob
-- TestDevJobs (QA/testing-only board, Europe remote filter)
-- CzyJestEldorado (aggregator — deduplicated by title+company against other sources)
+## Notes
 
-Use **Fetch live jobs** in the dashboard. These adapters scrape public search pages
-and normalize the results into the common `Job` model. Job-board HTML changes can
-require adapter maintenance, so the dashboard reports per-source errors instead
-of silently failing.
+Scrapers read public search pages; respect each site's terms, robots rules and
+rate limits. Pracuj.pl, No Fluff Jobs and CzyJestEldorado are fetched serially
+and slowly on purpose, and can be skipped with `--skip-sensitive`.
 
-Always respect each site's terms, robots rules, rate limits, and application policies.
-
-
-## Live source diagnostics
-
-After deployment, click **Fetch live jobs**. The dashboard keeps the result on screen
-and reports each source independently, including number of offers found, number newly
-inserted, elapsed time, exception type and exception message.
-
-\n## V1.2.2 fixes\n
-- Fixed SQLite upsert placeholder mismatch that caused `22 values for 21 columns`.
-- Updated JustJoin.IT listing URLs to current public testing listings.
-- Updated Pracuj.pl QA search URLs.
-- Added a storage regression test.
-
-
-## Candidate hard exclusions
-
-The profile now supports hard exclusions. Java is rejected using a whole-word
-match, so JavaScript remains allowed. Junior/intern roles and configured Java
-phrases are also rejected before insertion into the job database.
-
-Rejected offers are counted in live-fetch diagnostics but are not inserted into
-the active offers list.
-
-
-### V1.2.4 fixes
-- Dashboard reruns immediately after live fetch, so counters and table show fresh DB data.
-- Legacy demo records are removed automatically.
-- Search/listing URLs are filtered out by Pracuj and No Fluff adapters.
-- Score calculation now correctly reads the nested candidate technology configuration.
-
-
-## Persistence
-
-The hosted app stores data in PostgreSQL (Supabase) so job history and
-application tracking (status, quoted rate, notice period) survive Streamlit
-Cloud restarts/redeploys. The dashboard never blocks the live-fetch button
-just because the database is empty. Without `DATABASE_URL` configured, the
-app falls back to a local SQLite file for local development.
+Never commit `.streamlit/secrets.toml`, `jobs.db` or any API key.

@@ -115,6 +115,41 @@ class JobStore:
             self._exec(conn, "UPDATE jobs SET application_status='TO_REVIEW' "
                              "WHERE application_status='NEW' OR application_status IS NULL")
             self._exec(conn, "CREATE TABLE IF NOT EXISTS meta (meta_key TEXT PRIMARY KEY, meta_value TEXT)")
+            self._exec(conn, "CREATE TABLE IF NOT EXISTS fetch_runs ("
+                             "started_at TEXT PRIMARY KEY, finished_at TEXT, trigger TEXT, results TEXT)")
+
+    def _ago(self, amount, unit):
+        """SQL expression for "now minus N units", in the same text format the
+        timestamp columns are stored in, so plain string comparison works."""
+        if self.backend == "postgres":
+            return f"CAST(CURRENT_TIMESTAMP - INTERVAL '{int(amount)} {unit}' AS TEXT)"
+        return f"datetime('now', '-{int(amount)} {unit}')"
+
+    def record_fetch_run(self, started_at, finished_at, trigger, results):
+        with self._connect() as conn:
+            self._exec(
+                conn,
+                "INSERT INTO fetch_runs (started_at, finished_at, trigger, results) VALUES (?, ?, ?, ?)",
+                (started_at, finished_at, trigger, json.dumps(results, ensure_ascii=False)),
+            )
+
+    def last_fetch_run(self):
+        with self._connect() as conn:
+            rows = self._query_dicts(conn, "SELECT * FROM fetch_runs ORDER BY started_at DESC LIMIT 1")
+        if not rows:
+            return None
+        run = rows[0]
+        run["results"] = json.loads(run["results"] or "[]")
+        return run
+
+    def new_since(self, hours):
+        """Visible (not hard-rejected) offers first stored within the last N hours, best first."""
+        with self._connect() as conn:
+            return self._query_dicts(
+                conn,
+                f"SELECT * FROM jobs WHERE COALESCE(rejected, 0)=0 AND first_seen_at >= {self._ago(hours, 'hours')} "
+                "ORDER BY score DESC",
+            )
 
     def get_meta(self, key, default=None):
         with self._connect() as conn:
@@ -226,10 +261,7 @@ class JobStore:
         """Drop offers of `source` not seen on its listing for N days. Only
         untouched (TO_REVIEW) offers go — anything you've triaged or applied
         to is kept, even after the posting disappears."""
-        if self.backend == "postgres":
-            cutoff = f"CAST(CURRENT_TIMESTAMP - INTERVAL '{int(older_than_days)} days' AS TEXT)"
-        else:
-            cutoff = f"datetime('now', '-{int(older_than_days)} days')"
+        cutoff = self._ago(older_than_days, "days")
         with self._connect() as conn:
             cur = self._exec(
                 conn,

@@ -1,30 +1,42 @@
 # Roadmap
 
-## V1.1 — current
-- [x] Recency scoring
-- [x] Better technology/domain matching
-- [x] Application statuses
-- [x] AI analysis interface (provider-agnostic)
-- [x] Dashboard foundation
-- [x] Database migration support
-- [x] `.gitignore` / remove local DB from repository
+Long-term goal: a public, multi-user product — **JOffers** — that anyone can use
+the way the author does today.
 
-## V1.2 — next
-- [ ] Real job-board adapters (Pracuj, Just Join IT, No Fluff Jobs, company career pages)
-- [ ] Job normalization and robust date parsing
-- [ ] AI API client
-- [ ] Tailored CV generation from master CV
-- [ ] Application question generator
+## Stage 1 — correctness and foundations ✅
+- [x] Whole-word keyword matching (substring matches inflated AI/Git points)
+- [x] All tests green, CI on every push
+- [x] Pinned dependencies, dev dependencies split out
+- [x] Scoring settings stored in the database, shared by every device
+- [x] Fast dashboard: one cached read instead of several per interaction
+- [x] Stale offers expire after 14 days off their board
 
-## V1.3
-- [ ] PostgreSQL
-- [ ] Background scheduler
-- [ ] Authentication
-- [ ] Notifications
-- [ ] Cloud deployment
+## Stage 2 — fetch in the background ✅
+- [x] Scheduled fetch in GitHub Actions at 18:00 Europe/Warsaw
+- [x] Fetch history stored in the database (diagnostics survive reloads)
+- [x] Daily push summary via ntfy
+- [ ] Check whether boards block GitHub-hosted runners; mitigate if they do
+- [ ] Alert when a source returns nothing for several runs in a row
 
-## V2
-- [ ] Playwright application agent
-- [ ] Approval workflow before submission
-- [ ] CAPTCHA / 2FA handoff
-- [ ] Application outcome analytics
+## Stage 3 — new web app (alongside Streamlit, same database)
+- [ ] TypeScript frontend on static hosting, reading Supabase directly
+- [ ] Supabase Auth + row-level security
+- [ ] Multi-tenant data model: shared scraped offers; per-user profile,
+      scores, statuses, notes and quoted rates
+- [ ] "Fetch now" triggers the GitHub workflow instead of scraping in the page
+- [ ] Playwright end-to-end tests in CI
+
+## Stage 4 — switch over
+- [ ] Retire the Streamlit dashboard
+- [ ] Postgres only: drop the SQLite fallback, real timestamp types, versioned migrations
+
+## Before going public
+- [ ] Legal review: terms of service of each board for commercial reuse of listings
+- [ ] Privacy policy / GDPR for user accounts and application data
+- [ ] Per-user scheduled fetch costs and rate limits
+- [ ] Email notifications (account-based) alongside push
+- [ ] Billing, if commercialized
+
+## Later ideas
+- [ ] AI-assisted offer analysis and tailored CV generation
+- [ ] Application assistant with human approval before anything is sent

@@ -169,3 +169,22 @@ def test_fetch_expires_only_offers_gone_from_a_loaded_listing(monkeypatch, tmp_p
     remaining = {row["external_id"] for row in store.list_all()}
     assert remaining == {still_listed.external_id, blocked_source_job.external_id}
     assert next(r for r in results if r.name == "JustJoin.IT").expired == 1
+
+
+def test_run_fetch_records_last_fetch_state(monkeypatch, tmp_path):
+    import json
+    store = JobStore(str(tmp_path / "jobs.db"))
+    job = Job("QA Engineer", "Acme", "https://remoteok.com/remote-jobs/1", "RemoteOK",
+              description="Remote QA role", location="Remote", remote=True, contract="B2B")
+    for attr in ("NoFluffSource", "PracujSource", "JustJoinSource", "WeWorkRemotelySource",
+                 "BulldogJobSource", "TestDevJobsSource", "EldoradoSource"):
+        monkeypatch.setattr(collector_mod, attr, lambda: _fake_source("x", []))
+    monkeypatch.setattr(collector_mod, "RemoteOKSource", lambda: _fake_source("RemoteOK", [job]))
+
+    collector_mod.run_fetch(store, "scheduled")
+    meta = store.get_all_meta()
+    assert json.loads(meta["last_fetch_new_ids"]) == [job.external_id]
+    assert meta["last_fetch_at"]
+    run = store.last_fetch_run()
+    assert run["trigger"] == "scheduled"
+    assert next(r for r in run["results"] if r["name"] == "RemoteOK")["inserted"] == 1

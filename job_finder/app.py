@@ -6,10 +6,10 @@ from datetime import datetime, timedelta, timezone
 import pandas as pd
 import streamlit as st
 
-from .config import load_config, save_user_overrides
-from .scoring import score_job
+from .config import OVERRIDES_META_KEY, load_config, overrides_from_meta
+from .scoring import SCORING_VERSION, score_job
 from .models import Job
-from .collector import collect_live_jobs, SOURCE_COUNT, SENSITIVE_SOURCE_COUNT
+from .collector import run_fetch, SOURCE_COUNT, SENSITIVE_SOURCE_COUNT
 from .storage import DEFAULT_STATUSES, JobStore
 from .sources.web_utils import infer_remote
 from .cv_highlights import load_cv_highlights, match_highlights
@@ -159,6 +159,7 @@ def refresh_scores_for_config(store, cfg, meta, visible_rows):
     to keep date-based points current. State lives in the DB, so a new browser
     session (phone visit, new tab) doesn't trigger a rescore on its own."""
     scoring_inputs = {key: cfg.get(key) for key in ("candidate", "scoring", "filters", "hard_exclusions")}
+    scoring_inputs["scoring_version"] = SCORING_VERSION
     signature = json.dumps(scoring_inputs, sort_keys=True, ensure_ascii=False)
     today = datetime.now(timezone.utc).date().isoformat()
     if st.session_state.get("scores_checked") == (signature, today):
@@ -200,14 +201,14 @@ def refresh_scores_for_config(store, cfg, meta, visible_rows):
     return True
 
 
-def render_scoring_controls(cfg):
+def render_scoring_controls(cfg, store):
     scoring = cfg.setdefault("scoring", {})
     penalties = scoring.setdefault("penalties", {})
     salary_bonus_cfg = scoring.setdefault("salary_bonus", {})
     filters = cfg.setdefault("filters", {})
 
     with st.sidebar.expander("Scoring & filters", expanded=False):
-        st.caption("Saved to a local override file. Streamlit Cloud may reset it after an app restart.")
+        st.caption("Saved in the database — shared by every device and used by the scheduled fetch.")
         with st.form("scoring_filters_form"):
             remote_only = st.checkbox("Remote offers only", value=filters.get("remote_only", True))
             automation_penalty = st.slider(
@@ -245,37 +246,35 @@ def render_scoring_controls(cfg):
             save_clicked = st.form_submit_button("Save criteria")
 
         if save_clicked:
-            try:
-                save_user_overrides({
-                    "filters": {
-                        "remote_only": remote_only,
-                        "minimum_score_to_show": minimum_score,
-                        "high_match_threshold": high_match_threshold,
-                    },
-                    "scoring": {"penalties": {
-                        "automation_title": automation_penalty,
-                        "programming_language_title": language_penalty,
-                        "stale_after_days": stale_after_days,
-                        "stale_offer": stale_penalty,
-                    }, "salary_bonus": {
-                        "monthly_threshold_pln": salary_threshold,
-                        "points": salary_points,
-                    }},
-                })
-                st.success("Criteria saved.")
-                st.rerun()
-            except OSError as exc:
-                st.error(f"Could not save criteria: {exc}")
+            store.set_meta(OVERRIDES_META_KEY, json.dumps({
+                "filters": {
+                    "remote_only": remote_only,
+                    "minimum_score_to_show": minimum_score,
+                    "high_match_threshold": high_match_threshold,
+                },
+                "scoring": {"penalties": {
+                    "automation_title": automation_penalty,
+                    "programming_language_title": language_penalty,
+                    "stale_after_days": stale_after_days,
+                    "stale_offer": stale_penalty,
+                }, "salary_bonus": {
+                    "monthly_threshold_pln": salary_threshold,
+                    "points": salary_points,
+                }},
+            }))
+            load_snapshot.clear()
+            st.rerun()
 
     return cfg
 
 
-def render_fetch_diagnostics():
-    results = st.session_state.get("last_fetch_results")
-    if not results:
+def render_fetch_diagnostics(run):
+    if not run:
         return
+    results = run["results"]
 
-    st.subheader("Live fetch diagnostics")
+    st.subheader("Last fetch diagnostics")
+    st.caption(f'{format_last_fetch(run["finished_at"])} · {run["trigger"]}')
 
     rows = []
     notes = []
@@ -347,7 +346,7 @@ def load_snapshot(_store):
     time (4 round trips, full table) made every click slow on Cloud. One cached
     read instead, cleared after any write and refreshed at most every 5 min
     to pick up writes from another instance (e.g. local dev)."""
-    return {"jobs": _store.list(0), "meta": _store.get_all_meta()}
+    return {"jobs": _store.list(0), "meta": _store.get_all_meta(), "last_run": _store.last_fetch_run()}
 
 
 def format_last_fetch(iso_value):
@@ -376,12 +375,12 @@ def main():
     st.title("Michal's Job Finder")
     st.caption("Hosted MVP - job matching, freshness scoring and application tracking.")
 
-    cfg = load_config()
-    cfg = render_scoring_controls(cfg)
     # Keyed on the class object so a hot code reload on Cloud (new JobStore
     # class) gets a fresh instance instead of a cached one missing new methods.
     store = get_store(id(JobStore))
     snapshot = load_snapshot(store)
+    cfg = load_config(overrides=overrides_from_meta(snapshot["meta"]))
+    cfg = render_scoring_controls(cfg, store)
     if refresh_scores_for_config(store, cfg, snapshot["meta"], snapshot["jobs"]):
         snapshot = load_snapshot(store)
     new_ids = new_ids_from(snapshot["meta"])
@@ -453,31 +452,10 @@ def main():
                         column_config={"Offer link": st.column_config.LinkColumn("Offer link", display_text="Open")},
                     )
 
-        results = collect_live_jobs(on_source_fetched=_on_source_fetched, skip_sensitive=skip_sensitive, store=store)
+        run_fetch(store, "manual", skip_sensitive=skip_sensitive, on_source_fetched=_on_source_fetched)
         progress_box.empty()
-        store.set_meta("last_fetch_at", datetime.now(timezone.utc).isoformat(timespec="seconds"))
-        store.set_meta("last_fetch_new_ids", json.dumps(sorted({url for r in results for url in r.inserted_urls})))
         load_snapshot.clear()
 
-        st.session_state["last_fetch_results"] = [
-            {
-                "name": r.name,
-                "count": r.count,
-                "inserted": r.inserted,
-                "updated": r.updated,
-                "rejected": r.rejected,
-                "duplicate": r.duplicate,
-                "expired": r.expired,
-                "candidates": r.candidates,
-                "parsed": r.parsed,
-                "skipped_known": r.skipped_known,
-                "rejected_by_reason": r.rejected_by_reason,
-                "seconds": round(r.seconds, 2),
-                "error": r.error,
-                "error_type": r.error_type,
-            }
-            for r in results
-        ]
         # Explicitly re-read the database after collection before rerunning.
         # This makes the next render use the newly inserted rows.
         st.success("Live offers fetched.")
@@ -498,7 +476,7 @@ def main():
                 "in secrets to use a persistent database instead."
             )
         st.divider()
-        render_fetch_diagnostics()
+        render_fetch_diagnostics(snapshot["last_run"])
         return
 
     st.divider()
@@ -541,7 +519,7 @@ def main():
     if not jobs:
         st.info("No offers match the selected filters.")
         st.divider()
-        render_fetch_diagnostics()
+        render_fetch_diagnostics(snapshot["last_run"])
         return
 
     rows = []
@@ -654,7 +632,7 @@ def main():
                 st.write(job["ai_analysis"])
 
     st.divider()
-    render_fetch_diagnostics()
+    render_fetch_diagnostics(snapshot["last_run"])
 
 
 if __name__ == "__main__":

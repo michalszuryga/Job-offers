@@ -152,3 +152,22 @@ def test_delete_expired_keeps_triaged_and_recently_seen(tmp_path):
     assert store.delete_expired("src", older_than_days=3) == 1
     remaining = {row["external_id"] for row in store.list_all()}
     assert remaining == {applied.external_id, touched.external_id, other_source.external_id}
+
+
+def test_fetch_runs_and_new_since(tmp_path):
+    db = tmp_path / "jobs.db"
+    store = JobStore(db)
+    assert store.last_fetch_run() is None
+    store.record_fetch_run("2026-10-10T10:00:00+00:00", "2026-10-10T10:05:00+00:00", "manual", [{"name": "A"}])
+    store.record_fetch_run("2026-10-10T16:00:00+00:00", "2026-10-10T16:05:00+00:00", "scheduled", [{"name": "B"}])
+    run = store.last_fetch_run()
+    assert run["trigger"] == "scheduled" and run["results"] == [{"name": "B"}]
+
+    fresh = Job("QA Fresh", "A", "https://example.com/jobs/1", "src", score=70)
+    old = Job("QA Old", "B", "https://example.com/jobs/2", "src", score=90)
+    store.upsert(fresh)
+    store.upsert(old)
+    import sqlite3
+    with sqlite3.connect(db) as conn:
+        conn.execute("UPDATE jobs SET first_seen_at='2020-01-01 00:00:00' WHERE external_id=?", (old.external_id,))
+    assert [r["title"] for r in store.new_since(24)] == ["QA Fresh"]
