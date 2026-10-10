@@ -19,13 +19,15 @@ every evening and pushes a summary of new offers to your phone.
 - **Tracking:** application status, the rate and notice period you quoted, CV
   highlights matched to each offer.
 - **Daily summary** at 18:00 Europe/Warsaw via [ntfy](https://ntfy.sh) push.
+- **Web app** (`web/`, React + TypeScript) with magic-link sign-in, built for
+  phone and laptop; the Streamlit dashboard is being phased out.
 
 ## Architecture
 
 ```
-GitHub Actions (18:00 daily) ──┐
-                               ├──► scrapers + scoring (Python) ──► Supabase Postgres ◄── Streamlit dashboard
-Dashboard "Fetch live jobs" ───┘                                         │
+GitHub Actions (18:00 daily) ──┐                                         ┌── Web app (GitHub Pages, Supabase Auth + RLS)
+                               ├──► scrapers + scoring (Python) ──► Supabase Postgres
+Dashboard "Fetch live jobs" ───┘                                         ├── Streamlit dashboard (legacy)
                                                                          └──► ntfy push summary
 ```
 
@@ -35,6 +37,8 @@ Dashboard "Fetch live jobs" ───┘                                        
 - `job_finder/storage.py` — Postgres when `DATABASE_URL` is set, SQLite otherwise (local dev, tests).
 - `job_finder/app.py` — Streamlit dashboard.
 - `job_finder/cli.py` — `fetch` and `notify-summary` for the scheduled run.
+- `web/` — the web app; talks to Supabase directly with the publishable key.
+- `db/web_access.sql` — row-level security and the one write function the web app may call.
 
 ## Run locally
 
@@ -52,7 +56,23 @@ Without `DATABASE_URL` everything runs against a local `jobs.db` SQLite file.
 To use the shared database, copy `.streamlit/secrets.toml.example` to
 `.streamlit/secrets.toml` (gitignored) and fill in the Supabase session-pooler URL.
 
+### Web app
+
+```bash
+cd web
+cp .env.example .env.local   # Supabase project URL + publishable key
+npm install
+npm run dev
+npx playwright install chromium && npm run test:e2e   # Supabase is mocked
+```
+
 ## Deployment
+
+**Web app** — `.github/workflows/web-pages.yml` deploys `web/` to GitHub Pages.
+Enable *Settings → Pages → Source: GitHub Actions*, add repository variables
+`SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY`, and apply `db/web_access.sql`.
+Access is limited to users listed in `app_members`; in Supabase Auth set the
+Site URL to the Pages URL and turn off new sign-ups once your account exists.
 
 **Dashboard** — Streamlit Community Cloud, entrypoint `streamlit_app.py`, with
 `DATABASE_URL` set under *App settings → Secrets*.

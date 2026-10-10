@@ -19,12 +19,16 @@ the way the author does today.
 - [ ] Alert when a source returns nothing for several runs in a row
 
 ## Stage 3 — new web app (alongside Streamlit, same database)
-- [ ] TypeScript frontend on static hosting, reading Supabase directly
-- [ ] Supabase Auth + row-level security
-- [ ] Multi-tenant data model: shared scraped offers; per-user profile,
-      scores, statuses, notes and quoted rates
+- [x] React + TypeScript frontend on GitHub Pages, reading Supabase directly
+- [x] Supabase Auth (magic link) + row-level security, access via `app_members`
+- [x] Offer list with the daily filters, details, status/rate/notice tracking
+- [x] Playwright end-to-end tests (desktop + phone, Supabase mocked) in CI
+- [ ] Scoring settings and fetch diagnostics in the web app
 - [ ] "Fetch now" triggers the GitHub workflow instead of scraping in the page
-- [ ] Playwright end-to-end tests in CI
+
+## Stage 3b — multi-tenant data model (once Streamlit is retired)
+- [ ] Shared scraped offers; per-user profile, scores, statuses, notes and quoted rates
+- [ ] Scheduled fetch scores offers for every user's profile
 
 ## Stage 4 — switch over
 - [ ] Retire the Streamlit dashboard

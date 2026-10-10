@@ -18,3 +18,28 @@ jobs:
       - run: pip install -r requirements-dev.txt
       # No DATABASE_URL here: tests run against throwaway SQLite files.
       - run: pytest -q
+
+  web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npx playwright install --with-deps chromium
+      # Supabase is mocked at the network level, so no secrets are needed.
+      - run: npx playwright test
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-traces
+          path: web/test-results/
+          retention-days: 7
