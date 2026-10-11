@@ -1,0 +1,18 @@
+/* Select: base.css draws the field; the CSS caret gives way to a Lucide chevron. */
+.ui-select__input {
+  background-image: none;
+  padding-inline-end: calc(var(--space-3) + 16px + var(--space-2));
+}
+
+.ui-select__chevron {
+  position: absolute;
+  inset-inline-end: var(--space-3);
+  top: 50%;
+  translate: 0 -50%;
+  color: var(--fg-muted);
+  pointer-events: none;
+}
+
+.ui-select__input:disabled + .ui-select__chevron {
+  opacity: 0.5;
+}

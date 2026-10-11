@@ -1,0 +1,123 @@
+/* SegmentedControl: a radio group drawn as one tray of segments (§4.5 "Published"). */
+.ui-segmented {
+  /* A fieldset defaults to min-content width, which would stop the track from scrolling. */
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.ui-segmented__legend {
+  padding: 0;
+  margin-bottom: var(--space-2);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-sm);
+  font-weight: var(--fw-semibold);
+}
+
+/* Five segments fit a 360px phone in English; longer copy scrolls sideways rather than wrap.
+   The 4px padding and gaps leave room for the focus ring, which the scroller would clip;
+   scroll-padding keeps that room when focus scrolls a segment into view. */
+.ui-segmented__track {
+  position: relative;
+  display: flex;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-padding-inline: var(--space-1);
+  scrollbar-width: none;
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+}
+
+/* Separate rule: Firefox would drop a list that contains an unknown -webkit- pseudo. */
+.ui-segmented__track::-webkit-scrollbar {
+  display: none;
+}
+
+.ui-segmented__option {
+  position: relative;
+  display: flex;
+  flex: 1 0 auto;
+  min-width: var(--target);
+}
+
+/* The real radio, invisible but on top, reaching into the track padding: the hit area is
+   the full control height (≥ --target), and clicks and .check() land on the input itself. */
+.ui-segmented__input {
+  position: absolute;
+  top: calc(-1 * var(--space-1));
+  left: 0;
+  width: 100%;
+  height: calc(100% + 2 * var(--space-1));
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+/* Weight never changes with selection, so picking a segment can't shift its neighbours. */
+.ui-segmented__label {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(var(--control-h) - 2 * var(--space-1));
+  /* Tight below 400px so all five windows fit beside the Filters button on a 360px phone;
+     segments grow to share any spare room, so this only moves the overflow point. */
+  padding-inline: var(--space-1);
+  /* Transparent until selected; Windows contrast themes paint it, outlining every segment. */
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--fg-muted);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-sm);
+  font-weight: var(--fw-semibold);
+  white-space: nowrap;
+  transition:
+    background-color var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+}
+
+@media (min-width: 400px) {
+  .ui-segmented__label {
+    padding-inline: var(--space-2);
+  }
+}
+
+@media (hover: hover) {
+  .ui-segmented__input:not(:checked, :disabled):hover + .ui-segmented__label {
+    color: var(--fg);
+  }
+}
+
+/* Raised surface plus a line-strong edge: the edge gives the selection 3:1 against the tray. */
+.ui-segmented__input:checked + .ui-segmented__label {
+  border-color: var(--line-strong);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-card);
+  color: var(--fg);
+}
+
+.ui-segmented__input:focus-visible + .ui-segmented__label {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.ui-segmented__input:disabled {
+  cursor: not-allowed;
+}
+
+.ui-segmented__input:disabled + .ui-segmented__label {
+  opacity: 0.5;
+}
+
+@media (forced-colors: active) {
+  .ui-segmented__input:checked + .ui-segmented__label {
+    forced-color-adjust: none;
+    border-color: Highlight;
+    background: Highlight;
+    color: HighlightText;
+  }
+}

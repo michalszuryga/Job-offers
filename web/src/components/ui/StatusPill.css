@@ -1,0 +1,63 @@
+/* Status pill (plan §2.4): a 6px dot plus the label. The label carries the meaning;
+   tone only groups statuses at a glance. Not interactive. */
+.ui-status-pill {
+  --pill-fg: var(--fg-muted);
+  --pill-bg: var(--surface-2);
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  gap: 6px;
+  padding: 1px var(--space-2);
+  /* Transparent so every tone is the same height; forced colours paint it as the outline. */
+  border: 1px solid transparent;
+  border-radius: var(--radius-full);
+  background: var(--pill-bg);
+  color: var(--pill-fg);
+  font-size: var(--fs-xs);
+  line-height: var(--lh-xs);
+  font-weight: var(--fw-xs);
+  letter-spacing: var(--ls-xs);
+  white-space: nowrap;
+}
+
+.ui-status-pill__dot {
+  flex: none;
+  inline-size: 6px;
+  block-size: 6px;
+  border-radius: var(--radius-full);
+  background: currentColor;
+}
+
+.ui-status-pill--brand {
+  --pill-fg: var(--brand-ink);
+  --pill-bg: var(--brand-tint);
+}
+
+.ui-status-pill--info {
+  --pill-fg: var(--info);
+  --pill-bg: var(--info-tint);
+}
+
+.ui-status-pill--success {
+  --pill-fg: var(--success);
+  --pill-bg: var(--success-tint);
+}
+
+.ui-status-pill--danger {
+  --pill-fg: var(--danger);
+  --pill-bg: var(--danger-tint);
+}
+
+/* Withdrawn: no fill, so it reads as closed on any card background (incl. the selected tint). */
+.ui-status-pill--outline {
+  --pill-bg: transparent;
+  border-color: var(--line-strong);
+}
+
+/* Forced colours flatten backgrounds to Canvas, which would erase the dot. */
+@media (forced-colors: active) {
+  .ui-status-pill__dot {
+    forced-color-adjust: none;
+    background: CanvasText;
+  }
+}

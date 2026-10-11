@@ -59,6 +59,8 @@ const PAIRS: [string[], string[], number, string][] = [
   // UI components and graphics
   [['line-strong'], ['canvas', 'surface', 'surface-2', 'surface-raised'], UI, 'control borders, unscored ring'],
   [['focus'], ['canvas', 'surface', 'surface-2', 'surface-raised', 'brand-tint'], UI, 'focus ring'],
+  // Callouts sit on the tone tints and hold buttons and "Technical details".
+  [['line-strong', 'focus'], ['success-tint', 'info-tint', 'warning-tint', 'danger-tint'], UI, 'controls inside callouts'],
   [['brand'], ['surface', 'brand-tint'], UI, 'NEW badge, selected card ring'],
   [['fg-muted'], ['surface-2'], UI, 'low band ring'],
 ]

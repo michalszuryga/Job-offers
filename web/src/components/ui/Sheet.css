@@ -1,0 +1,207 @@
+/* Sheet: a modal <dialog>. Bottom sheet under 1024 px, centred modal from 1024 px.
+   The dialog itself is the scroller, with a sticky header and an optional sticky footer, so
+   its scroll padding keeps a focused control clear of both (WCAG 2.4.11, §2.6). */
+.ui-sheet {
+  /* Room for the drag handle above the title row; 56 px without it (≥1024). */
+  --sheet-header-h: 64px;
+  --sheet-footer-h: 0px;
+  /* Dims the page: the darkest ink of each theme, see-through. */
+  --sheet-scrim: light-dark(
+    color-mix(in srgb, var(--fg) 45%, transparent),
+    color-mix(in srgb, var(--canvas) 72%, transparent)
+  );
+  /* Where entry starts and exit ends: below the screen on a phone. */
+  --sheet-from-translate: 0 100%;
+  --sheet-from-opacity: 1;
+
+  position: fixed;
+  inset: auto 0 0;
+  box-sizing: border-box;
+  inline-size: 100%;
+  max-inline-size: 640px;
+  max-block-size: 85dvh;
+  margin: 0 auto;
+  padding: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scroll-padding-block-start: var(--sheet-header-h);
+  scroll-padding-block-end: calc(
+    var(--sheet-footer-h) + env(safe-area-inset-bottom) + var(--toast-h, 0px) + var(--space-2)
+  );
+  /* Transparent until forced colours paint it, so the sheet keeps an edge there. */
+  border: 1px solid transparent;
+  border-block-end: 0;
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-lg);
+  color: var(--fg);
+  transition:
+    translate var(--dur-slow) var(--ease-out),
+    opacity var(--dur-slow) var(--ease-out);
+}
+
+.ui-sheet--footer {
+  /* The footer's height without the safe area, which both sides of the sum add separately. */
+  --sheet-footer-h: calc(var(--control-h) + 2 * var(--space-3) + 1px);
+}
+
+.ui-sheet::backdrop {
+  background: var(--sheet-scrim);
+  transition: opacity var(--dur-slow) var(--ease-out);
+}
+
+@media (min-width: 1024px) {
+  .ui-sheet {
+    --sheet-header-h: 56px;
+    --sheet-from-translate: 0 var(--space-2);
+    --sheet-from-opacity: 0;
+    inset: 0;
+    inline-size: min(560px, 100% - 2 * var(--gutter));
+    max-inline-size: none;
+    max-block-size: min(85dvh, 760px);
+    margin: auto;
+    border-block-end: 1px solid transparent;
+    border-radius: var(--radius-xl);
+  }
+}
+
+/* Reduced motion: a short fade only (the --dur-* tokens are 100 ms there). */
+@media (prefers-reduced-motion: reduce) {
+  .ui-sheet {
+    --sheet-from-translate: 0 0;
+    --sheet-from-opacity: 0;
+  }
+}
+
+/* Entry: @starting-style is the state the open sheet transitions from. Without support the
+   sheet just appears. */
+@starting-style {
+  .ui-sheet[open] {
+    translate: var(--sheet-from-translate);
+    opacity: var(--sheet-from-opacity);
+  }
+
+  .ui-sheet[open]::backdrop {
+    opacity: 0;
+  }
+}
+
+/* Exit: keeping the closing dialog painted needs display and overlay to transition as
+   discrete values. Without `overlay` (Safari, Firefox) it would fall out of the top layer
+   mid-animation and slide under the page, so there it closes at once. */
+@supports (overlay: auto) {
+  .ui-sheet {
+    transition:
+      translate var(--dur-slow) var(--ease-out),
+      opacity var(--dur-slow) var(--ease-out),
+      display var(--dur-slow) allow-discrete,
+      overlay var(--dur-slow) allow-discrete;
+  }
+
+  .ui-sheet::backdrop {
+    transition:
+      opacity var(--dur-slow) var(--ease-out),
+      display var(--dur-slow) allow-discrete,
+      overlay var(--dur-slow) allow-discrete;
+  }
+
+  .ui-sheet:not([open]) {
+    translate: var(--sheet-from-translate);
+    opacity: var(--sheet-from-opacity);
+  }
+
+  .ui-sheet:not([open])::backdrop {
+    opacity: 0;
+  }
+}
+
+/* Header: title and close button, pinned while the content scrolls. */
+.ui-sheet__header {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  box-sizing: border-box;
+  min-block-size: var(--sheet-header-h);
+  padding-block-start: var(--space-3);
+  padding-inline: var(--gutter) var(--space-2);
+  border-block-end: 1px solid var(--line);
+  background: var(--surface-raised);
+}
+
+/* The drag handle is decoration (the sheet closes by X, Esc, back or the backdrop), so it
+   is a pseudo-element: nothing to focus, nothing announced. */
+.ui-sheet__header::before {
+  content: '';
+  position: absolute;
+  inset-block-start: 6px;
+  inset-inline-start: 50%;
+  inline-size: 36px;
+  block-size: 4px;
+  translate: -50% 0;
+  border-radius: var(--radius-full);
+  background: var(--line-strong);
+}
+
+@media (min-width: 1024px) {
+  .ui-sheet__header {
+    padding-block-start: 0;
+  }
+
+  .ui-sheet__header::before {
+    content: none;
+  }
+}
+
+/* One line, so the header keeps the height the scroll padding assumes. */
+.ui-sheet__title {
+  flex: 1;
+  min-inline-size: 0;
+  overflow: hidden;
+  font-size: var(--fs-h3);
+  line-height: var(--lh-h3);
+  font-weight: var(--fw-h3);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ui-sheet__close {
+  flex: none;
+}
+
+.ui-sheet__body {
+  padding: var(--space-4) var(--gutter);
+}
+
+.ui-sheet:not(.ui-sheet--footer) .ui-sheet__body {
+  padding-block-end: calc(var(--space-4) + env(safe-area-inset-bottom));
+}
+
+/* Footer: actions pinned to the bottom, clear of the home indicator. */
+.ui-sheet__footer {
+  position: sticky;
+  inset-block-end: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  box-sizing: border-box;
+  min-block-size: var(--sheet-footer-h);
+  padding: var(--space-3) var(--gutter) calc(var(--space-3) + env(safe-area-inset-bottom));
+  border-block-start: 1px solid var(--line);
+  background: var(--surface-raised);
+}
+
+/* Actions share the row in equal parts. */
+.ui-sheet__footer > * {
+  flex: 1 1 0;
+  min-inline-size: 0;
+}
+
+@media (forced-colors: active) {
+  .ui-sheet::backdrop {
+    background: transparent;
+  }
+}

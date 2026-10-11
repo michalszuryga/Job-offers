@@ -1,0 +1,82 @@
+/* Loading placeholders. The shimmer is a highlight sliding over the base colour; it only
+   runs when the user hasn't asked for reduced motion, so the fallback is a static shape. */
+.ui-skeleton {
+  position: relative;
+  display: block;
+  flex: none;
+  inline-size: 100%;
+  block-size: 12px;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+
+.ui-skeleton--block {
+  block-size: 64px;
+  border-radius: var(--radius-md);
+}
+
+.ui-skeleton--circle {
+  inline-size: 44px;
+  block-size: 44px;
+  border-radius: var(--radius-full);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .ui-skeleton::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    /* surface-raised is one step lighter than surface-2 in both themes. */
+    background: linear-gradient(90deg, transparent, var(--surface-raised), transparent);
+    transform: translateX(-100%);
+    animation: ui-skeleton-shimmer 1.6s linear infinite;
+  }
+}
+
+@keyframes ui-skeleton-shimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+/* OfferCard silhouette: the same surface, radius, padding and shadow as a card. */
+.ui-skeleton-card {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-3);
+  padding: var(--card-pad-y) var(--card-pad-x);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+}
+
+.ui-skeleton-card__body {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.ui-skeleton-card__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.ui-skeleton-card__row--title {
+  block-size: var(--lh-title);
+}
+
+.ui-skeleton-card__row--meta {
+  block-size: var(--lh-sm);
+}
+
+/* Tall enough for the status pill or "New" badge that ends this row. */
+.ui-skeleton-card__row--salary {
+  block-size: 20px;
+}
+
+.ui-skeleton-card__pill {
+  border-radius: var(--radius-full);
+}

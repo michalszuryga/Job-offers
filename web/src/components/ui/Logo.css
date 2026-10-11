@@ -1,0 +1,26 @@
+/* Logo: the mark plus the "JOffers" wordmark (§2.1). Everything scales from --logo-size. */
+.ui-logo {
+  --logo-size: 32px;
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--logo-size) * 10 / 32);
+  color: var(--fg);
+  vertical-align: middle;
+}
+
+.ui-logo__mark {
+  flex: none;
+  width: var(--logo-size);
+  height: var(--logo-size);
+}
+
+/* Inter 700, −0.03em, 22px at the 32px mark like brand/logo.svg. With line-height 1 Inter's
+   caps sit on the line box's centre, so align-items centres them on the mark. */
+.ui-logo__word {
+  font-family: var(--font-sans);
+  font-size: calc(var(--logo-size) * 22 / 32);
+  line-height: 1;
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--ls-display);
+  white-space: nowrap;
+}

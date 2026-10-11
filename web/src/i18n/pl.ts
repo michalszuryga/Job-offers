@@ -15,6 +15,11 @@ export const pl: Messages = {
     tryAgain: 'Spróbuj ponownie',
     technicalDetails: 'Szczegóły techniczne',
     newCount: newOffers,
+    close: 'Zamknij',
+    // Not "Odrzuć": beside a status toast it would read like the Rejected status.
+    dismiss: 'Zamknij',
+    retry: 'Ponów',
+    undo: 'Cofnij',
   },
   app: {
     signOut: 'Wyloguj się',
@@ -66,6 +71,7 @@ export const pl: Messages = {
     allSources: 'Każde źródło',
     minScore: 'Min. wynik',
     search: 'Szukaj stanowiska lub firmy',
+    clearSearch: 'Wyczyść wyszukiwanie',
     sortLabel: 'Sortowanie',
     sort: { score: 'Najlepiej dopasowane', newest: 'Najnowsze', salary: 'Najwyższe wynagrodzenie' },
   },
@@ -167,6 +173,10 @@ export const pl: Messages = {
     failedMany: (count) => `${n(count)} ${plPlural(count, 'źródło', 'źródła', 'źródeł')} z błędem`,
     partialCount: (count) =>
       `${n(count)} ${plPlural(count, 'źródło niepełne', 'źródła niepełne', 'źródeł niepełnych')}`,
+  },
+  toast: {
+    status: (label) => `Status: ${label}`,
+    statusFailed: 'Nie udało się zapisać statusu',
   },
   time: {
     justNow: 'przed chwilą',

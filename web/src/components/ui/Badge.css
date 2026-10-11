@@ -1,0 +1,65 @@
+/* Badge: a short static label (plan §2.4). Not interactive, so no target size. */
+.ui-badge {
+  --badge-fg: var(--fg-muted);
+  --badge-bg: var(--surface-2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  gap: var(--space-1);
+  padding: 1px 6px;
+  /* Transparent until forced colours paint it, so the shape survives without its fill. */
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: var(--badge-bg);
+  color: var(--badge-fg);
+  font-size: var(--fs-xs);
+  line-height: var(--lh-xs);
+  font-weight: var(--fw-xs);
+  letter-spacing: var(--ls-xs);
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+/* "New": solid brand, 12/16 700, uppercase via CSS so the copy stays sentence case. */
+.ui-badge--new {
+  --badge-fg: var(--on-brand);
+  --badge-bg: var(--brand);
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.ui-badge--brand {
+  --badge-fg: var(--brand-ink);
+  --badge-bg: var(--brand-tint);
+}
+
+.ui-badge--success {
+  --badge-fg: var(--success);
+  --badge-bg: var(--success-tint);
+}
+
+.ui-badge--info {
+  --badge-fg: var(--info);
+  --badge-bg: var(--info-tint);
+}
+
+.ui-badge--warning {
+  --badge-fg: var(--warning);
+  --badge-bg: var(--warning-tint);
+}
+
+.ui-badge--danger {
+  --badge-fg: var(--danger);
+  --badge-bg: var(--danger-tint);
+}
+
+/* Counts: a round pill that stays circular for one digit and grows for more. */
+.ui-badge--count {
+  min-inline-size: 20px;
+  padding-inline: 5px;
+  border-radius: var(--radius-full);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}

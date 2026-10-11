@@ -1,0 +1,89 @@
+/* Toaster: one toast at a time. Phone: full width above the home indicator, or above a bar
+   pinned to the bottom (the details ActionBar, P7). Such a bar publishes --actionbar-h on
+   <html> as its full rendered height, safe-area inset included (64 + inset, §4.8), which
+   then replaces the inset here; counting the inset twice would lift the toast past the
+   scroll padding the details pane reserves for it. Desktop: bottom right. */
+.ui-toaster {
+  position: fixed;
+  inset-inline: var(--gutter);
+  inset-block-end: calc(var(--actionbar-h, env(safe-area-inset-bottom)) + var(--space-2));
+  z-index: var(--z-toast);
+  display: flex;
+  justify-content: center;
+  /* The strip itself never blocks the page; only the toast takes pointer events. */
+  pointer-events: none;
+}
+
+@media (min-width: 1024px) {
+  .ui-toaster {
+    inset-inline: auto var(--gutter);
+    inset-block-end: calc(var(--actionbar-h, env(safe-area-inset-bottom)) + var(--space-6));
+  }
+}
+
+.ui-toast {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  box-sizing: border-box;
+  inline-size: 100%;
+  max-inline-size: 480px;
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-4);
+  /* Transparent until forced colours paint it, so the toast keeps an edge there. */
+  border: 1px solid transparent;
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-lg);
+  color: var(--fg);
+  pointer-events: auto;
+  transition:
+    opacity var(--dur-base) var(--ease-out),
+    translate var(--dur-base) var(--ease-out);
+}
+
+@media (min-width: 1024px) {
+  .ui-toast {
+    inline-size: 400px;
+    max-inline-size: calc(100vw - 2 * var(--gutter));
+  }
+}
+
+/* In from below and out the same way; reduced motion keeps the fade (100 ms) only. */
+@starting-style {
+  .ui-toast {
+    opacity: 0;
+  }
+}
+
+.ui-toast[data-state='closed'] {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  @starting-style {
+    .ui-toast {
+      translate: 0 var(--space-2);
+    }
+  }
+
+  .ui-toast[data-state='closed'] {
+    translate: 0 var(--space-2);
+  }
+}
+
+.ui-toast__message {
+  flex: 1;
+  min-inline-size: 0;
+  padding-block: var(--space-1);
+  font-weight: var(--fw-medium);
+}
+
+/* Brand ink marks the action; brand on surface-raised and surface-2 (hover) both pass. */
+.ui-toast .ui-toast__action {
+  --button-fg: var(--brand);
+  flex: none;
+}
+
+.ui-toast__dismiss {
+  flex: none;
+}

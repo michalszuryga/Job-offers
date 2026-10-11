@@ -1,0 +1,115 @@
+/* RadioChips: a radio group drawn as pills that wrap (§4.6 "Min score"). */
+.ui-chips {
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.ui-chips__legend {
+  padding: 0;
+  margin-bottom: var(--space-2);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-sm);
+  font-weight: var(--fw-semibold);
+}
+
+.ui-chips__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.ui-chips__option {
+  position: relative;
+  display: flex;
+  max-inline-size: 100%;
+}
+
+/* The real radio, invisible but on top of the whole chip: the chip is the hit area
+   (≥ --target), and clicks and .check() land on the input itself. */
+.ui-chips__input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+/* An unselected chip holds the check's room (icon + gap) as extra padding, split across
+   both sides; selected, that room goes to the check. The width never changes, so picking
+   a chip can't move its neighbours. */
+.ui-chips__label {
+  --chip-pad: var(--space-3);
+  --chip-check: calc(16px + var(--space-1));
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: var(--target);
+  min-height: var(--target);
+  padding-inline: calc(var(--chip-pad) + var(--chip-check) / 2);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-full);
+  background: var(--surface);
+  color: var(--fg);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-sm);
+  font-weight: var(--fw-semibold);
+  font-variant-numeric: tabular-nums;
+  transition:
+    background-color var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
+}
+
+.ui-chips__check {
+  display: none;
+  flex: none;
+}
+
+@media (hover: hover) {
+  .ui-chips__input:not(:checked, :disabled):hover + .ui-chips__label {
+    background: var(--surface-2);
+  }
+}
+
+.ui-chips__input:not(:disabled):active + .ui-chips__label {
+  transform: scale(var(--press));
+}
+
+/* Brand ink on brand tint, a brand edge (3:1 on both) and the check. */
+.ui-chips__input:checked + .ui-chips__label {
+  padding-inline: var(--chip-pad);
+  border-color: var(--brand);
+  background: var(--brand-tint);
+  color: var(--brand-ink);
+}
+
+.ui-chips__input:checked + .ui-chips__label .ui-chips__check {
+  display: block;
+}
+
+.ui-chips__input:focus-visible + .ui-chips__label {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.ui-chips__input:disabled {
+  cursor: not-allowed;
+}
+
+.ui-chips__input:disabled + .ui-chips__label {
+  opacity: 0.5;
+}
+
+@media (forced-colors: active) {
+  .ui-chips__input:checked + .ui-chips__label {
+    forced-color-adjust: none;
+    border-color: Highlight;
+    background: Highlight;
+    color: HighlightText;
+  }
+}

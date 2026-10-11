@@ -119,6 +119,13 @@ const html = existsSync(join(dist, 'index.html')) ? read('index.html').toString(
 rows.push(['index.html preloads Inter latin', '', '', check(!!latin && html.includes(`rel="preload"`) && html.includes(latin),
   'index.html has no <link rel="preload"> for the Inter latin woff2')])
 
+// The UI kit (src/dev) is reached only behind import.meta.env.DEV in main.tsx, so a build
+// must drop it: no chunk from src/dev and none of its markup in any JS file.
+const devChunks = Object.keys(manifest).filter((key) => key.startsWith('src/dev/'))
+const kitInJs = files.filter((file) => file.endsWith('.js')).filter((file) => read(file).toString('utf8').includes('kit-specimen'))
+rows.push(['Dev-only UI kit not shipped', '', '', check(devChunks.length === 0 && kitInJs.length === 0,
+  `the dev-only UI kit is in the build: ${[...devChunks, ...kitInJs].join(', ')}`)])
+
 rows.unshift(['Check', 'Size', 'Budget', 'Result'])
 const widths = [0, 1, 2].map((i) => Math.max(...rows.map((row) => row[i].length)))
 for (const [name, size, budget, result] of rows) {

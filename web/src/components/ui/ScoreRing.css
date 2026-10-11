@@ -1,0 +1,103 @@
+/* Score ring (plan §2.3). The arc sits on its own band tint, so its contrast never
+   depends on the card behind it (contrast.test.ts: score band ring). */
+.ui-score-ring {
+  --ring-band: var(--line-strong);
+  --ring-tint: transparent;
+  /* Anchors the visually hidden label so it can't escape to a distant scroller. */
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  vertical-align: middle;
+}
+
+.ui-score-ring--top {
+  --ring-band: var(--success);
+  --ring-tint: var(--success-tint);
+}
+
+.ui-score-ring--strong {
+  --ring-band: var(--info);
+  --ring-tint: var(--info-tint);
+}
+
+.ui-score-ring--fair {
+  --ring-band: var(--warning);
+  --ring-tint: var(--warning-tint);
+}
+
+.ui-score-ring--low {
+  --ring-band: var(--fg-muted);
+  --ring-tint: var(--surface-2);
+}
+
+/* Unscored: the dashed track alone, in the control-border colour. */
+.ui-score-ring--none {
+  --ring-tint: var(--line-strong);
+}
+
+.ui-score-ring__dial {
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+
+.ui-score-ring__svg,
+.ui-score-ring__value {
+  grid-area: 1 / 1;
+}
+
+.ui-score-ring__track {
+  fill: none;
+  stroke: var(--ring-tint);
+}
+
+.ui-score-ring__arc {
+  fill: none;
+  stroke: var(--ring-band);
+  stroke-linecap: round;
+}
+
+.ui-score-ring__value {
+  color: var(--fg);
+  font-size: var(--fs-body);
+  line-height: 1;
+  font-weight: var(--fw-bold);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.ui-score-ring--64 .ui-score-ring__value {
+  font-size: var(--fs-num-lg);
+  line-height: var(--lh-num-lg);
+  font-weight: var(--fw-num-lg);
+  letter-spacing: -0.03em;
+}
+
+.ui-score-ring__band {
+  color: var(--fg);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-sm);
+  font-weight: var(--fw-semibold);
+}
+
+.ui-score-ring--64 .ui-score-ring__band {
+  font-size: var(--fs-h3);
+  line-height: var(--lh-h3);
+}
+
+/* Forced colours: keep the ring legible with system colours instead of the band palette. */
+@media (forced-colors: active) {
+  .ui-score-ring__svg {
+    forced-color-adjust: none;
+  }
+
+  .ui-score-ring__track {
+    stroke: GrayText;
+  }
+
+  .ui-score-ring__arc,
+  .ui-score-ring--none .ui-score-ring__track {
+    stroke: CanvasText;
+  }
+}

@@ -1,0 +1,108 @@
+/* Callout: an inline message in a tone's tint. Text stays --fg (≥4.5 on every tint);
+   the icon takes the tone colour and its shape tells the tones apart. */
+.ui-callout {
+  --callout-tone: var(--info);
+  --callout-bg: var(--info-tint);
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  /* Transparent until forced colours paint it, so the box survives without its tint. */
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: var(--callout-bg);
+  color: var(--fg);
+}
+
+.ui-callout--success {
+  --callout-tone: var(--success);
+  --callout-bg: var(--success-tint);
+}
+
+.ui-callout--warning {
+  --callout-tone: var(--warning);
+  --callout-bg: var(--warning-tint);
+}
+
+.ui-callout--danger {
+  --callout-tone: var(--danger);
+  --callout-bg: var(--danger-tint);
+}
+
+/* Centred on the first line of text (22px line, 20px icon). */
+.ui-callout__icon {
+  margin-block-start: 1px;
+  color: var(--callout-tone);
+}
+
+.ui-callout__content {
+  display: grid;
+  gap: var(--space-1);
+  min-inline-size: 0;
+}
+
+.ui-callout__title {
+  font-weight: var(--fw-semibold);
+}
+
+.ui-callout__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-block-start: var(--space-2);
+}
+
+.ui-callout__details {
+  margin-block-start: var(--space-1);
+}
+
+/* A full-size target, with a chevron in place of the native marker (which needs
+   display:list-item and differs per engine). */
+.ui-callout__summary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-block-size: var(--target);
+  min-inline-size: var(--target);
+  padding-inline-end: var(--space-2);
+  border-radius: var(--radius-sm);
+  color: var(--fg);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  list-style: none;
+}
+
+/* Separate rule: Firefox drops a whole selector list over an unknown -webkit- pseudo. */
+.ui-callout__summary::-webkit-details-marker {
+  display: none;
+}
+
+.ui-callout__chevron {
+  flex: none;
+}
+
+.ui-callout__details[open] .ui-callout__chevron {
+  transform: rotate(90deg);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .ui-callout__chevron {
+    transition: transform var(--dur-fast) var(--ease-out);
+  }
+}
+
+/* Raw text as typed by the server: kept verbatim but wrapped, on a quiet surface. It never
+   scrolls: a scroll box would need to be focusable (axe scrollable-region-focusable). */
+.ui-callout__raw {
+  margin-block-start: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--fg);
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-sm);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

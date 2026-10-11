@@ -89,6 +89,11 @@ export const en = {
     tryAgain: 'Try again',
     technicalDetails: 'Technical details',
     newCount: (n: number) => `${formatNumber(n, 'en')} new`,
+    // Kit defaults: the sheet's close button, the toast's dismiss button and its actions.
+    close: 'Close',
+    dismiss: 'Dismiss',
+    retry: 'Retry',
+    undo: 'Undo',
   },
   app: {
     signOut: 'Sign out',
@@ -137,6 +142,8 @@ export const en = {
     allSources: 'All sources',
     minScore: 'Min score',
     search: 'Search title or company',
+    // The search field's clear (×) button.
+    clearSearch: 'Clear search',
     sortLabel: 'Sort',
     sort,
   },
@@ -192,6 +199,12 @@ export const en = {
     failedOne: (name: string) => `${name} failed`,
     failedMany: (n: number) => `${formatNumber(n, 'en')} ${enPlural(n, 'source', 'sources')} failed`,
     partialCount: (n: number) => `${formatNumber(n, 'en')} ${enPlural(n, 'source', 'sources')} partial`,
+  },
+  // "Status: Applied · Undo" and its failure "Couldn't save the status · Retry" (§4.9);
+  // the action labels come from common.
+  toast: {
+    status: (label: string) => `Status: ${label}`,
+    statusFailed: "Couldn't save the status",
   },
   time: {
     justNow: 'just now',

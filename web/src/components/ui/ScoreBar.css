@@ -1,0 +1,49 @@
+/* Breakdown bar (plan §4.8). Decorative: the numbers beside it carry the value.
+   Stretches to its container; the row layout decides the width. */
+.ui-score-bar {
+  --bar: var(--brand);
+  display: block;
+  inline-size: 100%;
+  min-inline-size: 48px;
+  block-size: 6px;
+  overflow: hidden;
+  border-radius: var(--radius-full);
+  background: var(--surface-2);
+}
+
+.ui-score-bar__fill {
+  display: block;
+  block-size: 100%;
+  inline-size: calc(var(--fill, 0) * 100%);
+  border-radius: inherit;
+  background: var(--bar);
+}
+
+.ui-score-bar--top {
+  --bar: var(--success);
+}
+
+.ui-score-bar--strong {
+  --bar: var(--info);
+}
+
+.ui-score-bar--fair {
+  --bar: var(--warning);
+}
+
+.ui-score-bar--low {
+  --bar: var(--fg-muted);
+}
+
+/* Forced colours would flatten both fills to Canvas and erase the bar. */
+@media (forced-colors: active) {
+  .ui-score-bar {
+    forced-color-adjust: none;
+    background: Canvas;
+    outline: 1px solid GrayText;
+  }
+
+  .ui-score-bar__fill {
+    background: CanvasText;
+  }
+}

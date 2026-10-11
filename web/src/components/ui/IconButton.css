@@ -1,0 +1,73 @@
+/* IconButton: a square, icon-only button. md matches field height, sm the minimum target. */
+.ui-icon-button {
+  --icon-button-bg: transparent;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: var(--control-h);
+  height: var(--control-h);
+  min-height: 0;
+  padding: 0;
+  /* Transparent rather than none: Windows contrast themes paint it, so the edge survives. */
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: var(--icon-button-bg);
+  color: var(--fg);
+  transition:
+    background-color var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
+}
+
+.ui-icon-button--sm {
+  width: var(--target);
+  height: var(--target);
+}
+
+.ui-icon-button--secondary {
+  --icon-button-bg: var(--surface);
+  border-color: var(--line-strong);
+}
+
+@media (hover: hover) {
+  .ui-icon-button:not(:disabled):hover {
+    background: var(--surface-2);
+  }
+}
+
+.ui-icon-button:not(:disabled):active {
+  transform: scale(var(--press));
+}
+
+.ui-icon-button:disabled {
+  opacity: 0.5;
+}
+
+/* Sits on the top-right corner; the ring in the page colour keeps it off the icon. Anchored
+   by its start edge, so a wider count ("99+") grows outwards rather than over the icon. */
+.ui-icon-button__badge {
+  position: absolute;
+  top: -4px;
+  inset-inline-start: calc(100% - 14px);
+  min-inline-size: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: var(--radius-full);
+  background: var(--brand);
+  box-shadow: 0 0 0 2px var(--surface);
+  color: var(--on-brand);
+  font-size: var(--fs-xs);
+  line-height: 18px;
+  font-weight: var(--fw-bold);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  pointer-events: none;
+}
+
+@media (forced-colors: active) {
+  .ui-icon-button__badge {
+    border: 1px solid CanvasText;
+    line-height: 16px;
+  }
+}

@@ -4,6 +4,8 @@ import { defineConfig, devices } from '@playwright/test'
 // Specs navigate with page.goto('./…'), relative to baseURL.
 const BASE_PATH = '/Job-offers/'
 const BASE_URL = `http://localhost:4173${BASE_PATH}`
+// The UI kit only exists on the dev server (main.tsx), so kit.spec gets its own.
+const KIT_URL = `http://localhost:5174${BASE_PATH}`
 
 // Supabase is mocked at the network level (see e2e/supabase-mock.ts), so the
 // app is built against a fake project URL that never resolves.
@@ -14,6 +16,7 @@ const env = {
 }
 
 const preview = 'npm run preview -- --port 4173 --strictPort'
+const KIT_SPEC = 'kit.spec.ts'
 
 export default defineConfig({
   testDir: 'e2e',
@@ -31,14 +34,26 @@ export default defineConfig({
     trace: 'retain-on-failure',
   },
   projects: [
-    { name: 'desktop', use: { ...devices['Desktop Chrome'] } },
-    { name: 'phone', use: { ...devices['Pixel 7'] } },
+    { name: 'desktop', use: { ...devices['Desktop Chrome'] }, testIgnore: KIT_SPEC },
+    { name: 'phone', use: { ...devices['Pixel 7'] }, testIgnore: KIT_SPEC },
+    // axe and target sizes on every kit component: 32 px with a mouse, 44 px on touch.
+    { name: 'kit', use: { ...devices['Desktop Chrome'], baseURL: KIT_URL }, testMatch: KIT_SPEC },
+    { name: 'kit-phone', use: { ...devices['Pixel 7'], baseURL: KIT_URL }, testMatch: KIT_SPEC },
   ],
-  webServer: {
-    // CI builds once with the same env (and checks the bundle) before the tests.
-    command: process.env.PW_PREBUILT === '1' ? preview : `npm run build && ${preview}`,
-    url: BASE_URL,
-    env,
-    reuseExistingServer: !process.env.CI,
-  },
+  webServer: [
+    {
+      // CI builds once with the same env (and checks the bundle) before the tests.
+      command: process.env.PW_PREBUILT === '1' ? preview : `npm run build && ${preview}`,
+      url: BASE_URL,
+      env,
+      reuseExistingServer: !process.env.CI,
+    },
+    {
+      // Needs no build, so PW_PREBUILT leaves it alone.
+      command: 'npm run dev -- --port 5174 --strictPort',
+      url: KIT_URL,
+      env,
+      reuseExistingServer: !process.env.CI,
+    },
+  ],
 })

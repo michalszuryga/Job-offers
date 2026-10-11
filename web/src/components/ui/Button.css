@@ -1,0 +1,112 @@
+/* Button: also styles <a> (same class), so a link that looks like a button stays a link. */
+.ui-button {
+  --button-fg: var(--on-brand);
+  --button-bg: var(--brand);
+  --button-bg-hover: var(--brand-hover);
+  --button-border: transparent;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: var(--control-h);
+  min-width: var(--target);
+  padding: 0 var(--space-4);
+  /* Transparent rather than none: Windows contrast themes paint it, so the edge survives. */
+  border: 1px solid var(--button-border);
+  border-radius: var(--radius-md);
+  background: var(--button-bg);
+  color: var(--button-fg);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  font-weight: var(--fw-semibold);
+  text-align: center;
+  text-decoration: none;
+  transition:
+    background-color var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
+}
+
+.ui-button--sm {
+  min-height: var(--target);
+  padding: 0 var(--space-3);
+  gap: var(--space-1);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-sm);
+}
+
+.ui-button--full {
+  display: flex;
+  width: 100%;
+}
+
+.ui-button--secondary {
+  --button-fg: var(--fg);
+  --button-bg: var(--surface);
+  --button-bg-hover: var(--surface-2);
+  --button-border: var(--line-strong);
+}
+
+.ui-button--ghost {
+  --button-fg: var(--fg);
+  --button-bg: transparent;
+  --button-bg-hover: var(--surface-2);
+}
+
+/* Outlined rather than filled: danger on surface and on danger-tint are the pairs
+   contrast.test.ts already guarantees in both themes. */
+.ui-button--danger {
+  --button-fg: var(--danger);
+  --button-bg: var(--surface);
+  --button-bg-hover: var(--danger-tint);
+  --button-border: var(--danger);
+}
+
+@media (hover: hover) {
+  .ui-button:not(:disabled, [aria-disabled='true']):hover {
+    background: var(--button-bg-hover);
+  }
+}
+
+.ui-button:not(:disabled, [aria-disabled='true']):active {
+  transform: scale(var(--press));
+}
+
+.ui-button:disabled {
+  opacity: 0.5;
+}
+
+.ui-button__icon {
+  flex: none;
+}
+
+/* Long labels wrap inside the button instead of overflowing it. */
+.ui-button__label {
+  min-width: 0;
+}
+
+/* Loading: the content goes invisible but keeps its box (and the accessible name),
+   so the width holds while the spinner sits on top. */
+.ui-button[aria-busy='true'] {
+  cursor: progress;
+}
+
+.ui-button[aria-busy='true'] > :not(.ui-button__spinner) {
+  opacity: 0;
+}
+
+.ui-button__spinner {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  animation: ui-button-spin 0.8s linear infinite;
+}
+
+/* Under reduced motion base.css cuts keyframes short, leaving a still open ring,
+   which still reads as busy next to aria-busy. */
+@keyframes ui-button-spin {
+  to {
+    transform: rotate(1turn);
+  }
+}

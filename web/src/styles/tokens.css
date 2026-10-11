@@ -25,6 +25,14 @@
 --danger:light-dark(#B42318,#FF8A80);    --danger-tint:light-dark(#FDECEA,#2E1517);
 }
 
+/* Brand mark (§2.1): the same in both themes, so plain values rather than light-dark().
+   The gradient appears only in the mark, the hero glow and og.png; ink is the ring and J. */
+:root {
+  --mark-from: #4B3BE8;
+  --mark-to: #8B5CF6;
+  --mark-ink: #FFFFFF;
+}
+
 :root {
   /* Shadow colours. Dark mode leans on the surface step (surface → surface-raised)
      for elevation, so its drops are dark and its ring/highlight are faint light. */

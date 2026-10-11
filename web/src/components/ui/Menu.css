@@ -1,0 +1,123 @@
+/* Menu: a trigger and a panel of actions. The panel is fixed and placed by Menu.tsx; as a
+   popover it lives in the top layer, in the fallback it is portalled to <body> and stacks
+   at --z-popover there, above any sticky bar. */
+.ui-menu {
+  display: inline-flex;
+}
+
+.ui-menu__panel {
+  position: fixed;
+  /* Overrides the popover UA style (inset:0; margin:auto), which would centre it. */
+  inset: auto;
+  z-index: var(--z-popover);
+  box-sizing: border-box;
+  min-inline-size: 220px;
+  max-inline-size: min(320px, 100vw - 2 * var(--space-2));
+  max-block-size: calc(100dvh - 2 * var(--space-2));
+  margin: 0;
+  padding: var(--space-1);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  /* Transparent until forced colours paint it, so the panel keeps an edge there. */
+  border: 1px solid transparent;
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-md);
+  color: var(--fg);
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+
+/* Fades in from the first frame it is displayed (popover or fallback); it closes at once,
+   with focus already back on the trigger. A fade only, in every motion setting: a moving
+   start would skew the rects Menu.tsx measures as it opens. */
+@starting-style {
+  .ui-menu__panel {
+    opacity: 0;
+  }
+}
+
+/* The signed-in email and the like: read, never focused. */
+.ui-menu__header {
+  margin-block-end: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  border-block-end: 1px solid var(--line);
+  color: var(--fg-muted);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-sm);
+  font-weight: var(--fw-sm);
+  overflow-wrap: anywhere;
+}
+
+.ui-menu__label {
+  padding: var(--space-2) var(--space-3) var(--space-1);
+  color: var(--fg-muted);
+  font-size: var(--fs-xs);
+  line-height: var(--lh-xs);
+  font-weight: var(--fw-xs);
+  letter-spacing: var(--ls-xs);
+  text-transform: uppercase;
+}
+
+.ui-menu__separator {
+  block-size: 1px;
+  margin: var(--space-1) calc(-1 * var(--space-1));
+  background: var(--line);
+}
+
+/* Buttons and links alike. 36 px rows with a mouse, the 44 px target on touch. */
+.ui-menu__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  box-sizing: border-box;
+  inline-size: 100%;
+  min-block-size: max(var(--target), 36px);
+  padding: var(--space-1) var(--space-3);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--fg);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  font-weight: var(--fw-medium);
+  text-align: start;
+  text-decoration: none;
+}
+
+@media (hover: hover) {
+  .ui-menu__item:not([aria-disabled='true']):hover {
+    background: var(--surface-2);
+  }
+}
+
+/* Inset, so the panel's padding never clips the ring; the tint marks the current row too. */
+.ui-menu__item:focus-visible {
+  outline-offset: -2px;
+  background: var(--surface-2);
+}
+
+.ui-menu__item[aria-disabled='true'] {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.ui-menu__icon {
+  flex: none;
+  color: var(--fg-muted);
+}
+
+.ui-menu__text {
+  flex: 1;
+  min-inline-size: 0;
+}
+
+/* The tick keeps its space when unchecked, so labels don't shift between choices. */
+.ui-menu__check {
+  flex: none;
+  color: var(--brand);
+  visibility: hidden;
+}
+
+.ui-menu__item[aria-checked='true'] .ui-menu__check {
+  visibility: visible;
+}

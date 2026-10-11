@@ -1,0 +1,487 @@
+/* The UI kit page (dev only): page layout and the frames around specimens. The components
+   style themselves; nothing here reaches into a .ui-* class. */
+
+/* The bar is sticky from 768 px only: anchors and focus land below it (html
+   scroll-padding-top), and on a phone nothing covers them. */
+:root {
+  --sticky-h: 0px;
+}
+
+@media (min-width: 768px) {
+  :root {
+    --sticky-h: 72px;
+  }
+}
+
+.kit {
+  min-block-size: 100dvh;
+  background: var(--canvas);
+}
+
+/* Bar: logo, then the theme and language switches. */
+.kit-bar {
+  border-block-end: 1px solid var(--line);
+  background: var(--surface);
+}
+
+@media (min-width: 768px) {
+  .kit-bar {
+    position: sticky;
+    inset-block-start: 0;
+    z-index: var(--z-sticky);
+  }
+}
+
+.kit-bar__inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3) var(--space-4);
+  max-inline-size: 1200px;
+  margin-inline: auto;
+  padding: var(--space-3) var(--gutter);
+}
+
+.kit-bar__brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.kit-bar__controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* Page: a section index beside the content from 1024 px. */
+.kit-layout {
+  display: grid;
+  gap: var(--space-10);
+  max-inline-size: 1200px;
+  margin-inline: auto;
+  /* Room at the end, so a toast never covers the last specimen. */
+  padding: var(--space-8) var(--gutter) calc(var(--space-16) * 2);
+}
+
+.kit-nav {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .kit-layout {
+    grid-template-columns: 200px minmax(0, 1fr);
+    gap: var(--space-12);
+    padding-block-start: var(--space-12);
+  }
+
+  .kit-nav {
+    position: sticky;
+    inset-block-start: calc(var(--sticky-h) + var(--space-6));
+    display: block;
+    align-self: start;
+    max-block-size: calc(100dvh - var(--sticky-h) - var(--space-12));
+    overflow-y: auto;
+  }
+}
+
+/* Padding keeps the links' focus rings inside the scroller. */
+.kit-nav__list {
+  display: grid;
+  gap: 2px;
+  padding: var(--space-1);
+  list-style: none;
+}
+
+.kit-nav__link {
+  display: flex;
+  align-items: center;
+  min-block-size: var(--target);
+  padding-inline: var(--space-3);
+  border-radius: var(--radius-sm);
+  color: var(--fg-muted);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-sm);
+  font-weight: var(--fw-medium);
+  text-decoration: none;
+  transition:
+    background-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+}
+
+@media (hover: hover) {
+  .kit-nav__link:hover {
+    background: var(--surface-2);
+    color: var(--fg);
+  }
+}
+
+.kit-main {
+  display: grid;
+  gap: var(--space-12);
+  min-inline-size: 0;
+}
+
+.kit-intro {
+  display: grid;
+  gap: var(--space-2);
+  max-inline-size: 68ch;
+}
+
+.kit-intro__eyebrow {
+  color: var(--brand-ink);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-sm);
+  font-weight: var(--fw-semibold);
+}
+
+.kit-intro__title {
+  font-size: var(--fs-display);
+  line-height: var(--lh-display);
+  font-weight: var(--fw-display);
+  letter-spacing: var(--ls-display);
+}
+
+.kit-intro__lede {
+  margin-block-start: var(--space-2);
+  color: var(--fg-muted);
+  font-size: var(--fs-body-lg);
+  line-height: var(--lh-body-lg);
+}
+
+.kit-code {
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+  color: var(--fg);
+}
+
+/* Section: a heading and a line on its use, then one panel of specimens. */
+.kit-section {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.kit-section__head {
+  display: grid;
+  gap: var(--space-1);
+  max-inline-size: 68ch;
+}
+
+.kit-section__title {
+  font-size: var(--fs-h2);
+  line-height: var(--lh-h2);
+  font-weight: var(--fw-h2);
+  letter-spacing: var(--ls-h2);
+}
+
+.kit-section__lede {
+  color: var(--fg-muted);
+}
+
+.kit-panel {
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+}
+
+.kit-specimen {
+  display: grid;
+  gap: var(--space-4);
+  min-inline-size: 0;
+  padding: var(--space-5) var(--space-4);
+}
+
+.kit-specimen + .kit-specimen {
+  border-block-start: 1px solid var(--line);
+}
+
+@media (min-width: 640px) {
+  .kit-specimen {
+    padding: var(--space-6);
+  }
+}
+
+.kit-specimen__label {
+  color: var(--fg-muted);
+  font-size: var(--fs-xs);
+  line-height: var(--lh-xs);
+  font-weight: var(--fw-xs);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.kit-specimen__body {
+  min-inline-size: 0;
+}
+
+.kit-specimen__body--row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3) var(--space-4);
+}
+
+.kit-specimen__body--grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr));
+  align-items: start;
+  gap: var(--space-5) var(--space-6);
+}
+
+.kit-specimen__body--stack {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.kit-narrow .kit-specimen__body {
+  max-inline-size: 460px;
+}
+
+/* One example over its caption. Examples in a row share its height, so their captions
+   line up whatever the size of the thing above them (logos, rings). */
+.kit-example {
+  display: grid;
+  grid-template-rows: 1fr auto;
+  justify-items: start;
+  gap: var(--space-2);
+}
+
+.kit-specimen__body--row > .kit-example {
+  align-self: stretch;
+}
+
+.kit-example__item {
+  display: flex;
+  align-items: center;
+  min-block-size: var(--control-h);
+}
+
+.kit-example__caption {
+  color: var(--fg-muted);
+  font-size: var(--fs-xs);
+  line-height: var(--lh-xs);
+  font-weight: var(--fw-medium);
+}
+
+.kit-note {
+  max-inline-size: 48ch;
+  color: var(--fg-muted);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-sm);
+}
+
+.kit-strong {
+  color: var(--fg);
+  font-weight: var(--fw-semibold);
+}
+
+/* Foundations */
+.kit-swatches .kit-specimen__body--grid {
+  grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
+  gap: var(--space-4) var(--space-3);
+}
+
+.kit-swatch {
+  display: grid;
+  gap: var(--space-2);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-sm);
+}
+
+/* The ring keeps a swatch that matches the panel (surface, line) visible. */
+.kit-swatch__chip {
+  display: block;
+  block-size: 56px;
+  border-radius: var(--radius-md);
+  box-shadow: inset 0 0 0 1px var(--sh-ring);
+}
+
+.kit-type {
+  display: grid;
+  gap: var(--space-1);
+  padding-block: var(--space-2);
+}
+
+.kit-type + .kit-type {
+  border-block-start: 1px solid var(--line);
+}
+
+@media (min-width: 640px) {
+  .kit-type {
+    grid-template-columns: 88px minmax(0, 1fr);
+    align-items: baseline;
+    gap: var(--space-4);
+  }
+}
+
+.kit-type__token {
+  color: var(--fg-muted);
+  font-size: var(--fs-xs);
+}
+
+.kit-type__sample {
+  min-inline-size: 0;
+  color: var(--fg);
+}
+
+.kit-box {
+  display: block;
+  inline-size: 72px;
+  block-size: 56px;
+  border: 1px solid var(--line-strong);
+  background: var(--surface-2);
+}
+
+.kit-box--raised {
+  border-color: transparent;
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
+}
+
+/* Score: rings in equal columns, so the band words line up; the 64 px row takes three
+   to a line rather than leaving one ring alone on the second. */
+.kit-rings .kit-specimen__body {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--ring-col)), 1fr));
+  gap: var(--space-5) var(--space-4);
+}
+
+.kit-rings--44 {
+  --ring-col: 140px;
+}
+
+.kit-rings--64 {
+  --ring-col: 200px;
+}
+
+.kit-breakdown {
+  display: grid;
+  gap: var(--space-2);
+  max-inline-size: 520px;
+  list-style: none;
+}
+
+.kit-breakdown__row {
+  display: grid;
+  grid-template-columns: minmax(0, 9rem) minmax(48px, 1fr) 4.5rem;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-sm);
+}
+
+.kit-breakdown__label {
+  overflow-wrap: anywhere;
+}
+
+.kit-breakdown__points {
+  justify-self: end;
+  color: var(--fg-muted);
+  font-weight: var(--fw-semibold);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* A penalty has no bar, so it skips the bar column. */
+.kit-breakdown__points--penalty {
+  grid-column: 3;
+  color: var(--danger);
+}
+
+.kit-breakdown__total {
+  max-inline-size: 520px;
+  padding-block-start: var(--space-2);
+  border-block-start: 1px solid var(--line);
+  font-weight: var(--fw-semibold);
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+}
+
+/* Empty states sit in a dashed frame, so their own padding shows; side by side they
+   share the row and the height. */
+.kit-frames .kit-specimen__body--grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  align-items: stretch;
+}
+
+.kit-frame {
+  align-content: center;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-lg);
+}
+
+/* Keys */
+.kit-shortcuts {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.kit-shortcuts__row {
+  display: grid;
+  grid-template-columns: 6rem minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.kit-shortcuts__keys {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.kit-shortcuts__row dd {
+  color: var(--fg-muted);
+}
+
+/* Anchors the visually hidden text next to what it completes. */
+.kit-hidden-demo {
+  position: relative;
+  font-weight: var(--fw-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Overlays */
+.kit-menu-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.kit-sheet-body {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.kit-sheet-toast {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+}
+
+.kit-toast-demo__status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--space-3) var(--space-4);
+}
+
+.kit-status-field {
+  inline-size: min(100%, 240px);
+}
+
+.kit-toast-demo__current {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-block-size: var(--control-h);
+}
+
+.kit-toast-demo__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}

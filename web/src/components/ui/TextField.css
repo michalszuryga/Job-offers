@@ -1,0 +1,34 @@
+/* TextField: a base.css input with an optional leading icon and, for search, a clear button. */
+.ui-text-field__icon {
+  position: absolute;
+  inset-inline-start: var(--space-3);
+  top: 50%;
+  translate: 0 -50%;
+  color: var(--fg-muted);
+  pointer-events: none;
+}
+
+.ui-text-field--icon .ui-text-field__input {
+  padding-inline-start: calc(var(--space-3) + 16px + var(--space-2));
+}
+
+/* Room for the clear button is kept even while it is hidden, so text never reflows under it. */
+.ui-text-field--clearable .ui-text-field__input {
+  padding-inline-end: calc(var(--target) + var(--space-1));
+}
+
+/* Centred in the field; on touch the field and the button are both 44px tall.
+   Two classes so it outranks .ui-icon-button's position and colour whatever the CSS order. */
+.ui-text-field .ui-text-field__clear {
+  position: absolute;
+  inset-inline-end: calc((var(--control-h) - var(--target)) / 2);
+  top: calc((100% - var(--target)) / 2);
+  color: var(--fg-muted);
+}
+
+/* The browser's own cancel button would sit next to ours. Separate rule: an unknown
+   -webkit- pseudo would void a shared selector list in Firefox. */
+.ui-text-field__input::-webkit-search-cancel-button {
+  appearance: none;
+  display: none;
+}
