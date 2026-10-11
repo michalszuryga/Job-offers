@@ -1,0 +1,17 @@
+[
+  {
+    "name": "pl-glued-bullets",
+    "note": "Synthetic. Mirrors the scraped shape: one collapsed line, bullets glued to the previous character, headings glued after a full stop.",
+    "text": "Firma Przykładowa rozwija platformę płatności dla klientów z całej Europy. Szukamy osoby, która zadba o jakość naszych usług.Dla jednego z zespołów poszukujemy osoby na stanowisko:QA EngineerB2B100% zdalnieZakres obowiązków:• Projektowanie i utrzymanie testów automatycznych.• Testowanie API REST oraz integracji z bankami.• Przygotowywanie danych testowych.• Współpraca z zespołem developerskim.Wymagania:• Minimum 3 lata doświadczenia w testowaniu.• Dobra znajomość Playwright i TypeScript.• Znajomość SQL.• Komunikatywny angielski.Mile widziane:• Doświadczenie w branży fintech.• Znajomość Postmana.Oferujemy:• W pełni zdalną współpracę.• Stawkę 150–180 PLN/h netto na B2B.• Budżet szkoleniowy."
+  },
+  {
+    "name": "en-spaced-bullets",
+    "note": "Synthetic. Bullets separated by spaces and headings without colons, as some boards render them.",
+    "text": "TypeScript Playwright API QA Engineer Location: Fully remote Reports to: QA Lead We are looking for a QA Engineer to own quality across a healthcare scheduling product. Responsibilities • Test features end to end, including API, regression and exploratory testing. • Build and maintain E2E tests in TypeScript with Playwright. • Investigate flaky tests and improve reliability. • Review requirements and acceptance criteria for gaps. Requirements • Practical experience testing web applications manually and with automation. • Experience with Playwright and TypeScript. • Clear written communication in English. Nice to have • Experience with HL7 or other healthcare data. • CI/CD with GitHub Actions. Benefits • Remote-first team • Paid conference days"
+  },
+  {
+    "name": "pl-glued-headings",
+    "note": "Synthetic. No bullet characters at all; headings glued to the next sentence and an HTML entity left in the scraped text.",
+    "text": "W Acme tworzymy oprogramowanie dla sektora e-commerce &amp; logistyki. Dołącz do zespołu, w którym jakość jest wspólną odpowiedzialnością.Szukamy osoby na stanowisko Testera Manualnego, która wesprze zespół w zapewnianiu jakości.Wymagania:Minimum 2 lata doświadczenia w testowaniu oprogramowania.Znajomość języka SQL.Doświadczenie z Jira i narzędziami do raportowania błędów.Mile widziane:Doświadczenie w pracy w zespołach zwinnych (Agile).Znajomość Postmana lub SoapUI.Oferujemy:Pracę zdalną i elastyczne godziny.Prywatną opiekę medyczną."
+  }
+]

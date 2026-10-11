@@ -2,12 +2,14 @@ import { useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { Login } from './components/Login'
 import { OffersPage } from './components/OffersPage'
+import { useI18n } from './i18n'
 import { isMember } from './lib/offers'
 import { supabase } from './lib/supabase'
 
 type Access = 'checking' | 'member' | 'no-access' | 'error'
 
 export default function App() {
+  const { t } = useI18n()
   const [session, setSession] = useState<Session | null | undefined>(undefined)
   // Remembered per user, so switching accounts shows "checking" until the new answer arrives.
   const [checked, setChecked] = useState<{ userId: string; access: Access } | null>(null)
@@ -27,7 +29,7 @@ export default function App() {
   }, [userId])
   const access: Access = checked && checked.userId === userId ? checked.access : 'checking'
 
-  if (session === undefined) return <p className="center muted">Loading…</p>
+  if (session === undefined) return <p className="center muted">{t.common.loading}</p>
   if (!session) return <Login />
 
   return (
@@ -37,15 +39,13 @@ export default function App() {
         <div className="topbar-user">
           <span className="muted">{session.user.email}</span>
           <button className="link" onClick={() => supabase.auth.signOut()}>
-            Sign out
+            {t.app.signOut}
           </button>
         </div>
       </header>
-      {access === 'checking' && <p className="center muted">Checking access…</p>}
-      {access === 'error' && <p className="center error">Couldn't check your access. Try reloading.</p>}
-      {access === 'no-access' && (
-        <p className="center">This account doesn't have access yet.</p>
-      )}
+      {access === 'checking' && <p className="center muted">{t.app.checkingAccess}</p>}
+      {access === 'error' && <p className="center error">{t.app.accessError}</p>}
+      {access === 'no-access' && <p className="center">{t.app.noAccess}</p>}
       {access === 'member' && <OffersPage />}
     </div>
   )

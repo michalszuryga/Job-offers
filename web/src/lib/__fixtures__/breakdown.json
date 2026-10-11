@@ -1,0 +1,325 @@
+{
+  "generated_by": "tests/test_web_contract.py",
+  "now": "2026-05-04T16:00:00+00:00",
+  "cases": [
+    {
+      "name": "strong-match",
+      "job": {
+        "title": "QA Engineer",
+        "company": "Northwind Health",
+        "description": "Remote QA Engineer for a healthcare SaaS platform. You will test the API with Postman and SQL, and write Playwright tests in TypeScript. Fluent English required.",
+        "location": "Remote, Poland",
+        "contract": "B2B",
+        "seniority": "mid",
+        "remote": true,
+        "salary_min": 14000,
+        "salary_max": 18000,
+        "salary_currency": "PLN",
+        "salary_period": "month",
+        "published_at": "2026-05-04T14:00:00+00:00"
+      },
+      "score": 82,
+      "breakdown": {
+        "role": 10,
+        "technology": 17,
+        "domain": 10,
+        "remote": 15,
+        "contract": 10,
+        "seniority": 5,
+        "language": 5,
+        "ai": 0,
+        "freshness": 10,
+        "title_automation_penalty": 0,
+        "title_programming_language_penalty": 0,
+        "stale_offer_penalty": 0,
+        "salary_bonus": 0,
+        "salary_assessment": {
+          "estimated_monthly_pln": 14000.0,
+          "threshold_pln": 15000,
+          "minimum_of_range_used": true
+        },
+        "matched_roles": [
+          "qa engineer"
+        ],
+        "matched_technologies": [
+          "postman",
+          "sql",
+          "playwright",
+          "typescript"
+        ],
+        "matched_domains": [
+          "healthcare",
+          "saas"
+        ],
+        "matched_ai": []
+      }
+    },
+    {
+      "name": "capped",
+      "job": {
+        "title": "Senior QA Engineer",
+        "company": "Ledger Pay",
+        "description": "Software Test Engineer / QA Analyst in a fintech payments team. Stack: Playwright, TypeScript, Cypress, Postman, SQL, GitHub, CI/CD. AI-assisted testing with Claude Code and GitHub Copilot. Fluent English.",
+        "location": "Remote",
+        "contract": "B2B",
+        "seniority": "senior",
+        "remote": true,
+        "salary_min": 25000,
+        "salary_max": 30000,
+        "salary_currency": "PLN",
+        "salary_period": "month",
+        "published_at": "2026-05-04T13:00:00+00:00"
+      },
+      "score": 100,
+      "breakdown": {
+        "role": 20,
+        "technology": 25,
+        "domain": 10,
+        "remote": 15,
+        "contract": 10,
+        "seniority": 5,
+        "language": 5,
+        "ai": 5,
+        "freshness": 10,
+        "title_automation_penalty": 0,
+        "title_programming_language_penalty": 0,
+        "stale_offer_penalty": 0,
+        "salary_bonus": 15,
+        "salary_assessment": {
+          "estimated_monthly_pln": 25000.0,
+          "threshold_pln": 15000,
+          "minimum_of_range_used": true
+        },
+        "matched_roles": [
+          "qa engineer",
+          "qa analyst",
+          "software test engineer",
+          "test engineer"
+        ],
+        "matched_technologies": [
+          "postman",
+          "sql",
+          "playwright",
+          "typescript",
+          "cypress",
+          "github",
+          "ci/cd",
+          "claude code",
+          "github copilot"
+        ],
+        "matched_domains": [
+          "fintech",
+          "payments"
+        ],
+        "matched_ai": [
+          "ai",
+          "ai-assisted",
+          "claude",
+          "claude code",
+          "github copilot",
+          "ai-assisted testing"
+        ]
+      }
+    },
+    {
+      "name": "penalties",
+      "job": {
+        "title": "QA Automation Engineer (Python)",
+        "company": "Fjord Analytics",
+        "description": "Build Python and Playwright test suites for a SaaS reporting product. REST API testing, SQL, Git. English at B2 level.",
+        "location": "Remote, EU",
+        "contract": "B2B",
+        "seniority": "senior",
+        "remote": true,
+        "salary_min": 40,
+        "salary_max": 50,
+        "salary_currency": "EUR",
+        "salary_period": "hour",
+        "published_at": "2026-04-22T16:00:00+00:00"
+      },
+      "score": 14,
+      "breakdown": {
+        "role": 10,
+        "technology": 21,
+        "domain": 5,
+        "remote": 15,
+        "contract": 10,
+        "seniority": 5,
+        "language": 5,
+        "ai": 0,
+        "freshness": 3,
+        "title_automation_penalty": -30,
+        "title_programming_language_penalty": -30,
+        "stale_offer_penalty": -15,
+        "salary_bonus": 15,
+        "salary_assessment": {
+          "estimated_monthly_pln": 28160.0,
+          "threshold_pln": 15000,
+          "minimum_of_range_used": true
+        },
+        "matched_roles": [
+          "qa automation engineer"
+        ],
+        "matched_technologies": [
+          "api testing",
+          "rest api",
+          "sql",
+          "playwright",
+          "git"
+        ],
+        "matched_domains": [
+          "saas"
+        ],
+        "matched_ai": []
+      }
+    },
+    {
+      "name": "floored",
+      "job": {
+        "title": "Python Automation Tester",
+        "company": "Quiet Labs",
+        "description": "Manual and automated checks for a back-office tool.",
+        "location": "Remote",
+        "contract": "",
+        "seniority": "",
+        "remote": true,
+        "salary_min": null,
+        "salary_max": null,
+        "salary_currency": "",
+        "salary_period": "",
+        "published_at": "2026-04-14T16:00:00+00:00"
+      },
+      "score": 0,
+      "breakdown": {
+        "role": 0,
+        "technology": 0,
+        "domain": 0,
+        "remote": 15,
+        "contract": 0,
+        "seniority": 0,
+        "language": 0,
+        "ai": 0,
+        "freshness": 1,
+        "title_automation_penalty": -30,
+        "title_programming_language_penalty": -30,
+        "stale_offer_penalty": -15,
+        "salary_bonus": 0,
+        "salary_assessment": {
+          "estimated_monthly_pln": null,
+          "threshold_pln": 15000,
+          "minimum_of_range_used": false
+        },
+        "matched_roles": [],
+        "matched_technologies": [],
+        "matched_domains": [],
+        "matched_ai": []
+      }
+    },
+    {
+      "name": "unknown-currency",
+      "job": {
+        "title": "Software QA Engineer",
+        "company": "Nordlys AB",
+        "description": "Remote QA role in an e-government team. Cypress, JavaScript, SQL and API testing. English.",
+        "location": "Remote, Sweden",
+        "contract": "contractor",
+        "seniority": "mid",
+        "remote": true,
+        "salary_min": 45000,
+        "salary_max": 55000,
+        "salary_currency": "SEK",
+        "salary_period": "month",
+        "published_at": "2026-05-03T14:00:00+00:00"
+      },
+      "score": 85,
+      "breakdown": {
+        "role": 20,
+        "technology": 17,
+        "domain": 5,
+        "remote": 15,
+        "contract": 10,
+        "seniority": 5,
+        "language": 5,
+        "ai": 0,
+        "freshness": 8,
+        "title_automation_penalty": 0,
+        "title_programming_language_penalty": 0,
+        "stale_offer_penalty": 0,
+        "salary_bonus": 0,
+        "salary_assessment": {
+          "estimated_monthly_pln": null,
+          "threshold_pln": 15000,
+          "minimum_of_range_used": true
+        },
+        "matched_roles": [
+          "qa engineer",
+          "software qa engineer"
+        ],
+        "matched_technologies": [
+          "api testing",
+          "sql",
+          "cypress",
+          "javascript"
+        ],
+        "matched_domains": [
+          "e-government"
+        ],
+        "matched_ai": []
+      }
+    },
+    {
+      "name": "yearly-usd",
+      "job": {
+        "title": "QA Analyst",
+        "company": "Brightside Software",
+        "description": "Remote QA Analyst for an enterprise software suite. SQL, Postman, API testing, GitHub Copilot for test design. English.",
+        "location": "Remote, worldwide",
+        "contract": "Contractor",
+        "seniority": "senior",
+        "remote": true,
+        "salary_min": 96000,
+        "salary_max": 120000,
+        "salary_currency": "USD",
+        "salary_period": "year",
+        "published_at": "2026-04-29T16:00:00+00:00"
+      },
+      "score": 97,
+      "breakdown": {
+        "role": 10,
+        "technology": 21,
+        "domain": 5,
+        "remote": 15,
+        "contract": 10,
+        "seniority": 5,
+        "language": 5,
+        "ai": 5,
+        "freshness": 6,
+        "title_automation_penalty": 0,
+        "title_programming_language_penalty": 0,
+        "stale_offer_penalty": 0,
+        "salary_bonus": 15,
+        "salary_assessment": {
+          "estimated_monthly_pln": 32000.0,
+          "threshold_pln": 15000,
+          "minimum_of_range_used": true
+        },
+        "matched_roles": [
+          "qa analyst"
+        ],
+        "matched_technologies": [
+          "api testing",
+          "postman",
+          "sql",
+          "github",
+          "github copilot"
+        ],
+        "matched_domains": [
+          "enterprise software"
+        ],
+        "matched_ai": [
+          "github copilot"
+        ]
+      }
+    }
+  ]
+}

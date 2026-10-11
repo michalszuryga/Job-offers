@@ -151,6 +151,22 @@ class JobStore:
                 "ORDER BY score DESC",
             )
 
+    def visible_by_ids(self, external_ids):
+        """Visible (not hard-rejected) offers among the given ids, best first —
+        e.g. the last fetch's new ids, some of which a rescore may have rejected."""
+        ids = sorted(set(external_ids))
+        sql = "SELECT * FROM jobs WHERE COALESCE(rejected, 0)=0 AND external_id {}"
+        rows = []
+        with self._connect() as conn:
+            if self.backend == "postgres" and ids:
+                rows = self._query_dicts(conn, sql.format("= ANY(?)"), (ids,))
+            else:
+                for start in range(0, len(ids), 500):
+                    chunk = ids[start:start + 500]
+                    rows += self._query_dicts(conn, sql.format(f"IN ({','.join('?' * len(chunk))})"), chunk)
+        # Sorted here, not in SQL: the two backends disagree on where NULL scores go.
+        return sorted(rows, key=lambda row: row.get("score") or 0, reverse=True)
+
     def get_meta(self, key, default=None):
         with self._connect() as conn:
             row = self._exec(conn, "SELECT meta_value FROM meta WHERE meta_key=?", (key,)).fetchone()
@@ -213,7 +229,7 @@ class JobStore:
 
     def upsert_many(self, jobs, touch_last_seen=True):
         """Like upsert(), but as one bulk statement instead of one round trip
-        per row — critical for refresh_scores_for_config(), which can rewrite
+        per row — critical for rescore.rescore(), which can rewrite
         hundreds of rows at once. A per-row loop (even reusing one connection)
         still pays the DB's network latency once per row; with a cross-region
         connection (e.g. Streamlit Cloud -> Supabase) that alone turned ~750

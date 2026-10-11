@@ -30,6 +30,10 @@
   padding: var(--space-12) var(--gutter);
 }
 
+.nowrap {
+  white-space: nowrap;
+}
+
 .tabular-nums {
   font-variant-numeric: tabular-nums;
 }

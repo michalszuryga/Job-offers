@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import type { Page, Route } from '@playwright/test'
 
 const HOUR = 3_600_000
@@ -14,10 +16,10 @@ function offer(id: string, title: string, company: string, score: number, hoursA
     source: 'JustJoin.IT',
     location: 'Remote',
     contract: 'B2B',
-    salary_min: null,
-    salary_max: null,
-    salary_currency: null,
-    salary_period: null,
+    salary_min: null as number | null,
+    salary_max: null as number | null,
+    salary_currency: null as string | null,
+    salary_period: null as string | null,
     published_at: hoursAgo === null ? null : new Date(Date.now() - hoursAgo * HOUR).toISOString(),
     application_status: 'TO_REVIEW',
     applied_rate: '',
@@ -37,8 +39,50 @@ export const OFFERS = [
   offer('delta', 'QA Automation Engineer', 'Delta', 40, null),
 ]
 
+// Same shape as meta 'scoring_profile' from run_fetch (job_finder/rescore.py scoring_inputs);
+// the scoring section is the real one, mirrored from profile.yaml.
+const SCORING = JSON.parse(readFileSync(join(import.meta.dirname, '../src/lib/score-defaults.json'), 'utf8'))
+export const SCORING_PROFILE = {
+  candidate: {
+    target_roles: ['QA Engineer', 'QA Analyst', 'Test Engineer', 'QA Automation Engineer'],
+    seniority: ['mid', 'senior'],
+    contracts: ['B2B', 'employment', 'contractor'],
+    technologies: { strong: ['API testing', 'Postman', 'SQL', 'Playwright', 'TypeScript'], additional: ['DBeaver'] },
+    domains: ['healthcare', 'fintech', 'SaaS'],
+    ai: ['AI', 'Claude Code', 'GitHub Copilot'],
+  },
+  scoring: SCORING,
+  filters: { minimum_score_to_show: 0, high_match_threshold: 80, remote_only: true },
+  hard_exclusions: { technologies: ['Java'], seniority: ['intern', 'internship', 'junior'] },
+  scoring_version: 2,
+}
+
+// What score_job() would put beside each offer's salary and title. The categories are fixed
+// stand-ins (matched_* stay what app.spec reads until P7); for Acme they sum to its 75.
+function breakdownFor(offer: (typeof OFFERS)[number]) {
+  const { monthly_threshold_pln: threshold, points } = SCORING.salary_bonus
+  const monthlyPln = offer.salary_currency === 'PLN' && offer.salary_period === 'month' ? offer.salary_min : null
+  return {
+    role: 20, technology: 10, domain: 0, remote: 15, contract: 10, seniority: 0, language: 0, ai: 0, freshness: 5,
+    title_automation_penalty: /\bautomation\b/i.test(offer.title) ? -SCORING.penalties.automation_title : 0,
+    title_programming_language_penalty: 0,
+    stale_offer_penalty: 0,
+    salary_bonus: monthlyPln != null && monthlyPln >= threshold ? points : 0,
+    salary_assessment: {
+      estimated_monthly_pln: monthlyPln,
+      threshold_pln: threshold,
+      minimum_of_range_used: offer.salary_min != null && offer.salary_max != null,
+    },
+    matched_roles: [], matched_technologies: ['playwright', 'typescript'], matched_domains: [], matched_ai: [],
+  }
+}
+
 export interface MockOptions {
   member?: boolean
+  // The first N list requests fail with a raw server error.
+  failJobs?: number
+  // Visible offers in the database, when more than the list returns (the 2 000 limit).
+  total?: number
 }
 
 export interface MockState {
@@ -64,10 +108,19 @@ export async function signIn(page: Page) {
   await page.addInitScript((value) => localStorage.setItem('joffers-auth', value), JSON.stringify(session))
 }
 
+// PostgREST filter values: "eq.x" or "in.(a,b,c)".
+function filterValues(param: string | null): string[] | null {
+  if (!param) return null
+  if (param.startsWith('eq.')) return [param.slice(3)]
+  const list = /^in\.\((.*)\)$/.exec(param)
+  return list ? list[1].split(',').map((value) => value.replace(/^"|"$/g, '')) : null
+}
+
 export async function mockSupabase(page: Page, options: MockOptions = {}): Promise<MockState> {
   const state: MockState = { rpcCalls: [], otpRequests: [] }
-  const json = (route: Route, body: unknown, status = 200) =>
-    route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) })
+  let jobFailures = options.failJobs ?? 0
+  const json = (route: Route, body: unknown, status = 200, headers: Record<string, string> = {}) =>
+    route.fulfill({ status, contentType: 'application/json', headers, body: JSON.stringify(body) })
 
   await page.route('http://supabase.test/**', async (route) => {
     const request = route.request()
@@ -84,15 +137,24 @@ export async function mockSupabase(page: Page, options: MockOptions = {}): Promi
       return json(route, options.member === false ? [] : [{ user_id: OWNER.id }])
     }
     if (path === '/rest/v1/meta') {
-      return json(route, [{ meta_key: 'last_fetch_new_ids', meta_value: JSON.stringify([OFFERS[1].external_id]) }])
+      const rows = [
+        { meta_key: 'last_fetch_new_ids', meta_value: JSON.stringify([OFFERS[1].external_id]) },
+        { meta_key: 'scoring_profile', meta_value: JSON.stringify(SCORING_PROFILE) },
+        { meta_key: 'scores_refreshed_on', meta_value: new Date().toISOString().slice(0, 10) },
+      ]
+      const keys = filterValues(url.searchParams.get('meta_key'))
+      return json(route, keys ? rows.filter((row) => keys.includes(row.meta_key)) : rows)
     }
     if (path === '/rest/v1/fetch_runs') {
       const finished = new Date(Date.now() - 2 * HOUR).toISOString()
       return json(route, [{
         started_at: finished, finished_at: finished, trigger: 'schedule',
         results: JSON.stringify([
-          { name: 'JustJoin.IT', error: '', error_type: '' },
-          { name: 'Pracuj.pl', error: '403 Forbidden', error_type: 'HTTPError' },
+          { name: 'JustJoin.IT', candidates: 12, inserted: 1, rejected: 2, seconds: 4.2, error: '', error_type: '' },
+          { name: 'No Fluff Jobs', candidates: 8, inserted: 0, rejected: 1, seconds: 6.8,
+            error: 'offer 123: missing title', error_type: 'OfferParseError' },
+          { name: 'Pracuj.pl', candidates: 0, inserted: 0, rejected: 0, seconds: 1.3,
+            error: '403 Client Error: Forbidden for url: https://www.pracuj.pl/praca', error_type: 'HTTPError' },
         ]),
       }])
     }
@@ -100,14 +162,26 @@ export async function mockSupabase(page: Page, options: MockOptions = {}): Promi
       const id = url.searchParams.get('external_id')?.replace(/^eq\./, '')
       if (id) {
         const match = OFFERS.find((o) => o.external_id === id)
+        if (!match) return json(route, { code: 'PGRST116', message: 'no rows' }, 406)
         return json(route, {
           ...match,
-          description: `Full description of ${match?.title}.\nPlaywright, TypeScript, API testing.`,
-          score_breakdown: JSON.stringify({ role: 20, technology: 25, remote: 15, title_automation_penalty: 0,
-            matched_technologies: ['playwright', 'typescript'] }),
+          // Collapsed onto one line with glued bullets and headings, like real scraped text.
+          description: `Full description of ${match.title}. Wymagania • Playwright i TypeScript • Testy API `
+            + 'Oferujemy • Praca zdalna',
+          score_breakdown: JSON.stringify(breakdownFor(match)),
         })
       }
-      return json(route, OFFERS)
+      if (jobFailures > 0) {
+        jobFailures -= 1
+        return json(route, { code: '57014', message: 'canceling statement due to statement timeout', details: null,
+          hint: null }, 500)
+      }
+      // count:'exact' reads the total from Content-Range ("0-3/4").
+      const total = options.total ?? OFFERS.length
+      return json(route, OFFERS, 200, {
+        'Content-Range': `0-${OFFERS.length - 1}/${total}`,
+        'Access-Control-Expose-Headers': 'Content-Range',
+      })
     }
     if (path === '/rest/v1/rpc/save_offer_tracking') {
       state.rpcCalls.push(request.postDataJSON())

@@ -17,8 +17,14 @@ every evening and e-mails a summary of new offers.
 - **Lifecycle:** offers you haven't touched (`TO_REVIEW`) are removed after 14
   days without appearing on their board; anything you've triaged is kept.
 - **Tracking:** application status, the rate and notice period you quoted, CV
-  highlights matched to each offer.
-- **Daily summary e-mail** at 18:00 Europe/Warsaw (Gmail SMTP).
+  highlights matched to each offer. `applied_at` is stamped the first time an
+  offer is marked `APPLIED` and is never cleared afterwards: moving the status
+  back, or undoing the change, keeps the original date.
+- **Daily summary e-mail** at 18:00 Europe/Warsaw (Gmail SMTP), listing the
+  offers that fetch added; every fetch also rescores stored offers, so freshness
+  and the stale-offer penalty stay current. If the fetch fails before it records
+  anything, the e-mail lists offers first seen in the last 24 h instead and says
+  "(24 h)" in the subject.
 - **Web app** (`web/`, React + TypeScript) with magic-link sign-in, built for
   phone and laptop; the Streamlit dashboard is being phased out.
 

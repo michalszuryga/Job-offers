@@ -7,11 +7,9 @@ import pandas as pd
 import streamlit as st
 
 from .config import OVERRIDES_META_KEY, load_config, overrides_from_meta
-from .scoring import SCORING_VERSION, score_job
-from .models import Job
 from .collector import run_fetch, SOURCE_COUNT, SENSITIVE_SOURCE_COUNT
+from .rescore import config_signature, rescore
 from .storage import DEFAULT_STATUSES, JobStore
-from .sources.web_utils import infer_remote
 from .cv_highlights import load_cv_highlights, match_highlights
 
 
@@ -155,50 +153,16 @@ def format_description(text):
 
 
 def refresh_scores_for_config(store, cfg, meta, visible_rows):
-    """Reapply scoring rules to stored rows on a config change, and once a day
-    to keep date-based points current. State lives in the DB, so a new browser
-    session (phone visit, new tab) doesn't trigger a rescore on its own."""
-    scoring_inputs = {key: cfg.get(key) for key in ("candidate", "scoring", "filters", "hard_exclusions")}
-    scoring_inputs["scoring_version"] = SCORING_VERSION
-    signature = json.dumps(scoring_inputs, sort_keys=True, ensure_ascii=False)
-    today = datetime.now(timezone.utc).date().isoformat()
-    if st.session_state.get("scores_checked") == (signature, today):
+    """Streamlit wrapper around rescore(): the session memo skips even the
+    meta comparison on reruns, and a rewrite drops the cached snapshot."""
+    checked = (config_signature(cfg), datetime.now(timezone.utc).date().isoformat())
+    if st.session_state.get("scores_checked") == checked:
         return False
-    config_changed = meta.get("score_config_signature") != signature
-    if not config_changed and meta.get("scores_refreshed_on") == today:
-        st.session_state["scores_checked"] = (signature, today)
-        return False
-
-    # A config change can flip hard rejections, so it needs every row. A new
-    # day only moves freshness and stale-offer points, which matter just for
-    # offers that are visible — known offers skipped by a fetch are never
-    # re-scored otherwise, so their freshness would stay frozen.
-    rows = store.list_all() if config_changed else visible_rows
-    rescored = []
-    for row in rows:
-        published_at = row.get("published_at")
-        try:
-            published_at = datetime.fromisoformat(published_at.replace("Z", "+00:00")) if published_at else None
-        except ValueError:
-            published_at = None
-        remote = None if row.get("remote") is None else bool(row["remote"])
-        inferred_remote = infer_remote(" ".join((row.get("title") or "", row.get("description") or "", row.get("location") or "")))
-        if inferred_remote is not None:
-            remote = inferred_remote
-        job = Job(title=row.get("title") or "", company=row.get("company") or "", url=row.get("url") or "",
-                  source=row.get("source") or "", description=row.get("description") or "",
-                  location=row.get("location") or "", remote=remote, contract=row.get("contract") or "",
-                  salary_min=row.get("salary_min"), salary_max=row.get("salary_max"),
-                  salary_currency=row.get("salary_currency") or "", salary_period=row.get("salary_period") or "",
-                  seniority=row.get("seniority") or "",
-                  published_at=published_at)
-        rescored.append(score_job(job, cfg))
-    store.upsert_many(rescored, touch_last_seen=False)
-    store.set_meta("score_config_signature", signature)
-    store.set_meta("scores_refreshed_on", today)
-    st.session_state["scores_checked"] = (signature, today)
-    load_snapshot.clear()
-    return True
+    refreshed = rescore(store, cfg, meta, visible_rows, today=checked[1])
+    st.session_state["scores_checked"] = checked
+    if refreshed:
+        load_snapshot.clear()
+    return refreshed
 
 
 def render_scoring_controls(cfg, store):

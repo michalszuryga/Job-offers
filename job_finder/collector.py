@@ -6,6 +6,7 @@ from time import perf_counter
 
 from .config import load_config, overrides_from_meta
 from .models import dedup_key
+from .rescore import rescore
 from .scoring import score_job
 from .storage import JobStore
 from .sources.nofluff import NoFluffSource
@@ -93,6 +94,9 @@ SENSITIVE_SOURCE_COUNT = 3  # Pracuj.pl, No Fluff Jobs, CzyJestEldorado
 
 def collect_live_jobs(config_path="config/profile.yaml", on_source_fetched=None, skip_sensitive=False,
                       store=None, expire_after_days=14):
+    """Returns (results, cfg): cfg is the effective config (profile + DB
+    overrides) every offer was scored with, so callers can record and reuse it
+    instead of reloading a possibly different one."""
     store = store or JobStore()
     cfg = load_config(config_path, overrides_from_meta(store.get_all_meta()))
     sources = [
@@ -207,7 +211,7 @@ def collect_live_jobs(config_path="config/profile.yaml", on_source_fetched=None,
             if on_source_fetched:
                 on_source_fetched(raw, result, new_jobs)
 
-    return results
+    return results, cfg
 
 
 def result_to_dict(result):
@@ -224,9 +228,14 @@ def run_fetch(store, trigger, skip_sensitive=False, on_source_fetched=None):
     """One fetch end to end — shared by the dashboard button and the scheduled
     GitHub Actions run so both record the same "last fetch" state."""
     started_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
-    results = collect_live_jobs(on_source_fetched=on_source_fetched, skip_sensitive=skip_sensitive, store=store)
+    results, cfg = collect_live_jobs(on_source_fetched=on_source_fetched, skip_sensitive=skip_sensitive,
+                                     store=store)
     finished_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
     store.set_meta("last_fetch_at", finished_at)
     store.set_meta("last_fetch_new_ids", json.dumps(sorted({url for r in results for url in r.inserted_urls})))
     store.record_fetch_run(started_at, finished_at, trigger, [result_to_dict(r) for r in results])
+    # Known offers are skipped by the sources, so without this their freshness
+    # and stale penalty would only move when someone opened the dashboard. It also
+    # writes meta 'scoring_profile', which the web app reads category maxima from.
+    rescore(store, cfg, store.get_all_meta(), store.list(0), force=True)
     return results

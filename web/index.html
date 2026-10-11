@@ -13,7 +13,7 @@
       // ES5 on purpose; storage access can throw (private mode, blocked cookies).
       (function () {
         var root = document.documentElement
-        var supported = ['en']
+        var supported = ['en', 'pl']
         var themeColors = { light: '#FFFFFF', dark: '#131726' }
         var theme = null
         var lang = null
@@ -30,8 +30,17 @@
           var bars = document.querySelectorAll('meta[name="theme-color"]')
           for (var i = 0; i < bars.length; i++) bars[i].setAttribute('content', themeColors[theme])
         }
-        if (supported.indexOf(lang) < 0) lang = String(navigator.language || '').slice(0, 2).toLowerCase()
-        root.lang = supported.indexOf(lang) < 0 ? 'en' : lang
+        // Same rules as detectLang() in src/i18n/detect.ts: a saved choice, then the
+        // first browser language we support, then English.
+        if (supported.indexOf(lang) < 0) {
+          lang = 'en'
+          var languages = navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language || '']
+          for (var j = 0; j < languages.length; j++) {
+            var prefix = String(languages[j]).slice(0, 2).toLowerCase()
+            if (supported.indexOf(prefix) >= 0) { lang = prefix; break }
+          }
+        }
+        root.lang = lang
       })()
     </script>
     <title>JOffers</title>

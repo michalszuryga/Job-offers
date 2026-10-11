@@ -1,117 +1,186 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { formatAge, formatSalary } from '../lib/format'
-import { loadOfferDetails, saveTracking } from '../lib/offers'
-import { STATUSES, type Offer, type OfferDetails, type Status } from '../lib/types'
+import { useI18n } from '../i18n'
+import { parseDescription, type Block } from '../lib/description'
+import { formatAgo, formatPoints, formatSalary, timeOf } from '../lib/format'
+import { loadOfferDetails, trackingQueue } from '../lib/offers'
+import { breakdownRows, parseBreakdown, SCORE_MAX, scoreBand, scoringFrom, type BreakdownRow } from '../lib/score'
+import { STATUS_GROUPS } from '../lib/status'
+import type { Offer, OfferDetails, ScoringProfile, Status } from '../lib/types'
+import { changedFields, type Tracking } from '../lib/writeQueue'
 
 interface Props {
   offer: Offer
+  scoringProfile: ScoringProfile | null
   onClose: () => void
   onSaved: (offer: Offer) => void
 }
 
-function parseBreakdown(raw: string | null): Record<string, unknown> {
-  try {
-    return raw ? JSON.parse(raw) : {}
-  } catch {
-    return {}
-  }
+const MATCHED_KEYS = ['matched_roles', 'matched_technologies', 'matched_domains', 'matched_ai']
+
+// Text nodes only, never HTML: scraped content is untrusted.
+function DescriptionBlock({ block }: { block: Block }) {
+  if (block.type === 'h4') return <h4>{block.text}</h4>
+  if (block.type === 'p') return <p>{block.text}</p>
+  return (
+    <ul>
+      {block.items.map((item, index) => (
+        <li key={index}>{item}</li>
+      ))}
+    </ul>
+  )
 }
 
-export function OfferDetailsPanel({ offer, onClose, onSaved }: Props) {
-  const [details, setDetails] = useState<OfferDetails | null>(null)
+export function OfferDetailsPanel({ offer, scoringProfile, onClose, onSaved }: Props) {
+  const { t, lang } = useI18n()
+  const [details, setDetails] = useState<OfferDetails | 'error' | null>(null)
   const [status, setStatus] = useState<Status>(offer.application_status ?? 'TO_REVIEW')
   const [rate, setRate] = useState(offer.applied_rate ?? '')
   const [notice, setNotice] = useState(offer.notice_period ?? '')
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
 
   useEffect(() => {
-    loadOfferDetails(offer.external_id).then(setDetails).catch(() => setDetails(null))
+    loadOfferDetails(offer.external_id).then(setDetails).catch(() => setDetails('error'))
   }, [offer.external_id])
 
   async function save(event: FormEvent) {
     event.preventDefault()
     setSaveState('saving')
+    const confirmed: Tracking = {
+      status: offer.application_status ?? 'TO_REVIEW',
+      rate: offer.applied_rate ?? '',
+      notice: offer.notice_period ?? '',
+    }
+    // Only what was edited here. This form may have opened while an earlier write for this
+    // offer was still in flight; untouched fields then follow that write, not this stale copy.
+    const change = changedFields({ status, rate, notice }, confirmed)
     try {
-      await saveTracking(offer.external_id, status, rate, notice)
-      onSaved({ ...offer, application_status: status, applied_rate: rate, notice_period: notice })
+      const saved = await trackingQueue.enqueue(offer.external_id, change, confirmed)
+      onSaved({ ...offer, application_status: saved.status, applied_rate: saved.rate, notice_period: saved.notice })
       setSaveState('saved')
     } catch {
       setSaveState('error')
     }
   }
 
-  const breakdown = parseBreakdown(details?.score_breakdown ?? null)
-  const points = Object.entries(breakdown).filter(
-    ([, value]) => typeof value === 'number' && value !== 0,
-  ) as [string, number][]
-  const matched = ['matched_roles', 'matched_technologies', 'matched_domains', 'matched_ai']
-    .flatMap((key) => (Array.isArray(breakdown[key]) ? (breakdown[key] as string[]) : []))
+  const loaded = details === 'error' ? null : details
+  const breakdown = parseBreakdown(loaded?.score_breakdown)
+  const summary = Object.keys(breakdown).length > 0 ? breakdownRows(breakdown, scoringFrom(scoringProfile)) : null
+  const matched = MATCHED_KEYS.flatMap((key) =>
+    Array.isArray(breakdown[key]) ? (breakdown[key] as unknown[]).filter((term) => typeof term === 'string') : [],
+  )
+  const blocks = loaded ? parseDescription(loaded.description) : []
+  const score = offer.score == null ? null : Math.round(offer.score)
+
+  const pointsRow = (row: BreakdownRow) => (
+    <li key={row.key}>
+      {t.score.rows[row.key]}: <strong>{t.score.points(formatPoints(row.points, lang), row.max)}</strong>
+    </li>
+  )
 
   return (
-    <aside className="details" aria-label="Offer details">
+    <aside className="details" aria-label={t.details.label}>
       <button className="link close" onClick={onClose}>
-        ← Back to list
+        {t.details.back}
       </button>
       <h2>{offer.title}</h2>
       <p className="muted">
         {[offer.company, offer.location, offer.contract].filter(Boolean).join(' · ')}
       </p>
       <p>
-        <strong>{formatSalary(offer) || 'Salary not listed'}</strong>
-        <span className="muted"> · published {formatAge(offer.published_at)}</span>
+        <strong>{formatSalary(offer, lang) || t.salary.notListed}</strong>
+        <span className="muted">
+          {' · '}
+          {timeOf(offer.published_at) == null
+            ? t.details.publishedUnknown
+            : t.details.published(formatAgo(offer.published_at, lang))}
+        </span>
       </p>
       <a className="button" href={offer.url} target="_blank" rel="noopener noreferrer">
-        Open original offer
+        {t.details.openOffer}
       </a>
 
       <form className="tracking" onSubmit={save}>
         <label>
-          Status
+          {t.details.status}
           <select value={status} onChange={(e) => setStatus(e.target.value as Status)}>
-            {STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
+            {STATUS_GROUPS.map((group) => (
+              <optgroup key={group.key} label={t.statusGroups[group.key]}>
+                {group.statuses.map((s) => (
+                  <option key={s} value={s}>
+                    {t.status[s]}
+                  </option>
+                ))}
+              </optgroup>
             ))}
           </select>
         </label>
         <label>
-          Rate you quoted
-          <input value={rate} onChange={(e) => setRate(e.target.value)} placeholder="e.g. 120 PLN/h B2B" />
+          {t.details.rate}
+          <input value={rate} onChange={(e) => setRate(e.target.value)} placeholder={t.details.ratePlaceholder} />
         </label>
         <label>
-          Notice period you gave
-          <input value={notice} onChange={(e) => setNotice(e.target.value)} placeholder="e.g. 1 month" />
+          {t.details.notice}
+          <input value={notice} onChange={(e) => setNotice(e.target.value)} placeholder={t.details.noticePlaceholder} />
         </label>
         <button type="submit" disabled={saveState === 'saving'}>
-          {saveState === 'saving' ? 'Saving…' : 'Save'}
+          {saveState === 'saving' ? t.details.saving : t.details.save}
         </button>
-        {saveState === 'saved' && <span role="status">Saved.</span>}
+        {saveState === 'saved' && <span role="status">{t.details.saved}</span>}
         {saveState === 'error' && (
           <span className="error" role="alert">
-            Couldn't save. Try again.
+            {t.details.saveError}
           </span>
         )}
       </form>
 
       <section>
-        <h3>Score {Math.round(offer.score ?? 0)}</h3>
-        {points.length > 0 && (
-          <ul className="points">
-            {points.map(([name, value]) => (
-              <li key={name}>
-                {name.replaceAll('_', ' ')}: <strong>{value > 0 ? `+${value}` : value}</strong>
-              </li>
-            ))}
-          </ul>
+        <h3>
+          {score == null ? t.score.bands.none : t.details.score(score)}
+          {score != null && <span className="band-word"> · {t.score.bands[scoreBand(score)]}</span>}
+        </h3>
+        {summary && (
+          <>
+            {summary.rows.length + summary.penalties.length > 0 && (
+              <ul className="points" aria-label={t.score.breakdown}>
+                {summary.rows.map(pointsRow)}
+                {summary.penalties.map((penalty) => (
+                  <li key={penalty.key} className="penalty">
+                    {t.score.penalties[penalty.key](penalty.days ?? 0)}:{' '}
+                    <strong>{formatPoints(penalty.points, lang)}</strong>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {summary.zeroRows.length > 0 && (
+              <details className="zero-rows">
+                <summary>{t.score.zeroRows(summary.zeroRows.length)}</summary>
+                <ul className="points">{summary.zeroRows.map(pointsRow)}</ul>
+              </details>
+            )}
+            <p className="score-total">
+              <strong>{t.score.total(Math.round(summary.total), SCORE_MAX)}</strong>
+              {summary.note && <span className="muted"> · {t.score[summary.note]}</span>}
+            </p>
+          </>
         )}
-        {matched.length > 0 && <p className="muted">Matched: {matched.join(', ')}</p>}
+        {matched.length > 0 && <p className="muted">{t.details.matched(matched.join(', '))}</p>}
       </section>
 
       <section>
-        <h3>Description</h3>
-        {/* Rendered as text, never HTML: scraped content is untrusted. */}
-        <p className="description">{details ? details.description || 'No description.' : 'Loading…'}</p>
+        <h3>{t.details.description}</h3>
+        {details === 'error' ? (
+          <p className="error">{t.details.loadError}</p>
+        ) : !details ? (
+          <p className="muted">{t.common.loading}</p>
+        ) : blocks.length === 0 ? (
+          <p className="muted">{t.details.noDescription}</p>
+        ) : (
+          <div className="description">
+            {blocks.map((block, index) => (
+              <DescriptionBlock key={index} block={block} />
+            ))}
+          </div>
+        )}
       </section>
     </aside>
   )

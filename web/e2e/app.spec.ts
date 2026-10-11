@@ -84,5 +84,5 @@ test('saves application status, quoted rate and notice period', async ({ page })
   // On a phone the details cover the list; go back to check the list updated.
   const back = details.getByRole('button', { name: '← Back to list' })
   if (await back.isVisible()) await back.click()
-  await expect(page.getByRole('button', { name: /Senior QA Engineer/ })).toContainText('APPLIED')
+  await expect(page.getByRole('button', { name: /Senior QA Engineer/ })).toContainText('Applied')
 })

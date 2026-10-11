@@ -1,3 +1,5 @@
+import json
+
 from job_finder import collector as collector_mod
 from job_finder.models import Job
 from job_finder.storage import JobStore
@@ -25,11 +27,11 @@ def test_skip_sensitive_excludes_only_flagged_sources(monkeypatch, tmp_path):
     monkeypatch.setattr(collector_mod, "EldoradoSource", lambda: _fake_source("CzyJestEldorado", [], sensitive=True))
     monkeypatch.setattr(collector_mod, "JobStore", lambda: JobStore(str(tmp_path / "test_jobs.db")))
 
-    results = collector_mod.collect_live_jobs(skip_sensitive=True)
+    results, _ = collector_mod.collect_live_jobs(skip_sensitive=True)
     names = {r.name for r in results}
     assert names == {"JustJoin.IT", "RemoteOK", "We Work Remotely", "Bulldogjob", "TestDevJobs"}
 
-    results_all = collector_mod.collect_live_jobs(skip_sensitive=False)
+    results_all, _ = collector_mod.collect_live_jobs(skip_sensitive=False)
     assert len(results_all) == 8
 
 
@@ -71,7 +73,7 @@ def test_collect_live_jobs_dedups_cross_source_by_title_and_company(monkeypatch,
     db_path = str(tmp_path / "test_jobs.db")
     monkeypatch.setattr(collector_mod, "JobStore", lambda: JobStore(db_path))
 
-    results = collector_mod.collect_live_jobs()
+    results, _ = collector_mod.collect_live_jobs()
     by_name = {r.name: r for r in results}
 
     # Which of JustJoin/Eldorado "wins" the cross-source duplicate depends on
@@ -124,7 +126,7 @@ def test_collect_live_jobs_seeds_dedup_from_existing_rows(monkeypatch, tmp_path)
     )
     monkeypatch.setattr(collector_mod, "JobStore", lambda: JobStore(db_path))
 
-    results = collector_mod.collect_live_jobs()
+    results, _ = collector_mod.collect_live_jobs()
     by_name = {r.name: r for r in results}
     assert by_name["CzyJestEldorado"].inserted == 0
     assert by_name["CzyJestEldorado"].duplicate == 1
@@ -165,14 +167,13 @@ def test_fetch_expires_only_offers_gone_from_a_loaded_listing(monkeypatch, tmp_p
     monkeypatch.setattr(collector_mod, "JustJoinSource", _SkipsKnown)
     monkeypatch.setattr(collector_mod, "PracujSource", _Blocked)
 
-    results = collector_mod.collect_live_jobs(store=store)
+    results, _ = collector_mod.collect_live_jobs(store=store)
     remaining = {row["external_id"] for row in store.list_all()}
     assert remaining == {still_listed.external_id, blocked_source_job.external_id}
     assert next(r for r in results if r.name == "JustJoin.IT").expired == 1
 
 
 def test_run_fetch_records_last_fetch_state(monkeypatch, tmp_path):
-    import json
     store = JobStore(str(tmp_path / "jobs.db"))
     job = Job("QA Engineer", "Acme", "https://remoteok.com/remote-jobs/1", "RemoteOK",
               description="Remote QA role", location="Remote", remote=True, contract="B2B")
@@ -188,3 +189,66 @@ def test_run_fetch_records_last_fetch_state(monkeypatch, tmp_path):
     run = store.last_fetch_run()
     assert run["trigger"] == "scheduled"
     assert next(r for r in run["results"] if r["name"] == "RemoteOK")["inserted"] == 1
+
+
+_SOURCE_ATTRS = ("NoFluffSource", "PracujSource", "JustJoinSource", "RemoteOKSource",
+                 "WeWorkRemotelySource", "BulldogJobSource", "TestDevJobsSource", "EldoradoSource")
+
+
+def _empty_fetch(monkeypatch):
+    for attr in _SOURCE_ATTRS:
+        monkeypatch.setattr(collector_mod, attr, lambda: _fake_source("x", []))
+
+
+def test_collect_live_jobs_returns_the_effective_config(monkeypatch, tmp_path):
+    store = JobStore(str(tmp_path / "jobs.db"))
+    store.set_meta("config_overrides", json.dumps({"scoring": {"penalties": {"stale_after_days": 5}}}))
+    _empty_fetch(monkeypatch)
+    _, cfg = collector_mod.collect_live_jobs(store=store)
+    assert cfg["scoring"]["penalties"]["stale_after_days"] == 5
+    assert cfg["scoring"]["weights"]["role"] == 20  # the rest still comes from profile.yaml
+
+
+def test_run_fetch_writes_the_scoring_profile_it_scored_with(monkeypatch, tmp_path):
+    from job_finder.config import load_config, overrides_from_meta
+    from job_finder.rescore import scoring_inputs
+    store = JobStore(str(tmp_path / "jobs.db"))
+    store.set_meta("config_overrides", json.dumps({"scoring": {"salary_bonus": {"points": 10}}}))
+    _empty_fetch(monkeypatch)
+
+    collector_mod.run_fetch(store, "scheduled")
+    meta = store.get_all_meta()
+    profile = json.loads(meta["scoring_profile"])
+    assert set(profile) == {"candidate", "scoring", "filters", "hard_exclusions", "scoring_version"}
+    assert profile["scoring"]["salary_bonus"]["points"] == 10
+    assert profile == scoring_inputs(load_config(overrides=overrides_from_meta(meta)))
+    # Same dict as the rescore signature, so the web shows what the scores used.
+    assert json.dumps(profile, sort_keys=True, ensure_ascii=False) == meta["score_config_signature"]
+
+
+def test_run_fetch_rescores_known_offers_daily(monkeypatch, tmp_path):
+    from datetime import datetime, timedelta, timezone
+    from job_finder.config import load_config
+    from job_finder.rescore import config_signature
+    from job_finder.scoring import score_job
+    store = JobStore(str(tmp_path / "jobs.db"))
+    published = datetime.now(timezone.utc) - timedelta(days=9)
+    # Scored on the day it was published and never touched since: the board
+    # still lists it, so the fetch skips it as known.
+    job = Job("QA Engineer", "Acme", "https://justjoin.it/job-offer/acme-qa-9d", "JustJoin.IT",
+              description="Playwright and TypeScript", location="Remote", remote=True, contract="B2B",
+              published_at=published)
+    store.upsert(score_job(job, load_config(), now=published + timedelta(hours=1)))
+    before = store.list_all()[0]
+    assert before["recency_score"] == 10
+    # Already refreshed today with this config: only the fetch's forced rescore runs.
+    store.set_meta("score_config_signature", config_signature(load_config()))
+    store.set_meta("scores_refreshed_on", datetime.now(timezone.utc).date().isoformat())
+    _empty_fetch(monkeypatch)
+
+    collector_mod.run_fetch(store, "scheduled")
+    after = store.list_all()[0]
+    assert after["recency_score"] == 3
+    assert json.loads(after["score_breakdown"])["freshness"] == 3
+    assert after["score"] == before["score"] - 7
+    assert after["last_seen_at"] == before["last_seen_at"]  # a rescore isn't a sighting

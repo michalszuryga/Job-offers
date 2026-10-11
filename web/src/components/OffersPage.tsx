@@ -1,61 +1,88 @@
-import { useEffect, useMemo, useState } from 'react'
-import { applyFilters, DEFAULT_FILTERS, formatAge, formatSalary, WINDOW_LABELS, type Filters, type PublishedWindow } from '../lib/format'
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
+import { useI18n, type Lang } from '../i18n'
+import { applyFilters, formatAgo, formatSalary, timeOf } from '../lib/format'
 import { loadDashboard } from '../lib/offers'
+import { loadFilters, PUBLISHED_WINDOWS, saveFilters, type Filters, type PublishedWindow } from '../lib/prefs'
 import { scoreBand } from '../lib/score'
-import { STATUSES, type Dashboard, type Offer } from '../lib/types'
+import { sourceHealth } from '../lib/sources'
+import { isStatus, STATUS_GROUPS, STATUS_META } from '../lib/status'
+import type { Dashboard, Offer } from '../lib/types'
 import { OfferDetailsPanel } from './OfferDetails'
 
-const FILTERS_KEY = 'joffers-filters'
+// Card meta wraps between items, never inside "3 h ago" or a salary range, or before a "·".
+const META_SEPARATOR = ' · '
 
-// Card meta wraps between items, never inside "3 h ago" or before a "·".
-const META_SEPARATOR = '\u00a0· '
-const unbroken = (text: string) => text.replaceAll(' ', '\u00a0')
-
-function storedFilters(): Filters {
-  try {
-    return { ...DEFAULT_FILTERS, ...JSON.parse(localStorage.getItem(FILTERS_KEY) ?? '{}') }
-  } catch {
-    return DEFAULT_FILTERS
-  }
+// The company may need to wrap; salary, age and source are short and stay whole.
+function cardMeta(offer: Offer, lang: Lang): { text: string; nowrap: boolean }[] {
+  return [
+    { text: offer.company ?? '', nowrap: false },
+    { text: formatSalary(offer, lang), nowrap: true },
+    { text: formatAgo(offer.published_at, lang), nowrap: true },
+    { text: offer.source ?? '', nowrap: true },
+  ].filter((item) => item.text)
 }
 
+type Load = { kind: 'loading' } | { kind: 'error'; detail: string } | { kind: 'ready'; dashboard: Dashboard }
+
 export function OffersPage() {
-  const [dashboard, setDashboard] = useState<Dashboard | null>(null)
-  const [loadError, setLoadError] = useState('')
-  const [filters, setFilters] = useState<Filters>(storedFilters)
+  const { t, lang } = useI18n()
+  const [load, setLoad] = useState<Load>({ kind: 'loading' })
+  const [filters, setFilters] = useState<Filters>(loadFilters)
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
-  useEffect(() => {
-    loadDashboard().then(setDashboard).catch((error: Error) => setLoadError(error.message))
+  const fetchDashboard = useCallback(() => {
+    loadDashboard()
+      .then((dashboard) => setLoad({ kind: 'ready', dashboard }))
+      // Supabase errors are plain objects, not Error instances; either way the text is for <details> only.
+      .catch((error: { message?: string }) => setLoad({ kind: 'error', detail: error?.message ?? String(error) }))
   }, [])
 
-  useEffect(() => {
-    try {
-      localStorage.setItem(FILTERS_KEY, JSON.stringify(filters))
-    } catch {
-      // Private mode or blocked storage: filters just won't be remembered.
-    }
-  }, [filters])
+  useEffect(fetchDashboard, [fetchDashboard])
+  useEffect(() => saveFilters(filters), [filters])
 
+  const dashboard = load.kind === 'ready' ? load.dashboard : null
   const sources = useMemo(
     () => [...new Set((dashboard?.offers ?? []).map((o) => o.source ?? ''))].filter(Boolean).sort(),
     [dashboard],
   )
   const visible = useMemo(() => (dashboard ? applyFilters(dashboard.offers, filters) : []), [dashboard, filters])
 
-  if (loadError) return <p className="center error">Couldn't load offers: {loadError}</p>
-  if (!dashboard) return <p className="center muted">Loading offers…</p>
+  if (load.kind === 'error') {
+    return (
+      <div className="center load-error">
+        <p role="alert">{t.offers.loadError}</p>
+        <button
+          onClick={() => {
+            setLoad({ kind: 'loading' })
+            fetchDashboard()
+          }}
+        >
+          {t.common.tryAgain}
+        </button>
+        <details className="technical">
+          <summary>{t.common.technicalDetails}</summary>
+          <p>{load.detail}</p>
+        </details>
+      </div>
+    )
+  }
+  if (!dashboard) return <p className="center muted">{t.offers.loading}</p>
 
   const update = (patch: Partial<Filters>) => setFilters((current) => ({ ...current, ...patch }))
   const selected = dashboard.offers.find((o) => o.external_id === selectedId) ?? null
-  const failed = (dashboard.lastRun?.results ?? []).filter((r) => r.error && r.error_type !== 'OfferParseError')
+  const failed = sourceHealth(dashboard.lastRun).failed
 
   function replaceOffer(updated: Offer) {
-    setDashboard((current) =>
-      current && {
-        ...current,
-        offers: current.offers.map((o) => (o.external_id === updated.external_id ? updated : o)),
-      },
+    setLoad((current) =>
+      current.kind === 'ready'
+        ? {
+            kind: 'ready',
+            dashboard: {
+              ...current.dashboard,
+              offers: current.dashboard.offers.map((o) => (o.external_id === updated.external_id ? updated : o)),
+            },
+          }
+        : current,
     )
   }
 
@@ -63,38 +90,46 @@ export function OffersPage() {
     <div className="layout">
       <section className="list-pane">
         <p className="muted fetch-line">
-          {dashboard.lastRun
-            ? `Last fetch ${formatAge(dashboard.lastRun.finished_at)} · ${dashboard.newIds.size} new`
-            : 'No fetch yet'}
-          {failed.length > 0 && <span className="warn"> · failed: {failed.map((r) => r.name).join(', ')}</span>}
+          {!dashboard.lastRun
+            ? t.offers.noFetch
+            : timeOf(dashboard.lastRun.finished_at) == null
+              ? t.offers.lastFetchUndated(dashboard.newIds.size)
+              : t.offers.lastFetch(formatAgo(dashboard.lastRun.finished_at, lang), dashboard.newIds.size)}
+          {failed.length > 0 && (
+            <span className="warn"> · {t.offers.failedSources(failed.map((r) => r.name).join(', '))}</span>
+          )}
         </p>
 
-        <div className="filters" role="group" aria-label="Filters">
+        <div className="filters" role="group" aria-label={t.filters.label}>
           <select
-            aria-label="Published"
+            aria-label={t.filters.published}
             value={filters.window}
             onChange={(e) => update({ window: e.target.value as PublishedWindow })}
           >
-            {Object.entries(WINDOW_LABELS).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
+            {PUBLISHED_WINDOWS.map((window) => (
+              <option key={window} value={window}>
+                {t.filters.windows[window]}
               </option>
             ))}
           </select>
           <select
-            aria-label="Status"
+            aria-label={t.filters.status}
             value={filters.status}
             onChange={(e) => update({ status: e.target.value as Filters['status'] })}
           >
-            <option value="ALL">All statuses</option>
-            {STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
+            <option value="ALL">{t.filters.allStatuses}</option>
+            {STATUS_GROUPS.map((group) => (
+              <optgroup key={group.key} label={t.statusGroups[group.key]}>
+                {group.statuses.map((s) => (
+                  <option key={s} value={s}>
+                    {t.status[s]}
+                  </option>
+                ))}
+              </optgroup>
             ))}
           </select>
-          <select aria-label="Source" value={filters.source} onChange={(e) => update({ source: e.target.value })}>
-            <option value="ALL">All sources</option>
+          <select aria-label={t.filters.source} value={filters.source} onChange={(e) => update({ source: e.target.value })}>
+            <option value="ALL">{t.filters.allSources}</option>
             {sources.map((s) => (
               <option key={s} value={s}>
                 {s}
@@ -102,7 +137,7 @@ export function OffersPage() {
             ))}
           </select>
           <label className="min-score">
-            Min score
+            {t.filters.minScore}
             <input
               type="number"
               min={0}
@@ -114,16 +149,19 @@ export function OffersPage() {
           </label>
           <input
             type="search"
-            aria-label="Search title or company"
-            placeholder="Search title or company"
+            aria-label={t.filters.search}
+            placeholder={t.filters.search}
             value={filters.query}
             onChange={(e) => update({ query: e.target.value })}
           />
         </div>
 
         <p className="muted count" aria-live="polite">
-          {visible.length} of {dashboard.offers.length} offers
+          {t.offers.count(visible.length, dashboard.offers.length)}
         </p>
+        {dashboard.total > dashboard.offers.length && (
+          <p className="muted limit-note">{t.offers.showingFirst(dashboard.offers.length)}</p>
+        )}
 
         <ul className="offers">
           {visible.map((offer) => (
@@ -137,29 +175,35 @@ export function OffersPage() {
                 </span>
                 <span className="offer-main">
                   <span className="offer-title">
-                    {dashboard.newIds.has(offer.external_id) && <span className="badge-new">NEW</span>}
+                    {dashboard.newIds.has(offer.external_id) && <span className="badge-new">{t.offers.newBadge}</span>}
                     {offer.title}
                   </span>
                   <span className="muted">
-                    {[offer.company, unbroken(formatSalary(offer)), unbroken(formatAge(offer.published_at)), offer.source]
-                      .filter(Boolean)
-                      .join(META_SEPARATOR)}
+                    {cardMeta(offer, lang).map((item, index) => (
+                      <Fragment key={index}>
+                        {index > 0 && META_SEPARATOR}
+                        {item.nowrap ? <span className="nowrap">{item.text}</span> : item.text}
+                      </Fragment>
+                    ))}
                   </span>
                 </span>
-                {offer.application_status && offer.application_status !== 'TO_REVIEW' && (
-                  <span className="status">{offer.application_status}</span>
+                {isStatus(offer.application_status) && offer.application_status !== 'TO_REVIEW' && (
+                  <span className="status" data-tone={STATUS_META[offer.application_status].tone}>
+                    {t.status[offer.application_status]}
+                  </span>
                 )}
               </button>
             </li>
           ))}
         </ul>
-        {visible.length === 0 && <p className="center muted">No offers match these filters.</p>}
+        {visible.length === 0 && <p className="center muted">{t.offers.empty}</p>}
       </section>
 
       {selected && (
         <OfferDetailsPanel
           key={selected.external_id}
           offer={selected}
+          scoringProfile={dashboard.scoringProfile}
           onClose={() => setSelectedId(null)}
           onSaved={replaceOffer}
         />

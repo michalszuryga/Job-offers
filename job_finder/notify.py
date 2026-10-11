@@ -1,10 +1,17 @@
 """Daily summary e-mail, sent through Gmail SMTP with an app password (the
 same one Supabase Auth uses for sign-in links)."""
 
+import json
 import os
 import smtplib
+from datetime import datetime, timedelta, timezone
 from email.message import EmailMessage
 from html import escape
+
+# The summary step runs straight after the fetch. A last fetch older than this
+# means today's failed before recording anything, so its new ids and failed
+# sources are yesterday's. Well under a day, so a late cron can't hide that.
+CURRENT_FETCH_HOURS = 12
 
 
 def _salary(row):
@@ -18,17 +25,57 @@ def _salary(row):
 
 
 def _failed_sources(last_run):
+    # By type first: an exception's message can be empty (AssertionError()).
     return [
-        f"{r['name']}: {r['error_type'] or 'błąd'}"
+        f"{r['name']}: {r.get('error_type') or 'błąd'}"
         for r in (last_run or {}).get("results", [])
-        if r.get("error") and r.get("error_type") != "OfferParseError"
+        if (r.get("error_type") or r.get("error")) and r.get("error_type") != "OfferParseError"
     ]
 
 
-def build_summary(new_rows, last_run, hours=24, top=10):
-    """Returns (subject, plain_text, html)."""
+def _plural(n, one, few, many):
+    """Polish plural forms: 1 oferta, 2–4 / 22–24 oferty, otherwise ofert."""
+    if n == 1:
+        return one
+    return few if n % 10 in (2, 3, 4) and n % 100 not in (12, 13, 14) else many
+
+
+def fetch_is_current(store, now=None):
+    """Whether the last recorded fetch is the one this summary reports on."""
+    try:
+        finished = datetime.fromisoformat(store.get_meta("last_fetch_at") or "")
+    except ValueError:
+        return False
+    if finished.tzinfo is None:
+        finished = finished.replace(tzinfo=timezone.utc)
+    now = now or datetime.now(timezone.utc)
+    return now - finished <= timedelta(hours=CURRENT_FETCH_HOURS)
+
+
+def summary_rows(store, fallback_hours=24, now=None):
+    """Returns (rows, hours). The summary covers exactly the last fetch's new
+    offers that are still visible — the same set the web app calls "new" — so
+    the count matches what you see when you open it. The hours window is the
+    fallback when that fetch isn't today's (it failed before recording its new
+    ids) or the database predates the last_fetch_new_ids meta key."""
+    try:
+        new_ids = json.loads(store.get_meta("last_fetch_new_ids") or "null")
+    except json.JSONDecodeError:
+        new_ids = None
+    if not isinstance(new_ids, list) or not fetch_is_current(store, now):
+        return store.new_since(fallback_hours), fallback_hours
+    return store.visible_by_ids(new_ids), None
+
+
+def build_summary(new_rows, last_run, hours=None, top=10):
+    """Returns (subject, plain_text, html). `hours` set means the rows come from
+    the time-window fallback, which the subject then says."""
     count = len(new_rows)
-    subject = f"JOffers: {count} nowych ofert ({hours} h)" if count else f"JOffers: brak nowych ofert ({hours} h)"
+    window = f" ({hours} h)" if hours else ""
+    if count:
+        subject = f"JOffers: {count} {_plural(count, 'nowa oferta', 'nowe oferty', 'nowych ofert')}{window}"
+    else:
+        subject = f"JOffers: brak nowych ofert{window}"
     shown = new_rows[:top]
     more = count - len(shown)
     failed = _failed_sources(last_run)
@@ -38,8 +85,9 @@ def build_summary(new_rows, last_run, hours=24, top=10):
         salary = _salary(row)
         lines.append(f"{row.get('score') or 0:.0f} · {row.get('title')} — {row.get('company') or '?'}"
                      + (f" · {salary}" if salary else "") + f"\n   {row.get('url')}")
+    more_line = f"… i jeszcze {more} {_plural(more, 'oferta', 'oferty', 'ofert')}"
     if more > 0:
-        lines.append(f"… i {more} więcej")
+        lines.append(more_line)
     if not shown:
         lines.append("Ostatni fetch nie dodał nowych ofert.")
     if failed:
@@ -58,7 +106,7 @@ def build_summary(new_rows, last_run, hours=24, top=10):
     html = '<div style="font-family:system-ui,sans-serif;font-size:15px;line-height:1.45;color:#0E1120">'
     html += f"<ol style=\"padding-left:20px\">{items}</ol>" if shown else "<p>Ostatni fetch nie dodał nowych ofert.</p>"
     if more > 0:
-        html += f"<p>… i {more} więcej</p>"
+        html += f"<p>{more_line}</p>"
     if failed:
         html += "<p style=\"color:#9A5B00\">" + "<br>".join(f"⚠️ {escape(f)}" for f in failed) + "</p>"
     app_url = os.environ.get("APP_URL")

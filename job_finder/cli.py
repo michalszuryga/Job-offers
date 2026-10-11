@@ -2,7 +2,7 @@ import argparse
 
 from .collector import run_fetch
 from .config import load_config, overrides_from_meta
-from .notify import build_summary, send_email
+from .notify import build_summary, fetch_is_current, send_email, summary_rows
 from .scoring import score_job
 from .storage import JobStore
 from .sources.sample import SampleSource
@@ -19,8 +19,9 @@ def main():
     fetch_cmd = sub.add_parser("fetch", help="Fetch every source and store the results")
     fetch_cmd.add_argument("--skip-sensitive", action="store_true")
     fetch_cmd.add_argument("--trigger", default="cli")
-    summary_cmd = sub.add_parser("notify-summary", help="Push a summary of offers new in the last N hours")
-    summary_cmd.add_argument("--hours", type=int, default=24)
+    summary_cmd = sub.add_parser("notify-summary", help="E-mail a summary of the offers new in the last fetch")
+    summary_cmd.add_argument("--hours", type=int, default=24,
+                             help="Fallback window when the last fetch's new ids aren't recorded")
     args = parser.parse_args()
 
     store = JobStore()
@@ -41,7 +42,10 @@ def main():
             print(f"{r.name:<18} candidates={r.candidates:<4} inserted={r.inserted:<4} "
                   f"rejected={r.rejected:<4} expired={r.expired:<4} {r.seconds:6.1f}s  {status}")
     elif args.cmd == "notify-summary":
-        subject, text, html = build_summary(store.new_since(args.hours), store.last_fetch_run(), hours=args.hours)
+        rows, hours = summary_rows(store, args.hours)
+        # A fetch that never finished records no run; yesterday's failed sources would mislead.
+        last_run = store.last_fetch_run() if fetch_is_current(store) else None
+        subject, text, html = build_summary(rows, last_run, hours=hours)
         if send_email(subject, text, html):
             print(f"Sent: {subject}")
         else:
