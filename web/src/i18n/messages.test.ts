@@ -78,10 +78,15 @@ describe('English copy the current e2e relies on', () => {
 
   test('details', () => {
     expect(en.details).toMatchObject({
-      label: 'Offer details', back: '← Back to list', rate: 'Rate you quoted', notice: 'Notice period you gave',
-      save: 'Save', saved: 'Saved.',
+      label: 'Offer details', back: 'Back to list', close: 'Close details', previous: 'Previous offer',
+      next: 'Next offer', rate: 'Rate you quoted', notice: 'Notice period you gave', save: 'Save', saved: 'Saved.',
+      interested: 'Mark as interested', status: 'Status',
     })
-    expect(en.details.matched('playwright, typescript')).toBe('Matched: playwright, typescript')
+    expect(en.details.position(3, 12)).toBe('3 / 12')
+    expect(en.score.matchedKeywords).toBe('Matched keywords')
+    expect(en.toast.status(en.status.APPLIED)).toBe('Status: Applied')
+    expect(en.toast.statusFailed).toBe("Couldn't save the status")
+    expect(en.salary.above('15 000')).toBe('Above your 15 000 PLN threshold')
   })
 
   test('singular and plural', () => {

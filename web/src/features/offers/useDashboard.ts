@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { loadDashboard, trackingQueue } from '../../lib/offers'
 import { loadSeen, saveSeen } from '../../lib/seen'
 import type { Dashboard, Offer } from '../../lib/types'
@@ -18,12 +18,14 @@ const detailOf = (error: unknown) => (error as { message?: string } | null)?.mes
 const toReview = (offer: Offer) => (offer.application_status ?? 'TO_REVIEW') === 'TO_REVIEW'
 
 // The list's data and every write the list itself makes: the load and refreshes, and the
-// silent promotion of an opened offer from To review to Reviewed.
+// silent promotion of an opened offer from To review to Reviewed. Details change offers
+// through updateOffer (optimistic, then confirmed or rolled back by the caller).
 export function useDashboard() {
   const [load, setLoad] = useState<Load>({ kind: 'loading' })
   const [seen, setSeen] = useState<ReadonlySet<string>>(loadSeen)
   // Mirrors for callbacks that must read the latest value without being recreated.
   const seenRef = useRef(seen)
+  const offersRef = useRef<readonly Offer[]>([])
   const loadedAt = useRef(0)
   const fetching = useRef(false)
   const promoting = useRef(new Set<string>())
@@ -116,6 +118,11 @@ export function useDashboard() {
 
   useEffect(() => fetchDashboard(false), [fetchDashboard])
 
+  // At commit, before anything (a toast's Undo, a write settling) can ask for it.
+  useLayoutEffect(() => {
+    offersRef.current = load.kind === 'ready' ? load.dashboard.offers : []
+  }, [load])
+
   useEffect(() => {
     const onVisible = () => {
       if (document.visibilityState !== 'visible' || loadedAt.current === 0) return
@@ -127,8 +134,9 @@ export function useDashboard() {
 
   const retry = useCallback(() => fetchDashboard(false), [fetchDashboard])
   const refresh = useCallback(() => fetchDashboard(true), [fetchDashboard])
-  // Details report what they saved.
-  const replaceOffer = useCallback((updated: Offer) => patch(updated.external_id, () => updated), [patch])
+  // The offer as the list has it now, for writes that outlive the details that started them
+  // (a toast's Undo after the details closed or moved on).
+  const getOffer = useCallback((id: string) => offersRef.current.find((o) => o.external_id === id) ?? null, [])
 
-  return { load, seen, retry, refresh, promote, replaceOffer }
+  return { load, seen, retry, refresh, promote, updateOffer: patch, getOffer }
 }

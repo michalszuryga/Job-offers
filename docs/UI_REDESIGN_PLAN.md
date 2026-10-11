@@ -1,5 +1,25 @@
 # JOffers redesign plan (v2)
 
+## Progress (updated 2026-10-11) — start here
+
+**Done and deployed (one commit each on `main`):** P1 `914dfd6`, P2 `52b1008`, P3 `1584ea4`, P4 `08ea2cd`, P5 `a4dbc72`, P6 `603a2e0`, P7 (the commit after P6). Every phase passed the standard verify (V) locally and in CI.
+
+**Next: P8** (prerendered Landing, `/demo` + `lib/dataSource.ts`, Privacy linked, AccessGate "Try the demo", landing/demo budgets in `check-bundle`, `REQUIRE_PUBLIC_CONFIG`), then P9, then P10.
+
+**Things the next session must know:**
+- **Bundle:** the app route is at ~158.9 of 160 kB gzip. Before adding to it, lazy-load `SignInCard` and `AccessGate` from `AppRoot` (~2.5 kB). Details, Filters and Sources sheets are already lazy chunks.
+- **Controller/contact** for `/privacy` are already set: `web-pages.yml` defaults to `Michał Szuryga` / `msklin6@gmail.com` (repo variables `CONTROLLER_NAME` / `CONTACT_EMAIL` override). P8 only has to add `REQUIRE_PUBLIC_CONFIG`.
+- **P10 needs the owner first:** the `DISMISSED` SQL must be applied to production Supabase before the web change ships. Ask before running anything against the production database.
+- `npm run test:screens` now writes more than 8 PNGs (auth, gate, privacy, kit). `e2e/filters.ts` has `openFilters`/`closeFilters`.
+- Deviations from this plan, all deliberate:
+  - `build.cssTarget` omits `'es2022'` (see §3).
+  - Description samples in `web/src/lib/__fixtures__/descriptions.json` are synthetic, not taken from the DB (copying production data into a public repo was refused).
+  - `delete_expired` drops TO_REVIEW and REVIEW offers only when no rate or notice was recorded.
+  - The summary e-mail uses the last fetch's new ids only when that fetch is under 12 h old; otherwise it falls back to `--hours`.
+  - Rescore keeps the original remote re-inference (inference overrides the stored flag).
+  - Toaster: `--actionbar-h` is the ActionBar's full height incl. safe area; Callout has no `live` prop (wrap it in the view's single `role=status` region).
+- **Owner actions still open:** add `Or enter this code: {{ .Token }}` to the Supabase Magic Link template; set repo variable `APP_URL=https://michalszuryga.github.io/Job-offers/`; manual checks (magic link on phone, code sign-in in the installed iOS app, Android back gesture closes details, forced dark theme in an iOS 17.5 simulator — Xcode simulator components are not installed on the work laptop; WebKit was used as a stand-in).
+
 **For the executing session:** the app is in `/Users/michalszuryga/Documents/Projects/Personal/JOffers/Job-offers/web`. Stack: Vite 8, React 19, TS 6, supabase-js. It is hosted on GitHub Pages under `BASE_PATH=/Job-offers/`.
 
 **Scripts** (run in `web/`; §6 defines any that are missing):

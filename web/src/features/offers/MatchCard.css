@@ -1,0 +1,194 @@
+/* MatchCard (§4.8): ring and reasons, then "Why 75?" as label · bar · points rows, the
+   same grid as the kit's breakdown specimen. */
+.match {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.match__summary {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.match__lines {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.match__band {
+  font-size: var(--fs-h3);
+  line-height: var(--lh-h3);
+  font-weight: var(--fw-heading);
+}
+
+.match__why {
+  font-weight: var(--fw-medium);
+}
+
+.match__why-skeleton {
+  margin-block: 5px;
+}
+
+.match__updated {
+  color: var(--fg-muted);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-sm);
+  font-weight: var(--fw-sm);
+}
+
+.match__loading {
+  display: grid;
+  gap: var(--space-3);
+  padding-block: var(--space-2);
+}
+
+.match__breakdown {
+  display: grid;
+  gap: var(--space-3);
+  padding-block-start: var(--space-4);
+  border-block-start: 1px solid var(--line);
+}
+
+.match__heading {
+  font-size: var(--fs-h3);
+  line-height: var(--lh-h3);
+  font-weight: var(--fw-h3);
+}
+
+.match__rows {
+  /* One label width for both lists (scored and folded), so their bars line up. */
+  --match-label: clamp(6.5rem, 34%, 10rem);
+  list-style: none;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.match__row {
+  display: grid;
+  grid-template-columns: var(--match-label) minmax(48px, 1fr) 4.5rem;
+  align-items: center;
+  gap: var(--space-3);
+  min-block-size: 24px;
+  font-size: var(--fs-sm);
+  line-height: var(--lh-sm);
+}
+
+.match__label {
+  font-weight: var(--fw-medium);
+  overflow-wrap: anywhere;
+}
+
+/* Penalties have no bar: the label takes its column. */
+.match__row--penalty .match__label {
+  grid-column: 1 / 3;
+}
+
+.match__points {
+  justify-self: end;
+  color: var(--fg-muted);
+  font-weight: var(--fw-semibold);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.match__points--penalty {
+  grid-column: 3;
+  color: var(--danger);
+}
+
+/* Zero rows, folded. The summary is a full-width target; flex drops the native marker, so
+   a chevron stands in and turns when open. */
+.match__zero-summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-block-size: var(--target);
+  inline-size: fit-content;
+  padding-inline-end: var(--space-2);
+  border-radius: var(--radius-sm);
+  color: var(--fg-muted);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-sm);
+  font-weight: var(--fw-semibold);
+  list-style: none;
+}
+
+.match__zero-summary::-webkit-details-marker {
+  display: none;
+}
+
+@media (hover: hover) {
+  .match__zero-summary:hover {
+    color: var(--fg);
+  }
+}
+
+.match__chevron {
+  flex: none;
+  transition: rotate var(--dur-fast) var(--ease-out);
+}
+
+.match__zero[open] .match__chevron {
+  rotate: 90deg;
+}
+
+.match__rows--zero {
+  padding-block: var(--space-1) var(--space-2);
+}
+
+.match__total {
+  padding-block-start: var(--space-3);
+  border-block-start: 1px solid var(--line);
+  font-weight: var(--fw-semibold);
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+}
+
+.match__note {
+  color: var(--fg-muted);
+  font-weight: var(--fw-medium);
+}
+
+.match__keywords {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.match__keywords-label {
+  color: var(--fg-muted);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-sm);
+  font-weight: var(--fw-semibold);
+}
+
+.match__chips {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* Terms as score_job() stored them (lower case). */
+.match__chip {
+  padding: 2px var(--space-3);
+  border: 1px solid transparent;
+  border-radius: var(--radius-full);
+  background: var(--surface-2);
+  color: var(--fg);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-sm);
+  font-weight: var(--fw-medium);
+}
+
+@media (forced-colors: active) {
+  .match__chip {
+    border-color: CanvasText;
+  }
+}

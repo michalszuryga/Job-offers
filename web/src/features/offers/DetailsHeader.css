@@ -1,0 +1,84 @@
+/* DetailsHeader (§4.8): sticky, 56 px, over the details' own scroller. Ghost icon buttons
+   sit so their glyphs line up with the body text (--details-pad, DetailsView.css). */
+.details-header {
+  --ghost-inset: calc((var(--control-h) - 20px) / 2);
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 2;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  box-sizing: border-box;
+  block-size: 56px;
+  padding-inline: calc(var(--details-pad) - var(--ghost-inset));
+  border-block-end: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.details-header__close {
+  flex: none;
+}
+
+.details-header__nav {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-inline-start: auto;
+}
+
+.details-header__position {
+  margin-inline-end: var(--space-2);
+  color: var(--fg-muted);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-sm);
+  font-weight: var(--fw-semibold);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* At either end: drawn disabled, kept focusable (aria-disabled). */
+.details-header .details-header__step[aria-disabled='true'] {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.details-header .details-header__step[aria-disabled='true']:hover,
+.details-header .details-header__step[aria-disabled='true']:active {
+  background: transparent;
+  transform: none;
+}
+
+.details-header__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  margin-inline-start: auto;
+}
+
+.details-header__status {
+  inline-size: 11.5rem;
+  min-inline-size: 0;
+  flex: 0 1 auto;
+}
+
+.details-header__open {
+  flex: none;
+}
+
+/* Desktop: close, then the position beside it; the actions take the far end, whose solid
+   edges line up with the body (no ghost inset there). */
+.details-header--wide {
+  padding-inline-end: var(--details-pad);
+}
+
+.details-header--wide .details-header__nav {
+  margin-inline-start: var(--space-1);
+}
+
+@media (forced-colors: active) {
+  .details-header {
+    border-block-end-color: CanvasText;
+  }
+}

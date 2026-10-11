@@ -49,6 +49,10 @@
   --toolbar-h: 104px;
   /* Where the sticky right pane (details or the summary) rests. */
   --pane-top: calc(var(--appbar-h) + var(--toolbar-h) + var(--space-4));
+  /* The details pane's own gap to the window's bottom (DetailsView.css). Any more, and a
+     list shorter than the pane would let the page scroll past the point where the pane
+     sticks, pushing its header under the toolbar. */
+  padding-block-end: var(--space-4);
 }
 
 .offers-page--wide .offers-page__batch {

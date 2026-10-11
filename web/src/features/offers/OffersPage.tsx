@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { ListSkeleton } from '../../components/shell/BootSkeleton'
 import { cx } from '../../components/ui'
 import { useI18n } from '../../i18n'
@@ -24,14 +24,19 @@ const WIDE = '(min-width: 1024px)'
 
 // Not needed for the list's first paint, so each is its own chunk (check-bundle budget).
 // Details are fetched right after the list shows, so opening one doesn't wait.
-const loadDetails = () => import('../../components/OfferDetails')
-const OfferDetailsPanel = lazy(() => loadDetails().then((m) => ({ default: m.OfferDetailsPanel })))
+const loadDetails = () => import('./DetailsView')
+const DetailsView = lazy(() => loadDetails().then((m) => ({ default: m.DetailsView })))
 const FilterSheet = lazy(() => import('./FilterSheet').then((m) => ({ default: m.FilterSheet })))
 const SourcesSheet = lazy(() =>
   import('../../components/shell/SourcesSheet').then((m) => ({ default: m.SourcesSheet })),
 )
 
 type SheetName = 'filters' | 'sources'
+
+// The card of an offer, if the list shows it (OfferCard's data-offer).
+function cardOf(id: string): HTMLElement | null {
+  return [...document.querySelectorAll<HTMLElement>('.offer[data-offer]')].find((card) => card.dataset.offer === id) ?? null
+}
 
 function initialFilters(): Filters {
   const saved = loadFilters()
@@ -42,7 +47,7 @@ function initialFilters(): Filters {
 export function OffersPage() {
   const { t } = useI18n()
   const wide = useMediaQuery(WIDE)
-  const { load, seen, retry, refresh, promote, replaceOffer } = useDashboard()
+  const { load, seen, retry, refresh, promote, updateOffer, getOffer } = useDashboard()
   const [filters, setFilters] = useState<Filters>(initialFilters)
   const [sheet, setSheet] = useState<SheetName | null>(null)
   // A sheet's chunk loads on its first open; it then stays mounted, so closing can animate.
@@ -78,6 +83,33 @@ export function OffersPage() {
     [dashboard],
   )
   const selected = dashboard?.offers.find((o) => o.external_id === selectedId) ?? null
+
+  // "3 / 12" and previous/next walk the list as filtered and sorted now. The open offer always
+  // keeps its place, even once a change takes it out of the filter (opening one under "To
+  // review" marks it Reviewed), so next still means the one after it.
+  const position = useMemo(() => {
+    if (!selected) return null
+    const sequence = visible.includes(selected) ? visible : sortOffers([...visible, selected], filters.sort, salaryCfg)
+    const index = sequence.indexOf(selected)
+    return {
+      index,
+      total: sequence.length,
+      previousId: sequence[index - 1]?.external_id ?? null,
+      nextId: sequence[index + 1]?.external_id ?? null,
+    }
+  }, [visible, selected, filters.sort, salaryCfg])
+
+  // Closing hands focus back to the card of the offer that was open (§4.8), when it was
+  // inside the details: a click elsewhere (the logo) keeps its own. On phones the details
+  // view has restored the scroll position by now, and the list is no longer inert.
+  const shownId = useRef<string | null>(null)
+  useLayoutEffect(() => {
+    const previous = shownId.current
+    shownId.current = selectedId
+    if (previous == null || selectedId != null) return
+    const active = document.activeElement
+    if (active == null || active === document.body) cardOf(previous)?.focus()
+  }, [selectedId])
 
   // "(2) JOffers": the New set still to review (§4.5).
   const unread = batch.length - reviewed
@@ -166,12 +198,15 @@ export function OffersPage() {
   )
   const details = selected && (
     <Suspense fallback={null}>
-      <OfferDetailsPanel
-        key={selected.external_id}
+      <DetailsView
         offer={selected}
+        wide={wide}
+        position={position}
         scoringProfile={dashboard.scoringProfile}
-        onClose={closeOffer}
-        onSaved={replaceOffer}
+        scoresRefreshedOn={dashboard.scoresRefreshedOn}
+        salaryCfg={salaryCfg}
+        getOffer={getOffer}
+        updateOffer={updateOffer}
       />
     </Suspense>
   )

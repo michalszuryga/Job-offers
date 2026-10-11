@@ -291,13 +291,35 @@ export const en = {
   },
   status: statuses,
   statusGroups,
+  // The offer details (§4.8): a full-screen view on phones, the right pane on desktop.
   details: {
     label: 'Offer details',
-    back: '← Back to list',
-    published: (ago: string) => `published ${ago}`,
+    // Header: phone back, desktop close, and the place in the current list.
+    back: 'Back to list',
+    close: 'Close details',
+    previous: 'Previous offer',
+    next: 'Next offer',
+    position: (n: number, total: number) => `${formatNumber(n, 'en')} / ${formatNumber(total, 'en')}`,
+    positionLabel: (n: number, total: number) => `Offer ${formatNumber(n, 'en')} of ${formatNumber(total, 'en')}`,
+    // The icon row under the title; screen readers hear each label before its value.
+    company: 'Company',
+    location: 'Location',
+    contract: 'Contract',
+    source: 'Source',
+    published: (ago: string) => `Published ${ago}`,
     publishedUnknown: 'Publication date unknown',
-    openOffer: 'Open original offer',
+    openOffer: 'Open offer',
+    newTab: '(opens in a new tab)',
     status: 'Status',
+    interested: 'Mark as interested',
+    // The match card (§4.8).
+    why: (score: number) => `Why ${score}?`,
+    scoresToday: 'Scores updated today',
+    scoresYesterday: 'Scores updated yesterday',
+    scoresOn: (date: string) => `Scores updated ${date}`,
+    // The tracking form, collapsed until it matters.
+    tracking: 'Your application',
+    trackingHint: 'Note the rate you quoted and your notice period.',
     rate: 'Rate you quoted',
     ratePlaceholder: 'e.g. 120 PLN/h B2B',
     notice: 'Notice period you gave',
@@ -306,16 +328,21 @@ export const en = {
     saving: 'Saving…',
     saved: 'Saved.',
     saveError: "Couldn't save. Try again.",
-    score: (score: number) => `Score ${score}`,
-    matched: (terms: string) => `Matched: ${terms}`,
     description: 'Description',
     noDescription: 'No description.',
-    loadError: "Couldn't load the details. Check your connection and open the offer again.",
+    showFull: 'Show full description',
+    showLess: 'Show less',
+    loadError: "Couldn't load the details. Check your connection.",
   },
   salary: {
     notListed: 'No salary listed',
     periods,
     approxMonthly: (amount: string) => `≈ ${amount} PLN/month`,
+    // The details' estimate, marked as one.
+    estimated: (approx: string) => `${approx} (est.)`,
+    // Against scoring.salary_bonus.monthly_threshold_pln, from the offer's salary_assessment.
+    above: (threshold: string) => `Above your ${threshold} PLN threshold`,
+    below: (threshold: string) => `Below your ${threshold} PLN threshold`,
   },
   score: {
     bands,

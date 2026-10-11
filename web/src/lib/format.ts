@@ -103,6 +103,34 @@ export function formatAgeShort(iso: string | null, lang: Lang, now = Date.now())
   }
 }
 
+// Day-first in both languages, like the rest of the UI: "8 Oct 2026, 10:00" / "8 paź 2026, 10:00".
+const LOCALES: Record<Lang, string> = { en: 'en-GB', pl: 'pl-PL' }
+const dateTimeFormats = new Map<string, Intl.DateTimeFormat>()
+
+function dateTimeFormat(lang: Lang, options: Intl.DateTimeFormatOptions): Intl.DateTimeFormat {
+  const key = `${lang}:${JSON.stringify(options)}`
+  let format = dateTimeFormats.get(key)
+  if (!format) {
+    format = new Intl.DateTimeFormat(LOCALES[lang], options)
+    dateTimeFormats.set(key, format)
+  }
+  return format
+}
+
+// The absolute date behind "3 h ago", e.g. for a title attribute. Empty for a missing date.
+export function formatDateTime(iso: string | null | undefined, lang: Lang): string {
+  const time = timeOf(iso)
+  return time == null ? '' : dateTimeFormat(lang, { dateStyle: 'medium', timeStyle: 'short' }).format(time)
+}
+
+// A calendar day written as 'YYYY-MM-DD' (no time, no zone): "8 Oct" / "8 paź". Empty when unreadable.
+export function formatDay(day: string, lang: Lang): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(day)
+  if (!match) return ''
+  const utc = Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]))
+  return dateTimeFormat(lang, { day: 'numeric', month: 'short', timeZone: 'UTC' }).format(utc)
+}
+
 function publishedTime(offer: Pick<Offer, 'published_at'>): number | null {
   return timeOf(offer.published_at)
 }

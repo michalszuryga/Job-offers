@@ -1,0 +1,74 @@
+/* Description (§4.8): parsed blocks at reading size, 68ch at most. */
+.description {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.description__heading {
+  font-size: var(--fs-h3);
+  line-height: var(--lh-h3);
+  font-weight: var(--fw-h3);
+}
+
+.description__body {
+  max-inline-size: var(--measure);
+  font-size: var(--fs-body-lg);
+  line-height: var(--lh-body-lg);
+  overflow-wrap: anywhere;
+}
+
+.description__body > * + * {
+  margin-block-start: var(--space-3);
+}
+
+.description__body h4 {
+  margin-block-start: var(--space-5);
+  font-size: var(--fs-h4);
+  line-height: var(--lh-h4);
+  font-weight: var(--fw-h4);
+}
+
+.description__body h4:first-child {
+  margin-block-start: 0;
+}
+
+.description__body h4 + * {
+  margin-block-start: var(--space-2);
+}
+
+.description__body ul {
+  display: grid;
+  gap: var(--space-1);
+  padding-inline-start: var(--space-5);
+}
+
+.description__body li::marker {
+  color: var(--fg-muted);
+}
+
+/* Phone: 14 lines, then "Show full description". The fade says there is more; it is a
+   mask, so only its opacity counts (the colour is any opaque one). */
+.description__body--clamped {
+  max-block-size: calc(14 * var(--lh-body-lg));
+  overflow: hidden;
+}
+
+.description__body--faded {
+  mask-image: linear-gradient(to bottom, var(--fg) calc(100% - 3 * var(--lh-body-lg)), transparent);
+}
+
+.description .description__more {
+  --button-fg: var(--brand);
+  justify-self: start;
+  /* The label lines up with the text; the target keeps its padding. */
+  margin-inline-start: calc(-1 * var(--space-3));
+}
+
+.description__empty {
+  color: var(--fg-muted);
+}
+
+.description__loading {
+  display: grid;
+  gap: var(--space-3);
+}

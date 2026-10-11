@@ -1,19 +1,23 @@
 import type { Session } from '@supabase/supabase-js'
-import { useCallback, useEffect, useRef, useState, type ComponentProps } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { OffersPage } from '../offers/OffersPage'
 import { AppShell } from '../../components/shell/AppShell'
 import { BootSkeleton } from '../../components/shell/BootSkeleton'
 import { takeAuthNotice } from '../../lib/authHash'
 import { isMember } from '../../lib/offers'
 import { supabase } from '../../lib/supabase'
-import { AccessGate } from './AccessGate'
-import { SignInCard } from './SignInCard'
+import type { SignInNotice } from './SignInCard'
 
 // The app at '/': session, membership, then the offers. lib/supabase (imported here and
 // through lib/offers) must only be reachable from this lazy chunk, never from the entry,
 // Privacy or NotFound, so supabase-js stays out of them (check-bundle asserts it).
 
-type Notice = ComponentProps<typeof SignInCard>['notice']
+// The signed-out and no-access screens are their own chunks: a member's daily visit never
+// needs them, and the list's first load stays inside its budget (check-bundle).
+const SignInCard = lazy(() => import('./SignInCard').then((m) => ({ default: m.SignInCard })))
+const AccessGate = lazy(() => import('./AccessGate').then((m) => ({ default: m.AccessGate })))
+
+type Notice = SignInNotice | null
 type Access = 'checking' | 'member' | 'no-access' | 'error'
 
 // At startup an expired link the user just opened says more than the stored session it
@@ -92,19 +96,27 @@ export function AppRoot() {
   const retry = useCallback(() => setAttempt((n) => n + 1), [])
 
   if (session === undefined) return <BootSkeleton />
-  if (!session) return <SignInCard notice={notice} />
+  if (!session) {
+    return (
+      <Suspense fallback={<BootSkeleton />}>
+        <SignInCard notice={notice} />
+      </Suspense>
+    )
+  }
   if (access === 'checking' && !retrying) return <BootSkeleton />
 
   const email = session.user.email ?? ''
   if (access !== 'member') {
     return (
-      <AccessGate
-        kind={access === 'no-access' ? 'no-access' : 'error'}
-        retrying={retrying}
-        email={email}
-        onRetry={retry}
-        onSignOut={signOut}
-      />
+      <Suspense fallback={<BootSkeleton />}>
+        <AccessGate
+          kind={access === 'no-access' ? 'no-access' : 'error'}
+          retrying={retrying}
+          email={email}
+          onRetry={retry}
+          onSignOut={signOut}
+        />
+      </Suspense>
     )
   }
   return (

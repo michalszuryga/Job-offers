@@ -36,6 +36,8 @@ export function OfferCard({ offer, isNew, unread, selected, salaryCfg }: Props) 
     <a
       className={cx('offer', unread && 'offer--unread', selected && 'offer--selected')}
       href={withOffer(location.href, offer.external_id)}
+      // Closing the details finds the card again by this, to hand focus back (OffersPage).
+      data-offer={offer.external_id}
       aria-current={selected ? 'true' : undefined}
       onClick={(event) => {
         if (!plainClick(event)) return

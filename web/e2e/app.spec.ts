@@ -73,7 +73,7 @@ test('saves application status, quoted rate and notice period', async ({ page })
   await page.getByRole('link', { name: /Senior QA Engineer/ }).click()
   const details = page.getByRole('complementary', { name: 'Offer details' })
   await expect(details.getByText('Full description of Senior QA Engineer.')).toBeVisible()
-  await expect(details.getByText('Matched: playwright, typescript')).toBeVisible()
+  await expect(details.getByRole('list', { name: 'Matched keywords' }).getByRole('listitem')).toHaveText(['playwright', 'typescript'])
 
   await details.getByLabel('Status').selectOption('APPLIED')
   await details.getByLabel('Rate you quoted').fill('140 PLN/h B2B')
@@ -89,12 +89,17 @@ test('saves application status, quoted rate and notice period', async ({ page })
   }, {
     p_external_id: 'https://board.test/acme',
     p_status: 'APPLIED',
+    p_rate: '',
+    p_notice: '',
+  }, {
+    p_external_id: 'https://board.test/acme',
+    p_status: 'APPLIED',
     p_rate: '140 PLN/h B2B',
     p_notice: '1 month',
   }])
 
   // On a phone the details cover the list; go back to check the list updated.
-  const back = details.getByRole('button', { name: '← Back to list' })
+  const back = details.getByRole('button', { name: 'Back to list' })
   if (await back.isVisible()) await back.click()
   await expect(page.getByRole('link', { name: /Senior QA Engineer/ })).toContainText('Applied')
 })

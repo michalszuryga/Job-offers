@@ -1,0 +1,113 @@
+/* DetailsView (§4.8). The aside is its own scroller in both containers: a sticky header on
+   top, the body, and on phones a sticky action bar at the bottom. Its scroll padding keeps
+   a focused control clear of all three and of a toast (WCAG 2.4.11, §2.6). */
+.details {
+  /* Body inset; the header lines its icon glyphs up with it. */
+  --details-pad: var(--gutter);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scroll-padding-block-start: 56px;
+  background: var(--surface);
+  color: var(--fg);
+}
+
+/* Phone: a full-screen view over the list (not a dialog), sliding in from the end edge. */
+.details--view {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-details);
+  /* The action bar (64 + safe area), a toast above it, and a little air. */
+  scroll-padding-block-end: calc(64px + env(safe-area-inset-bottom) + var(--toast-h, 0px) + var(--space-2));
+  transition:
+    translate var(--dur-slow) var(--ease-out),
+    opacity var(--dur-slow) var(--ease-out);
+}
+
+@starting-style {
+  .details--view {
+    translate: 100% 0;
+  }
+}
+
+/* Reduced motion: a fade of at most 100 ms (--dur-slow is 100 ms there). */
+@media (prefers-reduced-motion: reduce) {
+  @starting-style {
+    .details--view {
+      translate: none;
+      opacity: 0;
+    }
+  }
+}
+
+/* Desktop: the sticky right pane. --pane-top comes from OffersPage.css. No action bar; a
+   toast sits at the bottom right of the window, over the pane's lower end. */
+.details--pane {
+  --details-pad: var(--space-6);
+  position: sticky;
+  inset-block-start: var(--pane-top);
+  block-size: calc(100dvh - var(--pane-top) - var(--space-4));
+  scroll-padding-block-end: calc(var(--toast-h, 0px) + var(--space-4));
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-card);
+}
+
+.details__body {
+  /* Fills the view, so a short offer still puts the action bar at the bottom. */
+  flex: 1 0 auto;
+  display: grid;
+  align-content: start;
+  gap: var(--space-6);
+  padding: var(--space-5) var(--details-pad) var(--space-8);
+}
+
+.details__hero {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.details__title {
+  font-size: var(--fs-h2);
+  line-height: var(--lh-h2);
+  font-weight: var(--fw-h2);
+  letter-spacing: var(--ls-h2);
+  overflow-wrap: anywhere;
+}
+
+/* Focused by script on open, never by Tab: no ring around a heading. */
+.details__title:focus {
+  outline: none;
+}
+
+.details__facts {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  margin-block-end: var(--space-1);
+  color: var(--fg-muted);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-sm);
+  font-weight: var(--fw-sm);
+}
+
+.details__fact {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.details__fact-icon {
+  flex: none;
+}
+
+/* Windows contrast themes drop box-shadows, which carry the pane's edge on desktop. */
+@media (forced-colors: active) {
+  .details--pane {
+    border: 1px solid CanvasText;
+  }
+}

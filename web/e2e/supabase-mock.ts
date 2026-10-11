@@ -69,7 +69,7 @@ export const SCORING_PROFILE = {
 }
 
 // What score_job() would put beside each offer's salary and title. The categories are fixed
-// stand-ins (matched_* stay what app.spec reads until P7); for Acme they sum to its 75.
+// stand-ins (app.spec reads the matched terms); for Acme they sum to its 75.
 function breakdownFor(offer: MockOffer) {
   const { monthly_threshold_pln: threshold, points } = SCORING.salary_bonus
   const monthlyPln = offer.salary_currency === 'PLN' && offer.salary_period === 'month' ? offer.salary_min : null
@@ -104,10 +104,17 @@ export interface MockOptions {
   // How /auth/v1/otp answers: 'signupsDisabled' is GoTrue's reply for an address that has no
   // account while sign-ups are off (every stranger, in the private beta).
   otp?: 'ok' | 'signupsDisabled'
+  // save_offer_tracking calls this answers with a 503 (recorded in failedRpcCalls, not rpcCalls).
+  // Read on every call, so a test can stop the failures by changing what it returns.
+  failRpc?: (call: Record<string, unknown>) => boolean
+  // Milliseconds each save_offer_tracking call takes, to catch writes while one is in flight.
+  rpcDelay?: number
 }
 
 export interface MockState {
+  // save_offer_tracking calls that were saved, in the order they arrived.
   rpcCalls: Record<string, unknown>[]
+  failedRpcCalls: Record<string, unknown>[]
   otpRequests: Record<string, unknown>[]
   // Code sign-ins (verifyOtp); any code is accepted.
   verifyRequests: Record<string, unknown>[]
@@ -147,7 +154,7 @@ function filterValues(param: string | null): string[] | null {
 }
 
 export async function mockSupabase(page: Page, options: MockOptions = {}): Promise<MockState> {
-  const state: MockState = { rpcCalls: [], otpRequests: [], verifyRequests: [] }
+  const state: MockState = { rpcCalls: [], failedRpcCalls: [], otpRequests: [], verifyRequests: [] }
   let jobFailures = options.failJobs ?? 0
   const offers = options.offers ?? OFFERS
   const newIds = options.newIds ?? NEW_IDS
@@ -212,7 +219,9 @@ export async function mockSupabase(page: Page, options: MockOptions = {}): Promi
         return json(route, {
           ...served(match, now()),
           // Collapsed onto one line with glued bullets and headings, like real scraped text.
-          description: `Full description of ${match.title}. Wymagania • Playwright i TypeScript • Testy API `
+          // An offer built with its own `description` (offer(…, { description })) serves that.
+          description: (match as { description?: string }).description
+            ?? `Full description of ${match.title}. Wymagania • Playwright i TypeScript • Testy API `
             + 'Oferujemy • Praca zdalna',
           score_breakdown: JSON.stringify(breakdownFor(match)),
         })
@@ -230,7 +239,13 @@ export async function mockSupabase(page: Page, options: MockOptions = {}): Promi
       })
     }
     if (path === '/rest/v1/rpc/save_offer_tracking') {
-      state.rpcCalls.push(request.postDataJSON())
+      const call = request.postDataJSON()
+      if (options.rpcDelay) await new Promise((resolve) => setTimeout(resolve, options.rpcDelay))
+      if (options.failRpc?.(call)) {
+        state.failedRpcCalls.push(call)
+        return json(route, { message: 'upstream connect error' }, 503)
+      }
+      state.rpcCalls.push(call)
       return route.fulfill({ status: 204 })
     }
     return json(route, { message: `unmocked ${request.method()} ${path}` }, 500)

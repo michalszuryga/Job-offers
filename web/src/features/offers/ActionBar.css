@@ -1,0 +1,35 @@
+/* ActionBar (§4.8): sticky at the bottom of the phone details, 64 px plus the safe area.
+   The details' scroll-padding-bottom reserves exactly this height (DetailsView.css). */
+.action-bar {
+  position: sticky;
+  inset-block-end: 0;
+  z-index: 2;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  box-sizing: border-box;
+  block-size: calc(64px + env(safe-area-inset-bottom));
+  padding: 0 var(--gutter) env(safe-area-inset-bottom);
+  border-block-start: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.action-bar__status {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+}
+
+.action-bar__star {
+  flex: none;
+}
+
+.action-bar__open {
+  flex: none;
+}
+
+@media (forced-colors: active) {
+  .action-bar {
+    border-block-start-color: CanvasText;
+  }
+}

@@ -103,13 +103,17 @@ test.describe('in Polish', () => {
 
     const details = await openDetails(page, 'Senior QA Engineer')
     await expect(details.getByRole('list', { name: 'Składowe wyniku' })).toContainText('Stanowisko')
+    // The status saves as soon as it is picked (P7); Save is for the rate and notice.
     await details.getByLabel('Status').selectOption({ label: 'Wysłano' })
+    await details.getByLabel('Zaproponowana stawka').fill('140 PLN/godz. B2B')
     await details.getByRole('button', { name: 'Zapisz' }).click()
     await expect(details.getByRole('status')).toHaveText('Zapisano.')
     // Opening it marked it Reviewed first (P6).
-    expect(supabase.rpcCalls).toMatchObject([{ p_status: 'REVIEW' }, { p_status: 'APPLIED' }])
+    expect(supabase.rpcCalls).toMatchObject([
+      { p_status: 'REVIEW' }, { p_status: 'APPLIED' }, { p_status: 'APPLIED', p_rate: '140 PLN/godz. B2B' },
+    ])
 
-    const back = details.getByRole('button', { name: '← Wróć do listy' })
+    const back = details.getByRole('button', { name: 'Wróć do listy' })
     if (await back.isVisible()) await back.click()
     await expect(page.locator('.offer', { hasText: 'Senior QA Engineer' }).locator('.ui-status-pill')).toHaveText('Wysłano')
     const text = await page.evaluate(() => document.body.innerText)

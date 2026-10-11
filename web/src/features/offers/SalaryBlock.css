@@ -1,0 +1,52 @@
+/* SalaryBlock (§4.8): the amount first, then what it means for you. */
+.salary-block {
+  display: grid;
+  gap: 2px;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-lg);
+  background: var(--surface-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.salary-block__amount,
+.salary-block__none {
+  font-size: var(--fs-h3);
+  line-height: var(--lh-h3);
+  font-weight: var(--fw-heading);
+}
+
+.salary-block__none {
+  color: var(--fg-muted);
+  font-weight: var(--fw-medium);
+}
+
+.salary-block__estimate,
+.salary-block__threshold {
+  color: var(--fg-muted);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-sm);
+  font-weight: var(--fw-sm);
+}
+
+.salary-block__threshold {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-1);
+  margin-block-start: var(--space-1);
+}
+
+.salary-block__threshold--above {
+  color: var(--success);
+}
+
+/* 16 px icon on an 18 px line. */
+.salary-block__icon {
+  flex: none;
+  margin-block-start: 1px;
+}
+
+@media (forced-colors: active) {
+  .salary-block {
+    border: 1px solid CanvasText;
+  }
+}
