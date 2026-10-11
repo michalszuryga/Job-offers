@@ -1,0 +1,28 @@
+/* FilterPanel (§4.6): stacked in the Filters sheet, two rows in the desktop toolbar. */
+.filter-panel {
+  display: grid;
+  gap: var(--space-5);
+}
+
+/* Desktop toolbar rows (§4.7): 52 px each, every control inline, both fitting 960 px. */
+.filter-bar__row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-block-size: 52px;
+}
+
+.filter-bar__row .filter-panel__search {
+  flex: 1 1 240px;
+  min-inline-size: 240px;
+}
+
+.filter-bar__row .filter-panel__select {
+  flex: 0 1 200px;
+  min-inline-size: 150px;
+}
+
+/* The chips' own legend is hidden here; they need no wrapping room in a row this wide. */
+.filter-bar__row .filter-panel__score .ui-chips__list {
+  flex-wrap: nowrap;
+}

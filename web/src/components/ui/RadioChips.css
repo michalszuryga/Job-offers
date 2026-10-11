@@ -27,9 +27,11 @@
 }
 
 /* The real radio, invisible but on top of the whole chip: the chip is the hit area
-   (≥ --target), and clicks and .check() land on the input itself. */
+   (≥ --target), and clicks and .check() land on the input itself. z-index keeps it on top
+   while the pressed label's scale makes that label a stacking context of its own. */
 .ui-chips__input {
   position: absolute;
+  z-index: 1;
   inset: 0;
   width: 100%;
   height: 100%;

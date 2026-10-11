@@ -1,0 +1,91 @@
+/* TodaySummary (§4.7): the desktop right pane while no offer is open. Sticky like the
+   details pane it stands in for. */
+.summary {
+  position: sticky;
+  top: var(--pane-top);
+  display: grid;
+  gap: var(--space-3);
+}
+
+.summary__heading {
+  font-size: var(--fs-h3);
+  line-height: var(--lh-h3);
+  font-weight: var(--fw-h3);
+}
+
+.summary__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.summary__tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+  min-width: 0;
+  padding: var(--space-4) var(--space-5);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+}
+
+.summary__label {
+  color: var(--fg-muted);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-sm);
+  font-weight: var(--fw-semibold);
+}
+
+.summary__value {
+  color: var(--fg);
+  font-size: var(--fs-num-lg);
+  line-height: 36px;
+  font-weight: var(--fw-num-lg);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.summary__detail {
+  color: var(--fg-muted);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-sm);
+  font-weight: var(--fw-sm);
+}
+
+.summary__best {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+  margin-block: var(--space-1) var(--space-2);
+}
+
+.summary__best .ui-score-ring {
+  flex: none;
+}
+
+.summary__best-title {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  font-size: var(--fs-title);
+  line-height: var(--lh-title);
+  font-weight: var(--fw-heading);
+  overflow-wrap: anywhere;
+}
+
+/* Actions sit at the foot of the tile, level across a row of tiles. */
+.summary__actions {
+  margin-block-start: auto;
+  padding-block-start: var(--space-2);
+}
+
+@media (forced-colors: active) {
+  .summary__tile {
+    border: 1px solid CanvasText;
+  }
+}

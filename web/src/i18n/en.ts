@@ -29,11 +29,13 @@ const statusGroups: Record<StatusGroupKey, string> = {
   closed: 'Closed',
 }
 
+// Segment labels in the toolbar (§4.5): short enough for five beside the Filters button.
 const windows: Record<PublishedWindow, string> = {
+  new: 'New',
+  '24h': '24 h',
+  '3d': '3 days',
+  '7d': '7 days',
   any: 'Any time',
-  '24h': 'Last 24 hours',
-  '3d': 'Last 3 days',
-  '7d': 'Last 7 days',
 }
 
 const sort: Record<SortKey, string> = { score: 'Best match', newest: 'Newest', salary: 'Highest salary' }
@@ -206,7 +208,7 @@ export const en = {
     retention: {
       heading: 'How long we keep it',
       account: 'Your account and tracking data: until you ask us to delete them.',
-      offers: 'Offers you never touched: they expire 14 days after they leave their job board.',
+      offers: 'Offers you only opened, or never touched: they expire 14 days after they leave their job board.',
       logs: 'Logs kept by the services above: as set out in their own policies.',
     },
     rights: {
@@ -220,18 +222,30 @@ export const en = {
   offers: {
     loading: 'Loading offers…',
     loadError: "Couldn't load offers. Check your connection.",
-    lastFetch: (ago: string, newCount: number) => `Last fetch ${ago} · ${formatNumber(newCount, 'en')} new`,
-    // A run whose finish time can't be read.
-    lastFetchUndated: (newCount: number) => `Last fetch · ${formatNumber(newCount, 'en')} new`,
-    noFetch: 'No fetch yet',
-    failedSources: (names: string) => `failed: ${names}`,
     count: (shown: number, total: number) =>
       `${formatNumber(shown, 'en')} of ${formatNumber(total, 'en')} ${offerWord(total)}`,
     // Shown when the list query hits its row limit.
     showingFirst: (n: number) => `Showing the first ${formatNumber(n, 'en')} ${offerWord(n)}`,
-    empty: 'No offers match these filters.',
-    // Literal capitals until P6 restyles the badge (app.spec reads "NEWSenior QA Engineer").
-    newBadge: 'NEW',
+    // Empty states (§4.10).
+    empty: 'No offers match these filters',
+    clearFilters: 'Clear filters',
+    // When only the time window hides everything.
+    showAll: 'Show all offers',
+    emptyNew: 'No new offers from the last fetch',
+    // Warsaw time, when the scheduled fetch runs.
+    nextFetch: (today: boolean) => (today ? 'Next fetch today at 18:00' : 'Next fetch tomorrow at 18:00'),
+    showRecent: 'Show last 3 days',
+    // Sentence case; the badge draws it in capitals (§2.4).
+    newBadge: 'New',
+  },
+  // The last fetch's batch, above the list (§4.5).
+  batch: {
+    summary: (n: number, ago: string) => `${formatNumber(n, 'en')} new · fetched ${ago}`,
+    // A run whose finish time can't be read.
+    summaryUndated: (n: number) => `${formatNumber(n, 'en')} new`,
+    noFetch: 'No fetch yet',
+    reviewed: (done: number, total: number) => `Reviewed ${formatNumber(done, 'en')} of ${formatNumber(total, 'en')}`,
+    refresh: 'Refresh offers',
   },
   filters: {
     label: 'Filters',
@@ -242,11 +256,38 @@ export const en = {
     source: 'Source',
     allSources: 'All sources',
     minScore: 'Min score',
+    // The first Min score chip; the others are "50+", "65+", "80+".
+    anyScore: 'Any score',
     search: 'Search title or company',
     // The search field's clear (×) button.
     clearSearch: 'Clear search',
     sortLabel: 'Sort',
     sort,
+    // The Filters sheet's footer.
+    reset: 'Reset',
+    show: (n: number) => `Show ${formatNumber(n, 'en')} ${offerWord(n)}`,
+    clearAll: 'Clear all',
+    // The chips row under the toolbar on phones; each chip removes its filter.
+    active: 'Active filters',
+    remove: (label: string) => `Remove filter: ${label}`,
+    scoreChip: (min: number) => `Score ${min}+`,
+    queryChip: (query: string) => `“${query}”`,
+  },
+  // Desktop, while no offer is open (§4.7).
+  summary: {
+    heading: 'Summary',
+    newTitle: 'New since the last fetch',
+    toReview: (n: number) => `${formatNumber(n, 'en')} still to review`,
+    allReviewed: 'All reviewed',
+    bestTitle: 'Best new match',
+    openBest: 'Open best match',
+    noBest: 'Nothing new to open',
+    progressTitle: 'In progress',
+    progressDetail: (preparing: number, active: number) =>
+      `${formatNumber(preparing, 'en')} preparing · ${formatNumber(active, 'en')} active`,
+    sourcesTitle: 'Sources OK',
+    sourcesValue: (ok: number, total: number) => `${formatNumber(ok, 'en')}/${formatNumber(total, 'en')}`,
+    viewSources: 'View sources',
   },
   status: statuses,
   statusGroups,
@@ -272,7 +313,7 @@ export const en = {
     loadError: "Couldn't load the details. Check your connection and open the offer again.",
   },
   salary: {
-    notListed: 'Salary not listed',
+    notListed: 'No salary listed',
     periods,
     approxMonthly: (amount: string) => `≈ ${amount} PLN/month`,
   },
@@ -300,6 +341,10 @@ export const en = {
     failedOne: (name: string) => `${name} failed`,
     failedMany: (n: number) => `${formatNumber(n, 'en')} ${enPlural(n, 'source', 'sources')} failed`,
     partialCount: (n: number) => `${formatNumber(n, 'en')} ${enPlural(n, 'source', 'sources')} partial`,
+    fetched: (ago: string) => `Fetched ${ago}`,
+    allOk: 'All sources fetched',
+    // A badge on each row, so the state never rests on the icon's colour.
+    states: { ok: 'OK', partial: 'Partial', failed: 'Failed' },
   },
   // "Status: Applied · Undo" and its failure "Couldn't save the status · Retry" (§4.9);
   // the action labels come from common.

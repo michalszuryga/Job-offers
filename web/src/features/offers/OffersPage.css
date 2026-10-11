@@ -1,0 +1,67 @@
+/* The offer list page (§4.5, §4.7). Sticky bars span the full width like the app bar; every
+   band lines its content up with the page container through --band-pad. */
+.offers-page {
+  --toolbar-h: 52px;
+  --band-pad: max(var(--gutter), (100% - var(--container-max)) / 2 + var(--gutter));
+  padding-block-end: var(--space-12);
+}
+
+.offers-band {
+  padding-inline: var(--band-pad);
+}
+
+/* Phone density (criterion 2): app bar 56 + BatchHeader 64 + toolbar 52 + count 24 = 196 px
+   to the first card. */
+.offers-count,
+.offers-limit {
+  color: var(--fg-muted);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-sm);
+  font-weight: var(--fw-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.offers-count {
+  margin-block: 3px;
+}
+
+/* The list query's row limit was hit; the count above covers only the loaded rows. */
+.offers-limit {
+  margin-block-end: var(--space-2);
+}
+
+.offers-pane {
+  min-width: 0;
+}
+
+/* Focus never lands under the sticky bars (WCAG 2.4.11): the toolbar joins the app bar in
+   the page's scroll padding. Firefox before 121 has no :has() and keeps the app bar's. */
+:root:has(.toolbar) {
+  --sticky-h: calc(var(--appbar-h) + 52px + var(--space-2));
+}
+
+:root:has(.toolbar--wide) {
+  --sticky-h: calc(var(--appbar-h) + 104px + var(--space-2));
+}
+
+/* Desktop (§4.7): two toolbar rows, the batch line, then list and pane side by side. */
+.offers-page--wide {
+  --toolbar-h: 104px;
+  /* Where the sticky right pane (details or the summary) rests. */
+  --pane-top: calc(var(--appbar-h) + var(--toolbar-h) + var(--space-4));
+}
+
+.offers-page--wide .offers-page__batch {
+  padding-block: var(--space-3) var(--space-2);
+}
+
+.offers-grid {
+  display: grid;
+  grid-template-columns: minmax(400px, 460px) minmax(0, 1fr);
+  gap: var(--space-6);
+  align-items: start;
+}
+
+.offers-page--wide .offers-count {
+  margin-block: 0 var(--space-3);
+}

@@ -154,6 +154,30 @@ def test_delete_expired_keeps_triaged_and_recently_seen(tmp_path):
     assert remaining == {applied.external_id, touched.external_id, other_source.external_id}
 
 
+def test_delete_expired_also_expires_offers_that_were_only_opened(tmp_path):
+    # The web app marks an offer REVIEW when you open it, so opened-but-ignored offers must
+    # expire like untouched ones; a rate or notice period you recorded keeps either kind.
+    db = tmp_path / "jobs.db"
+    store = JobStore(db)
+    opened = Job("QA 1", "A", "https://example.com/jobs/1", "src")
+    untouched = Job("QA 2", "B", "https://example.com/jobs/2", "src")
+    interested = Job("QA 3", "C", "https://example.com/jobs/3", "src")
+    noted = Job("QA 4", "D", "https://example.com/jobs/4", "src")
+    for job in (opened, untouched, interested, noted):
+        store.upsert(job)
+        _set_last_seen(db, job.external_id, "2020-01-01 00:00:00")
+    store.set_status(opened.external_id, "REVIEW")
+    store.set_status(interested.external_id, "INTERESTED")
+    store.set_status(noted.external_id, "REVIEW")
+    import sqlite3
+    with sqlite3.connect(db) as conn:
+        conn.execute("UPDATE jobs SET applied_rate='120 PLN/h' WHERE external_id=?", (noted.external_id,))
+
+    assert store.delete_expired("src", older_than_days=3) == 2
+    remaining = {row["external_id"] for row in store.list_all()}
+    assert remaining == {interested.external_id, noted.external_id}
+
+
 def test_fetch_runs_and_new_since(tmp_path):
     db = tmp_path / "jobs.db"
     store = JobStore(db)

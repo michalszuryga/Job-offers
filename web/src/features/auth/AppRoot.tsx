@@ -1,6 +1,6 @@
 import type { Session } from '@supabase/supabase-js'
 import { useCallback, useEffect, useRef, useState, type ComponentProps } from 'react'
-import { OffersPage } from '../../components/OffersPage'
+import { OffersPage } from '../offers/OffersPage'
 import { AppShell } from '../../components/shell/AppShell'
 import { BootSkeleton } from '../../components/shell/BootSkeleton'
 import { takeAuthNotice } from '../../lib/authHash'

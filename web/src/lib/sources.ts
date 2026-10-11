@@ -18,6 +18,11 @@ const PARSE_ERROR = 'OfferParseError'
 const isPartial = (r: SourceRun) => r.error_type === PARSE_ERROR
 const isFailed = (r: SourceRun) => (r.error_type ? !isPartial(r) : Boolean(r.error))
 
+// One source's row in SourcesSheet.
+export function sourceState(result: SourceRun): SourceState {
+  return isFailed(result) ? 'failed' : isPartial(result) ? 'partial' : 'ok'
+}
+
 export function sourceHealth(run: FetchRun | null): SourceHealth {
   const results = run?.results ?? []
   const failed = results.filter(isFailed)

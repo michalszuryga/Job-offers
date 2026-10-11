@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { errorKind, sourceHealth, sourceStats } from './sources'
+import { errorKind, sourceHealth, sourceState, sourceStats } from './sources'
 import type { FetchRun, SourceRun } from './types'
 
 const source = (name: string, error = '', error_type = '', extra: Partial<SourceRun> = {}): SourceRun => ({
@@ -73,5 +73,15 @@ describe('sourceStats', () => {
   test('omits what an older run did not record', () => {
     expect(sourceStats({ name: 'A', error: '', error_type: '' })).toEqual([])
     expect(sourceStats({ name: 'A', inserted: 0 })).toEqual([{ key: 'new', value: 0 }])
+  })
+})
+
+describe('sourceState', () => {
+  test('per row: failed by type or message, partial for a parse error', () => {
+    expect(sourceState(source('A'))).toBe('ok')
+    expect(sourceState(source('B', 'x', 'OfferParseError'))).toBe('partial')
+    expect(sourceState(source('C', '403 Forbidden', 'HTTPError'))).toBe('failed')
+    expect(sourceState(source('D', '', 'AssertionError'))).toBe('failed')
+    expect(sourceState(source('E', 'boom'))).toBe('failed')
   })
 })

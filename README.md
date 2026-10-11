@@ -14,8 +14,10 @@ every evening and e-mails a summary of new offers.
   `config/profile.yaml` (roles, technologies, domains, contract, seniority,
   salary, freshness) plus hard exclusions (e.g. Java-as-a-requirement, junior-only).
 - **Deduplication** across boards by normalized title + company.
-- **Lifecycle:** offers you haven't touched (`TO_REVIEW`) are removed after 14
-  days without appearing on their board; anything you've triaged is kept.
+- **Lifecycle:** offers you haven't acted on (`TO_REVIEW`, or `REVIEW`, which the
+  web app sets when you merely open one) are removed after 14 days without appearing
+  on their board, unless you recorded a rate or notice period; anything you've
+  triaged further is kept.
 - **Tracking:** application status, the rate and notice period you quoted, CV
   highlights matched to each offer. `applied_at` is stamped the first time an
   offer is marked `APPLIED` and is never cleared afterwards: moving the status
@@ -104,7 +106,7 @@ settings add:
 | Secret | `SMTP_USER` | Gmail address the summary is sent from |
 | Secret | `SMTP_PASSWORD` | a Gmail app password (myaccount.google.com/apppasswords) |
 | Variable | `SUMMARY_TO` | recipient; defaults to `SMTP_USER` |
-| Variable | `APP_URL` | web app URL, linked at the bottom of the e-mail |
+| Variable | `APP_URL` | the web app's URL, for this repo `https://michalszuryga.github.io/Job-offers/` (the trailing `/` is optional); the e-mail links to its New view (`?view=new`) and to the best new offer (`?offer=…`) |
 Run it once by hand from *Actions → Daily fetch → Run workflow*.
 
 GitHub pauses scheduled workflows after 60 days without repository activity.

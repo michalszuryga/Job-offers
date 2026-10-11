@@ -1,0 +1,112 @@
+/* SourcesSheet (§4.10): one row per board, its state as an icon plus a worded badge. */
+.sources__when {
+  margin-block-end: var(--space-3);
+  color: var(--fg-muted);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-sm);
+  font-weight: var(--fw-sm);
+}
+
+.sources {
+  list-style: none;
+  display: grid;
+}
+
+.sources__row {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  gap: var(--space-3);
+  padding-block: var(--space-3);
+  border-block-start: 1px solid var(--line);
+}
+
+.sources__row:first-child {
+  border-block-start: 0;
+  padding-block-start: 0;
+}
+
+.sources__icon {
+  margin-block-start: 1px;
+  color: var(--success);
+}
+
+.sources__row--partial .sources__icon {
+  color: var(--warning);
+}
+
+.sources__row--failed .sources__icon {
+  color: var(--danger);
+}
+
+.sources__body {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.sources__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.sources__name {
+  min-width: 0;
+  font-weight: var(--fw-semibold);
+  overflow-wrap: anywhere;
+}
+
+.sources__problem {
+  color: var(--fg);
+}
+
+.sources__stats {
+  color: var(--fg-muted);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-sm);
+  font-weight: var(--fw-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Same disclosure as a Callout's: a full-size target with a drawn chevron. */
+.sources__summary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-block-size: var(--target);
+  padding-inline-end: var(--space-2);
+  border-radius: var(--radius-sm);
+  color: var(--fg-muted);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  list-style: none;
+}
+
+/* Separate rule: Firefox drops a whole selector list over an unknown -webkit- pseudo. */
+.sources__summary::-webkit-details-marker {
+  display: none;
+}
+
+.sources__details[open] .sources__chevron {
+  transform: rotate(90deg);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .sources__chevron {
+    transition: transform var(--dur-fast) var(--ease-out);
+  }
+}
+
+/* Verbatim but wrapped: a scroll box would need to be focusable. */
+.sources__raw {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--fg);
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-sm);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

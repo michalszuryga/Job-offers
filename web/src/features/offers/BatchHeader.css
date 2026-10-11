@@ -1,0 +1,157 @@
+/* BatchHeader (§4.5): 64 px on phones, inside the density budget of criterion 2
+   (app bar 56 + this 64 + toolbar 52 + count 24 ≤ 200 to the first card). */
+.batch {
+  display: grid;
+}
+
+/* Line 1 is always there, even with nothing new: the source chip and Refresh live here. */
+.batch__line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-block-size: var(--target);
+}
+
+.batch__summary {
+  flex: 1;
+  min-width: 0;
+  color: var(--fg);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-sm);
+  font-weight: var(--fw-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+/* A pill that opens SourcesSheet: drawn 28 px tall by ::before, while the button itself is
+   the full target. The focus ring follows the pill. */
+.batch__chip {
+  --chip-fg: var(--fg);
+  --chip-bg: var(--surface-2);
+  position: relative;
+  isolation: isolate;
+  flex: 0 1 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+  min-height: var(--target);
+  padding: 0 var(--space-3) 0 var(--space-2);
+  border: 0;
+  background: transparent;
+  color: var(--chip-fg);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-sm);
+  font-weight: var(--fw-semibold);
+}
+
+.batch__chip::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: calc(50% - 14px) 0;
+  /* Transparent until forced colours paint it, so the pill keeps an edge there. */
+  border: 1px solid transparent;
+  border-radius: var(--radius-full);
+  background: var(--chip-bg);
+}
+
+.batch__chip:focus-visible {
+  outline: none;
+}
+
+.batch__chip:focus-visible::before {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.batch__chip--failed {
+  --chip-fg: var(--warning);
+  --chip-bg: var(--warning-tint);
+}
+
+.batch__chip-icon {
+  flex: none;
+}
+
+.batch__chip-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (hover: hover) {
+  .batch__chip:hover .batch__chip-label {
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+  }
+}
+
+.batch__chip:active {
+  transform: scale(var(--press));
+}
+
+.batch__refresh {
+  flex: none;
+  margin-inline-end: calc(-1 * var(--space-2));
+}
+
+.batch__refresh--busy svg {
+  animation: batch-spin 0.9s linear infinite;
+}
+
+@keyframes batch-spin {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+/* Line 2: how far through the New set you are. Hidden only when the set is empty. */
+.batch__progress {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-block-size: 20px;
+}
+
+.batch__bar {
+  flex: none;
+  inline-size: 120px;
+  block-size: 4px;
+  overflow: hidden;
+  border-radius: var(--radius-full);
+  /* A see-through ink, so the track shows on the canvas in both themes. */
+  background: color-mix(in srgb, var(--fg-muted) 22%, transparent);
+}
+
+.batch__fill {
+  display: block;
+  block-size: 100%;
+  border-radius: inherit;
+  background: var(--brand);
+  transition: inline-size var(--dur-base) var(--ease-out);
+}
+
+.batch__reviewed {
+  flex: none;
+  color: var(--fg-muted);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-sm);
+  font-weight: var(--fw-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (forced-colors: active) {
+  .batch__chip::before {
+    border-color: CanvasText;
+  }
+
+  .batch__bar {
+    border: 1px solid CanvasText;
+  }
+
+  .batch__fill {
+    forced-color-adjust: none;
+    background: Highlight;
+  }
+}

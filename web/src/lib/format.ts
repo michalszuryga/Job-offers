@@ -1,20 +1,31 @@
 import { formatNumber, type Lang } from '../i18n/intl'
 import { MESSAGES } from '../i18n/messages'
-import type { Filters, PublishedWindow } from './prefs'
+import type { Filters, PublishedWindow, SortKey } from './prefs'
 import { isPlnPerMonth, monthlySalaryPln, salaryPeriod, type SalaryConfig, type SalaryFields } from './salary'
 import type { Offer } from './types'
 
 export { formatNumber }
+export type { SortKey }
 
-const WINDOW_HOURS: Record<Exclude<PublishedWindow, 'any'>, number> = { '24h': 24, '3d': 72, '7d': 168 }
+const WINDOW_HOURS: Record<Exclude<PublishedWindow, 'new' | 'any'>, number> = { '24h': 24, '3d': 72, '7d': 168 }
 
-export function applyFilters(offers: Offer[], filters: Filters, now = Date.now()): Offer[] {
+interface FilterContext {
+  now?: number
+  // The last fetch's new ids: the New window shows exactly those, whatever their dates say.
+  newIds?: ReadonlySet<string>
+}
+
+const NONE: ReadonlySet<string> = new Set()
+
+// Narrows only; the order is sortOffers' job.
+export function applyFilters(offers: readonly Offer[], filters: Filters, { now = Date.now(), newIds = NONE }: FilterContext = {}): Offer[] {
   const query = filters.query.trim().toLowerCase()
   return offers.filter((offer) => {
     if ((offer.score ?? 0) < filters.minScore) return false
     if (filters.status !== 'ALL' && (offer.application_status ?? 'TO_REVIEW') !== filters.status) return false
     if (filters.source !== 'ALL' && offer.source !== filters.source) return false
     if (query && !`${offer.title ?? ''} ${offer.company ?? ''}`.toLowerCase().includes(query)) return false
+    if (filters.window === 'new') return newIds.has(offer.external_id)
     if (filters.window !== 'any') {
       // No reliable date means we can't say it's recent, so it's hidden here.
       const published = publishedTime(offer)
@@ -91,8 +102,6 @@ export function formatAgeShort(iso: string | null, lang: Lang, now = Date.now())
     case 'days': return time.days(value.n)
   }
 }
-
-export type SortKey = 'score' | 'newest' | 'salary'
 
 function publishedTime(offer: Pick<Offer, 'published_at'>): number | null {
   return timeOf(offer.published_at)

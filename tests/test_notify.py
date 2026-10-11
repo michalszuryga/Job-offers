@@ -147,3 +147,35 @@ def test_send_uses_gmail_ssl_and_defaults_recipient_to_sender(monkeypatch):
     assert notify.send_email("Temat ąę", "t", "<p>h</p>") is True
     assert sent == {"host": "smtp.gmail.com", "port": 465, "login": ("me@gmail.com", "app-pass"),
                     "to": "me@gmail.com", "subject": "Temat ąę"}
+
+
+@pytest.mark.parametrize("app_url", ["https://app.test/Job-offers/", "https://app.test/Job-offers"])
+def test_app_links_open_the_new_view_and_the_best_offer(monkeypatch, app_url):
+    monkeypatch.setenv("APP_URL", app_url)
+    best = _row(91, "QA Best", external_id="https://board.test/oferta?id=7&ref=list")
+    rows = [_row(80, "QA Ok", external_id="https://board.test/ok"), best]
+    _, text, html = notify.build_summary(rows, None)
+    new_view = "https://app.test/Job-offers/?view=new"
+    best_link = "https://app.test/Job-offers/?offer=https%3A%2F%2Fboard.test%2Foferta%3Fid%3D7%26ref%3Dlist"
+    assert f"Otwórz JOffers: {new_view}" in text
+    assert f"Otwórz najlepszą ofertę: {best_link}" in text
+    assert f'<a href="{new_view}">Otwórz JOffers</a>' in html
+    assert f'<a href="{best_link}">Otwórz najlepszą ofertę</a>' in html
+
+
+def test_no_best_offer_link_without_new_offers(monkeypatch):
+    monkeypatch.setenv("APP_URL", "https://app.test/")
+    _, text, html = notify.build_summary([], None)
+    assert "https://app.test/?view=new" in text and "?offer=" not in html
+    assert "Otwórz najlepszą ofertę" not in text
+
+
+def test_no_app_links_without_app_url(monkeypatch):
+    monkeypatch.delenv("APP_URL", raising=False)
+    _, text, html = notify.build_summary([_row(80, "QA")], None)
+    assert "Otwórz" not in text and "Otwórz" not in html
+
+
+def test_app_link_keeps_the_path_and_encodes_like_encode_uri_component():
+    assert notify.app_link("https://x.test", view="new") == "https://x.test/?view=new"
+    assert notify.app_link(" https://x.test/app ", offer="a b/c") == "https://x.test/app/?offer=a%20b%2Fc"

@@ -273,16 +273,24 @@ class JobStore:
                     marks = ",".join("?" * len(chunk))
                     self._exec(conn, f"UPDATE jobs SET last_seen_at={_NOW} WHERE external_id IN ({marks})", chunk)
 
+    # Statuses that mean nothing was done with an offer yet. The web app moves an offer
+    # to REVIEW just by opening it, so "opened" still counts as untouched.
+    UNTOUCHED_STATUSES = ("TO_REVIEW", "REVIEW")
+
     def delete_expired(self, source, older_than_days=14):
         """Drop offers of `source` not seen on its listing for N days. Only
-        untouched (TO_REVIEW) offers go — anything you've triaged or applied
-        to is kept, even after the posting disappears."""
+        untouched offers go: To review, or Reviewed (merely opened), with no
+        rate or notice period recorded. Anything you've acted on is kept, even
+        after the posting disappears."""
         cutoff = self._ago(older_than_days, "days")
+        statuses = ", ".join("?" * len(self.UNTOUCHED_STATUSES))
         with self._connect() as conn:
             cur = self._exec(
                 conn,
-                f"DELETE FROM jobs WHERE source=? AND application_status='TO_REVIEW' AND last_seen_at < {cutoff}",
-                (source,),
+                f"DELETE FROM jobs WHERE source=? AND application_status IN ({statuses}) "
+                "AND COALESCE(applied_rate, '')='' AND COALESCE(notice_period, '')='' "
+                f"AND last_seen_at < {cutoff}",
+                (source, *self.UNTOUCHED_STATUSES),
             )
             return cur.rowcount
 

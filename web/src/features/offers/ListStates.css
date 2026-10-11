@@ -1,0 +1,11 @@
+/* On the page by itself (first load failed): centred in the content column. */
+.offers-error {
+  max-inline-size: 560px;
+  margin-inline: auto;
+  padding: var(--space-8) var(--gutter);
+}
+
+/* Above the list, when a refresh failed. */
+.offers-pane > .list-error {
+  margin-block-start: var(--space-3);
+}

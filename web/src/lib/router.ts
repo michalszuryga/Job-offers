@@ -12,13 +12,34 @@ export function offerIdFrom(search: string): string | null {
   return new URLSearchParams(search).get(PARAM) || null
 }
 
-// The same path with ?offer= set, or removed for null. Other params stay; the fragment goes.
-// URLSearchParams encodes the id, so external ids (URLs with their own ?, & and %) survive.
-export function withOffer(href: string, id: string | null): string {
+// The same path with one param set, or removed for null. Other params stay; the fragment goes.
+// URLSearchParams encodes the value, so external ids (URLs with their own ?, & and %) survive.
+function withParam(href: string, name: string, value: string | null): string {
   const url = new URL(href)
-  if (id == null) url.searchParams.delete(PARAM)
-  else url.searchParams.set(PARAM, id)
+  if (value == null) url.searchParams.delete(name)
+  else url.searchParams.set(name, value)
   return url.pathname + url.search
+}
+
+export function withOffer(href: string, id: string | null): string {
+  return withParam(href, PARAM, id)
+}
+
+// ?view=new, the daily e-mail's "Open JOffers" link (§4.1): opens the New view once.
+const VIEW = 'view'
+
+export function viewFrom(search: string): string | null {
+  return new URLSearchParams(search).get(VIEW)
+}
+
+export function withoutView(href: string): string {
+  return withParam(href, VIEW, null)
+}
+
+// Drops ?view= in place (replace, keeping the entry's state) once it has been read, so a
+// reload or a copied link doesn't keep forcing the view.
+export function clearView() {
+  if (viewFrom(location.search) != null) navigate(withoutView(location.href), { replace: true, state: history.state })
 }
 
 export function isPushedOffer(state: unknown): boolean {

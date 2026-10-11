@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { openFilters } from './filters'
 import { mockSupabase, signIn } from './supabase-mock'
 
 // Plan §1 #1: nothing raw on screen — no enums, snake_case keys, nulls or raw errors.
@@ -16,7 +17,7 @@ test('list and details show labels, never raw values', async ({ page }) => {
   await signIn(page)
   await page.goto('./')
 
-  await page.getByLabel('Published').selectOption({ label: 'Any time' })
+  await page.getByRole('radio', { name: 'Any time' }).check()
   await expect(page.locator('.offer')).toHaveCount(4)
   const details = await openDetails(page, 'Senior QA Engineer')
   await expect(details.getByText('Full description of Senior QA Engineer.')).toBeVisible()
@@ -40,7 +41,7 @@ test('an offer without a publication date says so in a whole sentence', async ({
   await signIn(page)
   await page.goto('./')
 
-  await page.getByLabel('Published').selectOption({ label: 'Any time' })
+  await page.getByRole('radio', { name: 'Any time' }).check()
   const details = await openDetails(page, 'QA Automation Engineer')
   await expect(details.getByText('Publication date unknown')).toBeVisible()
   await expect(details).not.toContainText('published date unknown')
@@ -54,6 +55,7 @@ test('the status filter offers grouped labels, keeping enum values', async ({ pa
   await signIn(page)
   await page.goto('./')
 
+  await openFilters(page)
   const status = page.getByLabel('Status')
   await expect(status.locator('optgroup')).toHaveCount(4)
   const groups = await status.locator('optgroup').evaluateAll((els) => els.map((el) => el.getAttribute('label')))
@@ -96,7 +98,7 @@ test.describe('in Polish', () => {
 
     await expect(page.locator('html')).toHaveAttribute('lang', 'pl')
     await expect(page.getByText('2 z 4 ofert')).toBeVisible()
-    await expect(page.getByText('Ostatnie pobranie 2 godz. temu · 1 nowa')).toBeVisible()
+    await expect(page.getByText('2 nowe · pobrano 2 godz. temu')).toBeVisible()
     await expect(page.locator('.offer').first()).toContainText('20 000–25 000 PLN/mies.')
 
     const details = await openDetails(page, 'Senior QA Engineer')
@@ -104,11 +106,12 @@ test.describe('in Polish', () => {
     await details.getByLabel('Status').selectOption({ label: 'Wysłano' })
     await details.getByRole('button', { name: 'Zapisz' }).click()
     await expect(details.getByRole('status')).toHaveText('Zapisano.')
-    expect(supabase.rpcCalls).toMatchObject([{ p_status: 'APPLIED' }])
+    // Opening it marked it Reviewed first (P6).
+    expect(supabase.rpcCalls).toMatchObject([{ p_status: 'REVIEW' }, { p_status: 'APPLIED' }])
 
     const back = details.getByRole('button', { name: '← Wróć do listy' })
     if (await back.isVisible()) await back.click()
-    await expect(page.locator('.offer', { hasText: 'Senior QA Engineer' }).locator('.status')).toHaveText('Wysłano')
+    await expect(page.locator('.offer', { hasText: 'Senior QA Engineer' }).locator('.ui-status-pill')).toHaveText('Wysłano')
     const text = await page.evaluate(() => document.body.innerText)
     expect(text).not.toMatch(RAW)
     expect(text).not.toMatch(ENGLISH)

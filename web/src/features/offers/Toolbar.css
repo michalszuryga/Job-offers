@@ -1,0 +1,36 @@
+/* Toolbar (§4.5, §4.7): sticks under the app bar, full width like it, with the content
+   lined up to the page container (--band-pad, OffersPage.css). */
+.toolbar {
+  position: sticky;
+  top: var(--appbar-h);
+  z-index: var(--z-sticky);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  block-size: var(--toolbar-h);
+  padding-inline: var(--band-pad);
+  background: var(--canvas);
+  box-shadow: 0 1px 0 var(--line);
+}
+
+/* Phone: the window takes what the Filters button leaves, and scrolls sideways if it must. */
+.toolbar__published {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.toolbar--wide {
+  display: grid;
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
+  gap: 0;
+}
+
+.toolbar--wide .toolbar__published {
+  flex: none;
+}
+
+.toolbar__clear {
+  flex: none;
+  margin-inline-start: auto;
+}

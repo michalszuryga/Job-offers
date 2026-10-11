@@ -151,22 +151,34 @@ describe('sortOffers', () => {
   })
 })
 
-describe('applyFilters (unchanged in P3)', () => {
+describe('applyFilters', () => {
   const offers = [
     offer('fresh', { score: 75, published_at: ago(3 * HOUR), company: 'Acme' }),
     offer('old', { score: 82, published_at: ago(120 * HOUR), company: 'Gamma' }),
     offer('undated', { score: 40, published_at: null, application_status: 'APPLIED' }),
   ]
   const ids = (list: Offer[]) => list.map((o) => o.external_id)
+  const any = { ...DEFAULT_FILTERS, window: 'any' as const }
 
-  test('the 24 h default hides old and undated offers', () => {
-    expect(ids(applyFilters(offers, DEFAULT_FILTERS, NOW))).toEqual(['fresh'])
+  test('New shows exactly the new ids, whatever their dates say', () => {
+    const newIds = new Set(['old', 'undated'])
+    expect(ids(applyFilters(offers, DEFAULT_FILTERS, { now: NOW, newIds }))).toEqual(['old', 'undated'])
+    expect(applyFilters(offers, DEFAULT_FILTERS, { now: NOW })).toEqual([])
+    // Other filters still narrow it.
+    expect(ids(applyFilters(offers, { ...DEFAULT_FILTERS, minScore: 50 }, { now: NOW, newIds }))).toEqual(['old'])
   })
 
-  test('score, status and text', () => {
-    const any = { ...DEFAULT_FILTERS, window: 'any' as const }
-    expect(ids(applyFilters(offers, { ...any, minScore: 70 }, NOW))).toEqual(['fresh', 'old'])
-    expect(ids(applyFilters(offers, { ...any, status: 'APPLIED' }, NOW))).toEqual(['undated'])
-    expect(ids(applyFilters(offers, { ...any, query: 'gam' }, NOW))).toEqual(['old'])
+  test('the date windows hide old and undated offers', () => {
+    expect(ids(applyFilters(offers, { ...any, window: '24h' }, { now: NOW }))).toEqual(['fresh'])
+    expect(ids(applyFilters(offers, { ...any, window: '7d' }, { now: NOW }))).toEqual(['fresh', 'old'])
+    expect(ids(applyFilters(offers, any, { now: NOW }))).toEqual(['fresh', 'old', 'undated'])
+  })
+
+  test('score, status, source and text', () => {
+    expect(ids(applyFilters(offers, { ...any, minScore: 65 }, { now: NOW }))).toEqual(['fresh', 'old'])
+    expect(ids(applyFilters(offers, { ...any, status: 'APPLIED' }, { now: NOW }))).toEqual(['undated'])
+    expect(ids(applyFilters(offers, { ...any, status: 'TO_REVIEW' }, { now: NOW }))).toEqual(['fresh', 'old'])
+    expect(ids(applyFilters(offers, { ...any, source: 'Other' }, { now: NOW }))).toEqual([])
+    expect(ids(applyFilters(offers, { ...any, query: 'gam' }, { now: NOW }))).toEqual(['old'])
   })
 })

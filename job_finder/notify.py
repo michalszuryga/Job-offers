@@ -7,6 +7,7 @@ import smtplib
 from datetime import datetime, timedelta, timezone
 from email.message import EmailMessage
 from html import escape
+from urllib.parse import quote, urlencode, urlsplit, urlunsplit
 
 # The summary step runs straight after the fetch. A last fetch older than this
 # means today's failed before recording anything, so its new ids and failed
@@ -38,6 +39,16 @@ def _plural(n, one, few, many):
     if n == 1:
         return one
     return few if n % 10 in (2, 3, 4) and n % 100 not in (12, 13, 14) else many
+
+
+def app_link(app_url, **params):
+    """APP_URL with `params` as its query, e.g. ?view=new. The path always ends in "/", so
+    APP_URL may be set with or without one (GitHub Pages would otherwise redirect
+    /Job-offers to /Job-offers/). Values are percent-encoded like encodeURIComponent, so an
+    offer id, itself a URL, survives the round trip through ?offer=."""
+    parts = urlsplit(app_url.strip())
+    path = parts.path if parts.path.endswith("/") else f"{parts.path}/"
+    return urlunsplit((parts.scheme, parts.netloc, path, urlencode(params, quote_via=quote), ""))
 
 
 def fetch_is_current(store, now=None):
@@ -111,8 +122,16 @@ def build_summary(new_rows, last_run, hours=None, top=10):
         html += "<p style=\"color:#9A5B00\">" + "<br>".join(f"⚠️ {escape(f)}" for f in failed) + "</p>"
     app_url = os.environ.get("APP_URL")
     if app_url:
-        html += f'<p><a href="{escape(app_url, quote=True)}">Otwórz JOffers</a></p>'
-        text += f"\n\nOtwórz JOffers: {app_url}"
+        # The app opens on the New view: the same offers this e-mail lists (web ?view=new).
+        links = [("Otwórz JOffers", app_link(app_url, view="new"))]
+        if new_rows:
+            best = max(new_rows, key=lambda row: row.get("score") or 0)
+            offer_id = best.get("external_id") or best.get("url") or ""
+            links.append(("Otwórz najlepszą ofertę", app_link(app_url, offer=offer_id)))
+        html += "<p>" + " · ".join(
+            f'<a href="{escape(url, quote=True)}">{label}</a>' for label, url in links
+        ) + "</p>"
+        text += "\n\n" + "\n".join(f"{label}: {url}" for label, url in links)
     html += "</div>"
     return subject, text, html
 

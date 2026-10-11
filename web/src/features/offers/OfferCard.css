@@ -1,0 +1,174 @@
+/* OfferCard (§4.5). .offer and .offer-title are e2e hooks: keep them.
+   Ring in column 1; title + age, meta, then salary + status in column 2. */
+.offer {
+  /* The edge is a shadow, so no border here (a transparent one would show the selected tint
+     outside its inset ring). Forced colours, which drop shadows, set one at the end. */
+  --card-border: 0px;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  grid-template-areas:
+    'ring head'
+    'ring meta'
+    'ring foot';
+  align-items: start;
+  column-gap: var(--space-3);
+  row-gap: 2px;
+  padding: calc(var(--card-pad-y) - var(--card-border)) calc(var(--card-pad-x) - var(--card-border));
+  border: var(--card-border) solid transparent;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+  color: var(--fg);
+  text-decoration: none;
+  transition:
+    background-color var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
+}
+
+/* The list item clips paint 4 px out (OfferList.css), so hover stays inside that: a lift
+   and, in dark mode, the raised surface, rather than a deeper drop shadow. */
+@media (hover: hover) {
+  .offer:hover {
+    background: var(--surface-raised);
+    transform: translateY(var(--lift));
+  }
+}
+
+.offer:active {
+  transform: scale(var(--press));
+}
+
+/* Desktop: the offer open beside the list. */
+.offer--selected,
+.offer--selected:hover {
+  background: var(--brand-tint);
+  box-shadow:
+    inset 0 0 0 1.5px var(--brand),
+    var(--shadow-card);
+}
+
+.offer__ring {
+  grid-area: ring;
+}
+
+.offer__head {
+  grid-area: head;
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.offer-title {
+  flex: 1;
+  min-width: 0;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  font-size: var(--fs-title);
+  line-height: var(--lh-title);
+  font-weight: var(--fw-title);
+  overflow-wrap: anywhere;
+}
+
+/* Unread (§4.5): heavier, plus a dot. Drawn, so the title's text stays exactly the title. */
+.offer--unread .offer-title {
+  font-weight: var(--fw-title-unread);
+}
+
+.offer--unread .offer-title::before {
+  content: '';
+  display: inline-block;
+  inline-size: 8px;
+  block-size: 8px;
+  margin-inline-end: var(--space-2);
+  border-radius: var(--radius-full);
+  background: var(--brand);
+  /* Centred on the capitals of 16/22 text. */
+  vertical-align: 0.1em;
+}
+
+.offer__age,
+.offer__meta,
+.offer__salary {
+  font-size: var(--fs-sm);
+  line-height: var(--lh-sm);
+  font-weight: var(--fw-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.offer__age {
+  flex: none;
+  color: var(--fg-muted);
+  white-space: nowrap;
+}
+
+/* One line; the end (usually the source) gives way first. */
+.offer__meta {
+  grid-area: meta;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--fg-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.offer__foot {
+  grid-area: foot;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-width: 0;
+  margin-top: 2px;
+}
+
+/* The amount and its estimate wrap as wholes, never inside "20 000–25 000 PLN/month". */
+.offer__salary {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: var(--space-2);
+  min-width: 0;
+}
+
+.offer__amount,
+.offer__none,
+.offer__approx {
+  white-space: nowrap;
+}
+
+.offer__amount {
+  color: var(--fg);
+  font-weight: var(--fw-semibold);
+}
+
+.offer__none,
+.offer__approx {
+  color: var(--fg-muted);
+}
+
+.offer__status {
+  flex: none;
+}
+
+/* Windows contrast themes drop box-shadows and author backgrounds, which carry the card
+   edges, the selected card and the unread dot here. System colours bring those back. */
+@media (forced-colors: active) {
+  .offer {
+    --card-border: 1px;
+    border-color: CanvasText;
+  }
+
+  .offer--selected {
+    --card-border: 3px;
+    border-color: Highlight;
+  }
+
+  .offer--unread .offer-title::before {
+    forced-color-adjust: none;
+    background: CanvasText;
+  }
+}

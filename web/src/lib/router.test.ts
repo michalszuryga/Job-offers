@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test, vi } from 'vitest'
-import { closeOffer, isPushedOffer, offerIdFrom, withOffer } from './router'
+import { closeOffer, isPushedOffer, offerIdFrom, viewFrom, withOffer, withoutView } from './router'
 
 const APP = 'https://example.test/Job-offers/'
 
@@ -39,6 +39,20 @@ describe('withOffer', () => {
 
   test('encodes ids the way the e2e deep links do', () => {
     expect(withOffer(APP, 'https://board.test/acme')).toBe(`/Job-offers/?offer=${encodeURIComponent('https://board.test/acme')}`)
+  })
+})
+
+describe('?view=', () => {
+  test('reads the view', () => {
+    expect(viewFrom('?view=new')).toBe('new')
+    expect(viewFrom('?offer=a&view=new')).toBe('new')
+    expect(viewFrom('?offer=a')).toBeNull()
+  })
+
+  test('drops ?view= and keeps the rest, an open offer included', () => {
+    expect(withoutView(`${APP}?view=new`)).toBe('/Job-offers/')
+    expect(withoutView(`${APP}?view=new&offer=a`)).toBe('/Job-offers/?offer=a')
+    expect(withoutView(`${APP}?offer=a`)).toBe('/Job-offers/?offer=a')
   })
 })
 

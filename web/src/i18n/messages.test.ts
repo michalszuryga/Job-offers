@@ -54,15 +54,26 @@ describe('message files', () => {
 describe('English copy the current e2e relies on', () => {
   test('list', () => {
     expect(en.offers.count(2, 4)).toBe('2 of 4 offers')
-    expect(en.offers.lastFetch('2 h ago', 1)).toBe('Last fetch 2 h ago · 1 new')
-    expect(en.offers.failedSources('Pracuj.pl')).toBe('failed: Pracuj.pl')
-    expect(en.offers.newBadge).toBe('NEW')
+    expect(en.batch.summary(2, '2 h ago')).toBe('2 new · fetched 2 h ago')
+    expect(en.sources.failedOne('Pracuj.pl')).toBe('Pracuj.pl failed')
+    expect(en.sources.title).toBe('Sources')
+    expect(en.offers.newBadge).toBe('New')
     expect(en.filters).toMatchObject({
-      published: 'Published', status: 'Status', source: 'Source', minScore: 'Min score',
-      search: 'Search title or company',
+      label: 'Filters', published: 'Published', status: 'Status', source: 'Source', minScore: 'Min score',
+      anyScore: 'Any score', search: 'Search title or company',
     })
-    expect(en.filters.windows.any).toBe('Any time')
+    expect(Object.values(en.filters.windows)).toEqual(['New', '24 h', '3 days', '7 days', 'Any time'])
     expect(en.status.APPLIED).toBe('Applied')
+  })
+
+  test('states (§4.10)', () => {
+    expect(en.offers.emptyNew).toBe('No new offers from the last fetch')
+    expect([true, false].map(en.offers.nextFetch)).toEqual(['Next fetch today at 18:00', 'Next fetch tomorrow at 18:00'])
+    expect(en.offers.showRecent).toBe('Show last 3 days')
+    expect(en.offers.empty).toBe('No offers match these filters')
+    expect(en.batch.reviewed(1, 2)).toBe('Reviewed 1 of 2')
+    expect(en.filters.show(1)).toBe('Show 1 offer')
+    expect(en.summary.openBest).toBe('Open best match')
   })
 
   test('details', () => {
@@ -180,7 +191,9 @@ describe('Polish plurals (one / few / many)', () => {
   })
 
   test('the list header and ages read naturally', () => {
-    expect(pl.offers.lastFetch('2 godz. temu', 1)).toBe('Ostatnie pobranie 2 godz. temu · 1 nowa')
+    expect(pl.batch.summary(2, '2 godz. temu')).toBe('2 nowe · pobrano 2 godz. temu')
+    expect(pl.batch.summary(1, '3 min temu')).toBe('1 nowa · pobrano 3 min temu')
+    expect([1, 2, 5].map(pl.filters.show)).toEqual(['Pokaż 1 ofertę', 'Pokaż 2 oferty', 'Pokaż 5 ofert'])
     expect(pl.score.penalties.stale_offer_penalty(10)).toBe('Starsza niż 10 dni')
     expect(pl.time.hours(3)).toBe('3 godz.')
   })

@@ -6,7 +6,8 @@ const HOUR = 3_600_000
 
 export const OWNER = { id: '11111111-1111-1111-1111-111111111111', email: 'owner@example.com' }
 
-function offer(id: string, title: string, company: string, score: number, hoursAgo: number | null, extra = {}) {
+// `hoursAgo` is relative to the mock's clock (MockOptions.now), resolved when served.
+export function offer(id: string, title: string, company: string, score: number | null, hoursAgo: number | null, extra = {}) {
   return {
     external_id: `https://board.test/${id}`,
     url: `https://board.test/${id}`,
@@ -20,7 +21,7 @@ function offer(id: string, title: string, company: string, score: number, hoursA
     salary_max: null as number | null,
     salary_currency: null as string | null,
     salary_period: null as string | null,
-    published_at: hoursAgo === null ? null : new Date(Date.now() - hoursAgo * HOUR).toISOString(),
+    hoursAgo,
     application_status: 'TO_REVIEW',
     applied_rate: '',
     notice_period: '',
@@ -28,6 +29,8 @@ function offer(id: string, title: string, company: string, score: number, hoursA
     ...extra,
   }
 }
+
+export type MockOffer = ReturnType<typeof offer>
 
 // Server order: score descending, like the real query.
 export const OFFERS = [
@@ -38,6 +41,14 @@ export const OFFERS = [
   offer('beta', 'QA Analyst', 'Beta', 60, 10, { source: 'No Fluff Jobs' }),
   offer('delta', 'QA Automation Engineer', 'Delta', 40, null),
 ]
+
+// The last fetch's new offers (meta last_fetch_new_ids): Acme and Beta.
+export const NEW_IDS = [OFFERS[1].external_id, OFFERS[2].external_id]
+
+// The row as PostgREST returns it: published_at from hoursAgo against the mock's clock.
+function served({ hoursAgo, ...row }: MockOffer, now: number) {
+  return { ...row, published_at: hoursAgo === null ? null : new Date(now - hoursAgo * HOUR).toISOString() }
+}
 
 // Same shape as meta 'scoring_profile' from run_fetch (job_finder/rescore.py scoring_inputs);
 // the scoring section is the real one, mirrored from profile.yaml.
@@ -59,7 +70,7 @@ export const SCORING_PROFILE = {
 
 // What score_job() would put beside each offer's salary and title. The categories are fixed
 // stand-ins (matched_* stay what app.spec reads until P7); for Acme they sum to its 75.
-function breakdownFor(offer: (typeof OFFERS)[number]) {
+function breakdownFor(offer: MockOffer) {
   const { monthly_threshold_pln: threshold, points } = SCORING.salary_bonus
   const monthlyPln = offer.salary_currency === 'PLN' && offer.salary_period === 'month' ? offer.salary_min : null
   return {
@@ -79,6 +90,13 @@ function breakdownFor(offer: (typeof OFFERS)[number]) {
 
 export interface MockOptions {
   member?: boolean
+  // The offers in the database (default OFFERS), in server order.
+  offers?: MockOffer[]
+  // meta last_fetch_new_ids (default NEW_IDS).
+  newIds?: string[]
+  // The mock's clock in ms (default: the real time of each request). Pass the same instant
+  // as page.clock.setFixedTime, so ages and "fetched 2 h ago" are fixed too.
+  now?: number
   // The first N list requests fail with a raw server error.
   failJobs?: number
   // Visible offers in the database, when more than the list returns (the 2 000 limit).
@@ -131,6 +149,9 @@ function filterValues(param: string | null): string[] | null {
 export async function mockSupabase(page: Page, options: MockOptions = {}): Promise<MockState> {
   const state: MockState = { rpcCalls: [], otpRequests: [], verifyRequests: [] }
   let jobFailures = options.failJobs ?? 0
+  const offers = options.offers ?? OFFERS
+  const newIds = options.newIds ?? NEW_IDS
+  const now = () => options.now ?? Date.now()
   const json = (route: Route, body: unknown, status = 200, headers: Record<string, string> = {}) =>
     route.fulfill({ status, contentType: 'application/json', headers, body: JSON.stringify(body) })
 
@@ -163,15 +184,15 @@ export async function mockSupabase(page: Page, options: MockOptions = {}): Promi
     }
     if (path === '/rest/v1/meta') {
       const rows = [
-        { meta_key: 'last_fetch_new_ids', meta_value: JSON.stringify([OFFERS[1].external_id]) },
+        { meta_key: 'last_fetch_new_ids', meta_value: JSON.stringify(newIds) },
         { meta_key: 'scoring_profile', meta_value: JSON.stringify(SCORING_PROFILE) },
-        { meta_key: 'scores_refreshed_on', meta_value: new Date().toISOString().slice(0, 10) },
+        { meta_key: 'scores_refreshed_on', meta_value: new Date(now()).toISOString().slice(0, 10) },
       ]
       const keys = filterValues(url.searchParams.get('meta_key'))
       return json(route, keys ? rows.filter((row) => keys.includes(row.meta_key)) : rows)
     }
     if (path === '/rest/v1/fetch_runs') {
-      const finished = new Date(Date.now() - 2 * HOUR).toISOString()
+      const finished = new Date(now() - 2 * HOUR).toISOString()
       return json(route, [{
         started_at: finished, finished_at: finished, trigger: 'schedule',
         results: JSON.stringify([
@@ -186,10 +207,10 @@ export async function mockSupabase(page: Page, options: MockOptions = {}): Promi
     if (path === '/rest/v1/jobs') {
       const id = url.searchParams.get('external_id')?.replace(/^eq\./, '')
       if (id) {
-        const match = OFFERS.find((o) => o.external_id === id)
+        const match = offers.find((o) => o.external_id === id)
         if (!match) return json(route, { code: 'PGRST116', message: 'no rows' }, 406)
         return json(route, {
-          ...match,
+          ...served(match, now()),
           // Collapsed onto one line with glued bullets and headings, like real scraped text.
           description: `Full description of ${match.title}. Wymagania • Playwright i TypeScript • Testy API `
             + 'Oferujemy • Praca zdalna',
@@ -202,9 +223,9 @@ export async function mockSupabase(page: Page, options: MockOptions = {}): Promi
           hint: null }, 500)
       }
       // count:'exact' reads the total from Content-Range ("0-3/4").
-      const total = options.total ?? OFFERS.length
-      return json(route, OFFERS, 200, {
-        'Content-Range': `0-${OFFERS.length - 1}/${total}`,
+      const total = options.total ?? offers.length
+      return json(route, offers.map((row) => served(row, now())), 200, {
+        'Content-Range': `0-${offers.length - 1}/${total}`,
         'Access-Control-Expose-Headers': 'Content-Range',
       })
     }

@@ -1,5 +1,6 @@
-/* The list's place and width: the page container, and its left column from 900 px
-   (app.css .layout), so the real cards replace these without a jump sideways. */
+/* The list's place and width: the page container, and its left column from 1024 px
+   (features/offers/OffersPage.css .offers-grid), so the real cards replace these without a
+   jump sideways. */
 .list-skeleton {
   display: grid;
   align-content: start;
@@ -9,9 +10,9 @@
   padding: var(--space-4) var(--gutter);
 }
 
-@media (min-width: 900px) {
+@media (min-width: 1024px) {
   .list-skeleton {
-    grid-template-columns: minmax(360px, 5fr) minmax(0, 6fr);
+    grid-template-columns: minmax(400px, 460px) minmax(0, 1fr);
     column-gap: var(--space-6);
   }
 

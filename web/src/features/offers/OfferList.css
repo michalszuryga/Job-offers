@@ -1,0 +1,16 @@
+.offers {
+  list-style: none;
+  display: grid;
+  gap: var(--card-gap);
+}
+
+/* Up to 2 000 cards: those far off screen skip rendering (progressive, §3), sized meanwhile
+   by the 120 px estimate or their last real height. content-visibility clips paint to the
+   item, so the item reaches 4 px past its card (and gives that back in margin): room for the
+   focus ring and the card's shadow. */
+.offers > li {
+  margin: -4px;
+  padding: 4px;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 120px;
+}

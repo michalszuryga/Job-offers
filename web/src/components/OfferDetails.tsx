@@ -33,7 +33,10 @@ function DescriptionBlock({ block }: { block: Block }) {
 export function OfferDetailsPanel({ offer, scoringProfile, onClose, onSaved }: Props) {
   const { t, lang } = useI18n()
   const [details, setDetails] = useState<OfferDetails | 'error' | null>(null)
-  const [status, setStatus] = useState<Status>(offer.application_status ?? 'TO_REVIEW')
+  // Follows the offer until edited here: opening it promotes To review to Reviewed (P6) after
+  // this form has mounted, and a Save must not send the stale To review back.
+  const [statusEdit, setStatusEdit] = useState<Status | null>(null)
+  const status = statusEdit ?? offer.application_status ?? 'TO_REVIEW'
   const [rate, setRate] = useState(offer.applied_rate ?? '')
   const [notice, setNotice] = useState(offer.notice_period ?? '')
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
@@ -102,7 +105,7 @@ export function OfferDetailsPanel({ offer, scoringProfile, onClose, onSaved }: P
       <form className="tracking" onSubmit={save}>
         <label>
           {t.details.status}
-          <select value={status} onChange={(e) => setStatus(e.target.value as Status)}>
+          <select value={status} onChange={(e) => setStatusEdit(e.target.value as Status)}>
             {STATUS_GROUPS.map((group) => (
               <optgroup key={group.key} label={t.statusGroups[group.key]}>
                 {group.statuses.map((s) => (

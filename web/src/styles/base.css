@@ -18,6 +18,8 @@ html {
   /* With classic scrollbars the gutter is always reserved, so locking the page behind a
      sheet or the details view (below) never changes its width, scrollbar or not. */
   scrollbar-gutter: stable;
+  /* The reserved gutter shows the root background, so paint it like the page. */
+  background: var(--canvas);
   accent-color: var(--brand);
   -webkit-tap-highlight-color: transparent;
 }
