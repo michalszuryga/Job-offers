@@ -1,0 +1,12 @@
+/* A route that failed to load: the logo and one callout, centred like Page not found. */
+.route-error {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-6);
+  inline-size: min(100% - 2 * var(--gutter), 420px);
+  margin: max(var(--space-12), 15vh) auto var(--space-12);
+}
+
+.route-error__status {
+  inline-size: 100%;
+}

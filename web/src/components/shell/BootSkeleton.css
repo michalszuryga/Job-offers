@@ -1,0 +1,21 @@
+/* The list's place and width: the page container, and its left column from 900 px
+   (app.css .layout), so the real cards replace these without a jump sideways. */
+.list-skeleton {
+  display: grid;
+  align-content: start;
+  gap: var(--card-gap);
+  max-inline-size: var(--container-max);
+  margin-inline: auto;
+  padding: var(--space-4) var(--gutter);
+}
+
+@media (min-width: 900px) {
+  .list-skeleton {
+    grid-template-columns: minmax(360px, 5fr) minmax(0, 6fr);
+    column-gap: var(--space-6);
+  }
+
+  .list-skeleton > * {
+    grid-column: 1;
+  }
+}

@@ -1,0 +1,20 @@
+.not-found {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-4);
+  inline-size: min(100% - 2 * var(--gutter), 480px);
+  margin: max(var(--space-12), 15vh) auto var(--space-12);
+  text-align: center;
+}
+
+.not-found h1 {
+  margin-block-start: var(--space-4);
+  font-size: var(--fs-h1);
+  line-height: var(--lh-h1);
+  font-weight: var(--fw-h1);
+  letter-spacing: var(--ls-h1);
+}
+
+.not-found .ui-button {
+  margin-block-start: var(--space-2);
+}

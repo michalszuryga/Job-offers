@@ -83,11 +83,16 @@ export interface MockOptions {
   failJobs?: number
   // Visible offers in the database, when more than the list returns (the 2 000 limit).
   total?: number
+  // How /auth/v1/otp answers: 'signupsDisabled' is GoTrue's reply for an address that has no
+  // account while sign-ups are off (every stranger, in the private beta).
+  otp?: 'ok' | 'signupsDisabled'
 }
 
 export interface MockState {
   rpcCalls: Record<string, unknown>[]
   otpRequests: Record<string, unknown>[]
+  // Code sign-ins (verifyOtp); any code is accepted.
+  verifyRequests: Record<string, unknown>[]
 }
 
 function fakeJwt(sub: string) {
@@ -96,16 +101,23 @@ function fakeJwt(sub: string) {
   return `${encode({ alg: 'HS256', typ: 'JWT' })}.${encode({ sub, role: 'authenticated', exp })}.signature`
 }
 
-export async function signIn(page: Page) {
-  const session = {
+// What GoTrue returns for a sign-in, and what supabase-js stores under 'joffers-auth'.
+function ownerSession(expiresIn = 3600) {
+  return {
     access_token: fakeJwt(OWNER.id),
     refresh_token: 'fake-refresh-token',
     token_type: 'bearer',
-    expires_in: 3600,
-    expires_at: Math.floor(Date.now() / 1000) + 3600,
+    expires_in: expiresIn,
+    expires_at: Math.floor(Date.now() / 1000) + expiresIn,
     user: { id: OWNER.id, email: OWNER.email, aud: 'authenticated', role: 'authenticated' },
   }
-  await page.addInitScript((value) => localStorage.setItem('joffers-auth', value), JSON.stringify(session))
+}
+
+// `expired`: the stored access token is past its expiry, so supabase-js refreshes it on
+// load, and the mock refuses the refresh (a revoked or long-expired session).
+export async function signIn(page: Page, { expired = false } = {}) {
+  const session = JSON.stringify(ownerSession(expired ? -60 : 3600))
+  await page.addInitScript((value) => localStorage.setItem('joffers-auth', value), session)
 }
 
 // PostgREST filter values: "eq.x" or "in.(a,b,c)".
@@ -117,7 +129,7 @@ function filterValues(param: string | null): string[] | null {
 }
 
 export async function mockSupabase(page: Page, options: MockOptions = {}): Promise<MockState> {
-  const state: MockState = { rpcCalls: [], otpRequests: [] }
+  const state: MockState = { rpcCalls: [], otpRequests: [], verifyRequests: [] }
   let jobFailures = options.failJobs ?? 0
   const json = (route: Route, body: unknown, status = 200, headers: Record<string, string> = {}) =>
     route.fulfill({ status, contentType: 'application/json', headers, body: JSON.stringify(body) })
@@ -128,8 +140,21 @@ export async function mockSupabase(page: Page, options: MockOptions = {}): Promi
     const path = url.pathname
 
     if (path === '/auth/v1/otp') {
-      state.otpRequests.push(request.postDataJSON())
+      // supabase-js sends emailRedirectTo as a query parameter, beside the JSON body.
+      state.otpRequests.push({ ...request.postDataJSON(), redirect_to: url.searchParams.get('redirect_to') })
+      if (options.otp === 'signupsDisabled') {
+        return json(route, { code: 'otp_disabled', msg: 'Signups not allowed for otp', error_code: 'otp_disabled' }, 422)
+      }
       return json(route, {})
+    }
+    if (path === '/auth/v1/verify') {
+      state.verifyRequests.push(request.postDataJSON())
+      return json(route, ownerSession())
+    }
+    if (path === '/auth/v1/token') {
+      // Only refreshes reach this (code sign-in is /verify); the mock never renews a session.
+      return json(route, { code: 'refresh_token_not_found', error_code: 'refresh_token_not_found',
+        msg: 'Invalid Refresh Token: Refresh Token Not Found' }, 400)
     }
     if (path === '/auth/v1/user') return json(route, { id: OWNER.id, email: OWNER.email })
     if (path === '/auth/v1/logout') return route.fulfill({ status: 204 })

@@ -3,11 +3,13 @@ import { useI18n, type Lang } from '../i18n'
 import { applyFilters, formatAgo, formatSalary, timeOf } from '../lib/format'
 import { loadDashboard } from '../lib/offers'
 import { loadFilters, PUBLISHED_WINDOWS, saveFilters, type Filters, type PublishedWindow } from '../lib/prefs'
+import { useEscapeToClose, useOfferParam } from '../lib/router'
 import { scoreBand } from '../lib/score'
 import { sourceHealth } from '../lib/sources'
 import { isStatus, STATUS_GROUPS, STATUS_META } from '../lib/status'
 import type { Dashboard, Offer } from '../lib/types'
 import { OfferDetailsPanel } from './OfferDetails'
+import { ListSkeleton } from './shell/BootSkeleton'
 
 // Card meta wraps between items, never inside "3 h ago" or a salary range, or before a "·".
 const META_SEPARATOR = ' · '
@@ -28,7 +30,9 @@ export function OffersPage() {
   const { t, lang } = useI18n()
   const [load, setLoad] = useState<Load>({ kind: 'loading' })
   const [filters, setFilters] = useState<Filters>(loadFilters)
-  const [selectedId, setSelectedId] = useState<string | null>(null)
+  // The open offer is ?offer= in the URL (§4.1), so back and Esc close it through history.
+  const { offerId: selectedId, openOffer, closeOffer } = useOfferParam()
+  useEscapeToClose(selectedId != null, closeOffer)
 
   const fetchDashboard = useCallback(() => {
     loadDashboard()
@@ -66,7 +70,7 @@ export function OffersPage() {
       </div>
     )
   }
-  if (!dashboard) return <p className="center muted">{t.offers.loading}</p>
+  if (!dashboard) return <ListSkeleton label={t.offers.loading} />
 
   const update = (patch: Partial<Filters>) => setFilters((current) => ({ ...current, ...patch }))
   const selected = dashboard.offers.find((o) => o.external_id === selectedId) ?? null
@@ -168,7 +172,7 @@ export function OffersPage() {
             <li key={offer.external_id}>
               <button
                 className={`offer${offer.external_id === selectedId ? ' selected' : ''}`}
-                onClick={() => setSelectedId(offer.external_id)}
+                onClick={() => openOffer(offer.external_id)}
               >
                 <span className="score" data-band={scoreBand(offer.score)}>
                   {offer.score == null ? '–' : Math.round(offer.score)}
@@ -204,7 +208,7 @@ export function OffersPage() {
           key={selected.external_id}
           offer={selected}
           scoringProfile={dashboard.scoringProfile}
-          onClose={() => setSelectedId(null)}
+          onClose={closeOffer}
           onSaved={replaceOffer}
         />
       )}

@@ -26,10 +26,13 @@ jobs:
       run:
         working-directory: web
     # Supabase is mocked at the network level, so no secrets are needed: the
-    # build uses the same fake project and base path as playwright.config.ts.
+    # build uses the same fake project, base path and privacy-page stand-ins as
+    # playwright.config.ts.
     env:
       VITE_SUPABASE_URL: http://supabase.test
       VITE_SUPABASE_PUBLISHABLE_KEY: test-publishable-key
+      VITE_CONTROLLER_NAME: Test Controller
+      VITE_CONTACT_EMAIL: privacy@example.test
       BASE_PATH: /Job-offers/
     steps:
       - uses: actions/checkout@v4

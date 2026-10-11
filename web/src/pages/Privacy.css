@@ -1,0 +1,144 @@
+/* Privacy page (plan §4.11): a plain reading column under a slim bar. */
+.privacy-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  block-size: var(--appbar-h);
+  padding-inline: var(--gutter);
+  background: var(--surface);
+  border-block-end: 1px solid var(--line);
+}
+
+.privacy-bar__home {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--target);
+  border-radius: var(--radius-sm);
+  color: var(--fg);
+  text-decoration: none;
+}
+
+.privacy {
+  display: grid;
+  gap: var(--space-4);
+  max-inline-size: calc(var(--measure) + 2 * var(--gutter));
+  margin-inline: auto;
+  padding: var(--space-6) var(--gutter) var(--space-16);
+  font-size: var(--fs-body-lg);
+  line-height: var(--lh-body-lg);
+}
+
+/* Kept rendered while empty (so it announces what appears), but out of the grid's flow. */
+.privacy__status:empty {
+  position: absolute;
+}
+
+.privacy__back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  justify-self: start;
+  min-block-size: var(--target);
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  font-weight: var(--fw-medium);
+  text-decoration: none;
+}
+
+@media (hover: hover) {
+  .privacy__back:hover {
+    text-decoration: underline;
+  }
+}
+
+.privacy__title {
+  font-size: var(--fs-h1);
+  line-height: var(--lh-h1);
+  font-weight: var(--fw-h1);
+  letter-spacing: var(--ls-h1);
+}
+
+.privacy__updated {
+  color: var(--fg-muted);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-sm);
+}
+
+.privacy__lede {
+  color: var(--fg-muted);
+}
+
+.privacy section {
+  display: grid;
+  gap: var(--space-3);
+  padding-block-start: var(--space-4);
+}
+
+.privacy h2 {
+  font-size: var(--fs-h3);
+  line-height: var(--lh-h3);
+  font-weight: var(--fw-h3);
+}
+
+.privacy ul {
+  display: grid;
+  gap: var(--space-2);
+  padding-inline-start: var(--space-6);
+}
+
+.privacy strong {
+  font-weight: var(--fw-semibold);
+}
+
+/* Addresses and storage keys are long unbroken words; let them wrap at 320 px. */
+.privacy a,
+.privacy code {
+  overflow-wrap: anywhere;
+}
+
+.privacy code {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+}
+
+.privacy__table {
+  inline-size: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+}
+
+.privacy__table th,
+.privacy__table td {
+  padding: var(--space-2) var(--space-3);
+  border-block-end: 1px solid var(--line);
+  text-align: start;
+  vertical-align: top;
+}
+
+.privacy__table thead th {
+  color: var(--fg-muted);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-sm);
+  font-weight: var(--fw-semibold);
+}
+
+.privacy__table tbody th {
+  font-weight: var(--fw-regular);
+  white-space: nowrap;
+}
+
+/* A storage key is one token: broken at its hyphen it reads as two. The longest fits a
+   320 px screen whole, so the purpose column takes the wrapping. */
+.privacy__table code {
+  overflow-wrap: normal;
+}
+
+@media (max-width: 479px) {
+  .privacy__table th,
+  .privacy__table td {
+    padding-inline: var(--space-2);
+  }
+}

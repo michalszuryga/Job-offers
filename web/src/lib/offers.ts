@@ -3,6 +3,9 @@ import { supabase } from './supabase'
 import type { Dashboard, FetchRun, Offer, OfferDetails, ScoringProfile, Status } from './types'
 import { createWriteQueue } from './writeQueue'
 
+// Pulls in supabase-js: import only from the AppRoot chunk, never from the entry or a public
+// page (features/auth/AppRoot.tsx, check-bundle).
+
 // score_breakdown stays out: it is only needed in details, which load it per offer.
 const LIST_COLUMNS = [
   'external_id', 'title', 'company', 'url', 'source', 'location', 'contract',

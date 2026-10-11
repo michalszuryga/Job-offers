@@ -7,10 +7,15 @@ import { gzipSync } from 'node:zlib'
 
 const KB = 1000
 
-// Initial JS per route: the entry's static import graph (dynamic imports load
-// later and are not counted). P8 adds landing and demo with noSupabase: true.
+// Initial JS per route: the static import graphs of the main entry and of the lazy
+// route chunk main.tsx loads for that path at once (other dynamic imports load later and
+// are not counted). P8 adds landing and demo with noSupabase: true.
+const ENTRY = 'index.html'
 const ROUTES = {
-  app: { entry: 'index.html', maxJs: 160 * KB },
+  // supabase-js lives in the AppRoot chunk, never in the entry (asserted below).
+  app: { chunks: [ENTRY, 'src/features/auth/AppRoot.tsx'], maxJs: 160 * KB },
+  // A public page, held to the landing's budget (§1 #7); its Sign out imports supabase-js lazily.
+  privacy: { chunks: [ENTRY, 'src/pages/Privacy.tsx'], maxJs: 90 * KB, noSupabase: true },
 }
 
 const MAX_CSS = 20 * KB
@@ -41,9 +46,9 @@ function walk(dir) {
   })
 }
 
-// Collects the JS and CSS files a route loads up front: the entry chunk plus
-// its `imports`, recursively. `dynamicImports` are lazy chunks and are skipped.
-function staticGraph(entry) {
+// Collects the JS and CSS files a route loads up front: each given chunk plus its
+// `imports`, recursively; shared chunks count once. `dynamicImports` are lazy and skipped.
+function staticGraph(chunks) {
   const keys = new Set()
   const js = new Set()
   const css = new Set()
@@ -56,17 +61,19 @@ function staticGraph(entry) {
     for (const file of chunk.css ?? []) css.add(file)
     for (const next of chunk.imports ?? []) visit(next)
   }
-  visit(entry)
+  for (const key of chunks) visit(key)
   return { keys, js, css }
 }
 
 // supabase-js must stay out of public routes: look for it by chunk key/name
-// and by strings that survive minification (its X-Client-Info header).
+// and by strings that survive minification (its auth client's name and X-Client-Info
+// header). Not "supabase-js": a chunk that lazily imports supabase-<hash>.js names the
+// file, and a hash starting "js" would match.
 function hasSupabase(graph) {
   for (const key of graph.keys) {
     if (key.includes('@supabase') || manifest[key].name?.includes('supabase')) return true
   }
-  return [...graph.js].some((file) => /supabase-js|GoTrueClient/.test(read(file).toString('utf8')))
+  return [...graph.js].some((file) => /GoTrueClient|X-Client-Info/.test(read(file).toString('utf8')))
 }
 
 const check = (ok, message) => {
@@ -74,12 +81,13 @@ const check = (ok, message) => {
   return ok ? 'ok' : 'FAIL'
 }
 
-for (const [route, { entry, maxJs, noSupabase }] of Object.entries(ROUTES)) {
-  if (!manifest[entry]) {
-    failures.push(`${route}: entry "${entry}" is missing from the manifest`)
+for (const [route, { chunks, maxJs, noSupabase }] of Object.entries(ROUTES)) {
+  const missing = chunks.filter((key) => !manifest[key])
+  if (missing.length) {
+    failures.push(`${route}: ${missing.map((key) => `"${key}"`).join(', ')} missing from the manifest`)
     continue
   }
-  const graph = staticGraph(entry)
+  const graph = staticGraph(chunks)
   const jsSize = [...graph.js].reduce((sum, file) => sum + gzip(file), 0)
   const cssSize = [...graph.css].reduce((sum, file) => sum + gzip(file), 0)
   rows.push([`${route} JS (${graph.js.size} files, gzip)`, kb(jsSize), kb(maxJs),
@@ -90,7 +98,20 @@ for (const [route, { entry, maxJs, noSupabase }] of Object.entries(ROUTES)) {
   }
 }
 
+// Every route starts from the entry, so supabase-js there would reach all of them.
+if (manifest[ENTRY]) {
+  rows.push(['entry without supabase-js', '', '', check(!hasSupabase(staticGraph([ENTRY])),
+    'supabase-js is in the main entry graph: lib/supabase (directly or through lib/offers) may only be reached from the src/features/auth/AppRoot.tsx chunk')])
+}
+
 const files = walk(dist)
+
+// GitHub Pages has no SPA fallback: postbuild copies the shell to 404.html (unknown paths)
+// and privacy/index.html (so /privacy/ is a real directory).
+const copies = ['404.html', 'privacy/index.html']
+const missingCopies = copies.filter((file) => !files.includes(file))
+rows.push(['Pages copies (404.html, privacy/)', '', '', check(missingCopies.length === 0,
+  `missing ${missingCopies.join(', ')}: run node scripts/postbuild.mjs after vite build (npm run build does)`)])
 
 const cssFiles = files.filter((file) => file.endsWith('.css'))
 const cssTotal = cssFiles.reduce((sum, file) => sum + gzip(file), 0)

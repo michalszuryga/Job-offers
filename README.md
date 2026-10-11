@@ -81,6 +81,17 @@ exposed. Enable *Settings → Pages → Source: GitHub Actions*, add repository 
 Access is limited to users listed in `app_members`; in Supabase Auth set the
 Site URL to the Pages URL and turn off new sign-ups once your account exists.
 
+In Supabase *Authentication → Email Templates → Magic Link*, add a line under the
+link: `Or enter this code: {{ .Token }}`. An app installed to the iOS home screen
+can't receive the link (it opens in Safari), so it signs in with that code instead
+("Have a code? Enter it"). Keep *Allow new users to sign up* off: the app asks with
+`shouldCreateUser: false`, and an address without an account is told JOffers is in
+private beta (which reveals whether an address has an account; accepted for the beta).
+
+The privacy page (`/privacy`) and "Request access" show the data controller and a
+contact address: repository variables `CONTROLLER_NAME` and `CONTACT_EMAIL`, which
+default to the owner's in `web-pages.yml`.
+
 **Dashboard** — Streamlit Community Cloud, entrypoint `streamlit_app.py`, with
 `DATABASE_URL` set under *App settings → Secrets*.
 

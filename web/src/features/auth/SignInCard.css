@@ -1,0 +1,48 @@
+/* Sign-in card (plan §4.2); the card itself is authScreen.css. */
+.sign-in__form {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.sign-in__sent {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.sign-in__sent-text {
+  font-size: var(--fs-h3);
+  line-height: var(--lh-h3);
+}
+
+/* Focused only so focus doesn't drop to <body> when the form goes; it isn't a control. */
+.sign-in__sent-text:focus {
+  outline: none;
+}
+
+.sign-in__sent-text strong {
+  font-weight: var(--fw-semibold);
+  overflow-wrap: anywhere;
+}
+
+/* "Request access" sits on the danger tint, where --fg is the colour contrast.test.ts
+   guarantees; the underline marks it as a link. */
+.sign-in .ui-callout__body a {
+  color: inherit;
+  font-weight: var(--fw-semibold);
+}
+
+.sign-in__next {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.sign-in__code {
+  padding-block-start: var(--space-4);
+  border-block-start: 1px solid var(--line);
+}
+
+/* aria-disabled during the countdown (it keeps focus), so it needs its own quiet look. */
+.sign-in__resend[aria-disabled='true']:not([aria-busy='true']) {
+  color: var(--fg-muted);
+  cursor: not-allowed;
+}

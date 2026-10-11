@@ -1,0 +1,74 @@
+/* The signed-out and no-access screens: one centred card on the canvas (plan §4.2, §4.3). */
+.auth-screen {
+  display: grid;
+  place-items: center;
+  min-block-size: 100dvh;
+  padding: var(--space-8) var(--gutter);
+}
+
+.auth-card {
+  display: grid;
+  gap: var(--space-6);
+  inline-size: 100%;
+  max-inline-size: 420px;
+  padding: var(--space-8) var(--space-6);
+  border-radius: var(--radius-xl);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+}
+
+/* On a phone the card is the page: no frame floating inside a frame. */
+@media (max-width: 479px) {
+  .auth-screen {
+    place-items: start stretch;
+    padding: 0;
+  }
+
+  .auth-card {
+    max-inline-size: none;
+    min-block-size: 100dvh;
+    align-content: start;
+    padding: var(--space-12) var(--gutter) var(--space-8);
+    border-radius: 0;
+    box-shadow: none;
+  }
+}
+
+.auth-card__header {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-2);
+  text-align: center;
+}
+
+.auth-card__header .ui-logo {
+  margin-block-end: var(--space-4);
+}
+
+.auth-card__title {
+  font-size: var(--fs-h1);
+  line-height: var(--lh-h1);
+  font-weight: var(--fw-h1);
+  letter-spacing: var(--ls-h1);
+}
+
+.auth-card__lede {
+  color: var(--fg-muted);
+}
+
+.auth-card__actions {
+  display: grid;
+  gap: var(--space-2);
+}
+
+/* The view's one status region (§4.2). It stays rendered while empty (a live region that
+   was display:none may not announce what appears in it), but out of flow, so it takes no
+   grid row: a negative margin can't cancel a grid gap, and two gaps would stack. */
+.auth-card__status {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.auth-card__status:empty {
+  position: absolute;
+}

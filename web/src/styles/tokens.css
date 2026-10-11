@@ -132,6 +132,8 @@
 @media (min-width: 1024px) {
   :root {
     --gutter: 32px;
+    /* The app bar (§4.4): 56 px on phones, 64 px here. */
+    --appbar-h: 64px;
   }
 }
 

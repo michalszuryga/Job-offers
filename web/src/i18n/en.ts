@@ -97,23 +97,124 @@ export const en = {
   },
   app: {
     signOut: 'Sign out',
-    checkingAccess: 'Checking access…',
-    accessError: "Couldn't check your access. Try reloading.",
-    noAccess: "This account doesn't have access yet.",
   },
   login: {
+    title: 'Sign in',
     tagline: 'QA jobs, scored for you.',
     email: 'Email',
+    hint: 'No password. We’ll email you a one-time link.',
     send: 'Send sign-in link',
-    sending: 'Sending…',
     // The address goes between the two halves, in bold.
     sent: { before: 'Check your inbox — we sent a sign-in link to ', after: '.' },
+    resent: { before: 'We sent a new sign-in link to ', after: '.' },
+    anyDevice: 'Works on any device. Check spam.',
+    openGmail: 'Open Gmail',
+    resend: 'Resend link',
+    resendIn: (seconds: number) => `Resend in ${seconds} s`,
+    differentEmail: 'Use a different email',
+    // The path for the installed iOS app, where the link opens in Safari instead.
+    haveCode: 'Have a code? Enter it',
+    code: '6-digit code',
+    codeHint: 'It’s in the same email as the link.',
+    verify: 'Sign in',
+    notices: {
+      linkExpired: 'This sign-in link has expired or was already used. Send a new one.',
+      sessionExpired: 'Your session expired. Sign in again.',
+    },
+    // privateBeta is followed by a "Request access" mailto when a contact address is set.
+    requestAccess: 'Request access',
+    requestBody: (email: string) => `Hi, I'd like access to JOffers for ${email}.`,
     errors: {
-      // No demo or "Request access" yet (P5/P8), so no call to action pointing at them.
-      privateBeta: "JOffers is in private beta and this email isn't on the list yet.",
+      privateBeta: 'JOffers is in private beta.',
       rateLimit: 'Too many attempts. Wait a minute.',
       invalidEmail: 'Enter a valid email.',
       generic: "Couldn't send the sign-in link. Try again.",
+      invalidCode: 'That code is wrong or has expired. Check it, or send a new link.',
+      codeFailed: "Couldn't sign you in with that code. Try again.",
+    },
+  },
+  accessGate: {
+    noAccess: "This account doesn't have access yet.",
+    privateBeta: 'JOffers is in private beta.',
+    signedInAs: (email: string) => `Signed in as ${email}`,
+    requestAccess: 'Request access',
+    requestBody: (email: string) => `Hi, I'd like access to JOffers for ${email}.`,
+    signOut: 'Sign out',
+    // The visually hidden heading of the error state, whose callout says what happened.
+    checkHeading: 'Access check',
+    checkFailed: "Couldn't check your access.",
+    retry: 'Retry',
+  },
+  // Plan §4.11. Processor names stay as written; the controller and contact come from the build.
+  privacy: {
+    title: 'Privacy policy',
+    updated: (date: string) => `Last updated ${date}`,
+    back: 'Back to JOffers',
+    signOut: 'Sign out',
+    signOutFailed: "Couldn't sign out. Check your connection.",
+    intro:
+      'JOffers scores QA job offers for a small group of private-beta members. This page explains what personal data the app uses, why, and what you can do about it.',
+    controller: {
+      heading: 'Who is responsible',
+      body: (name: string) => `The controller of your personal data is ${name}, who runs JOffers.`,
+      // A local build without VITE_CONTROLLER_NAME.
+      unnamed: 'The controller of your personal data is the person who runs JOffers.',
+      contact: 'Questions and requests:',
+    },
+    data: {
+      heading: 'What data we use',
+      email: 'Your email address, to sign you in. Sign-in links and codes are sent to it.',
+      tracking:
+        'What you record about offers: application status, the rate you quoted, the notice period you gave, and the date you first marked an offer as applied.',
+      logs: 'Technical logs kept by the services listed below, such as IP addresses and request times.',
+      offers: 'The offers themselves come from public job boards and are not data about you.',
+    },
+    basis: {
+      heading: 'Why, and on what legal basis',
+      account: 'To provide your account and the app you asked to use: GDPR Art. 6(1)(b), performance of a contract.',
+      security:
+        'To keep the service secure and stop abuse, through the security logs our processors keep: GDPR Art. 6(1)(f), legitimate interest.',
+    },
+    processors: {
+      heading: 'Who processes it for us',
+      intro: 'JOffers relies on these services as processors:',
+      supabase: 'database and authentication. Your data is stored in the EU (AWS eu-west-1, Ireland).',
+      google: 'Gmail’s SMTP service sends the sign-in emails and the daily summary.',
+      github: 'hosts the app on GitHub Pages and keeps request logs, including IP addresses.',
+      transfers:
+        'Google and GitHub may process data outside the European Economic Area, under the safeguards set out in their own terms.',
+    },
+    storage: {
+      heading: 'What JOffers keeps in your browser',
+      intro: 'JOffers sets no cookies. It keeps these entries in your browser’s local storage:',
+      entry: 'Entry',
+      purpose: 'Purpose',
+      purposes: {
+        'joffers-auth': 'Keeps you signed in (your Supabase session).',
+        'joffers-theme': 'Your theme: auto, light or dark.',
+        'joffers-lang': 'Your language.',
+        'joffers-filters': 'Your list filters and sort order.',
+        'joffers-seen': 'Offers you opened, until that is saved to your account.',
+        'joffers-shortcuts': 'Whether keyboard shortcuts are on.',
+      },
+      clear: 'Signing out removes your session; clearing this site’s data in your browser removes the rest.',
+    },
+    noTracking: {
+      heading: 'No analytics, no ads',
+      body: 'JOffers has no analytics, no ads and no tracking. Your data is never sold or used for marketing.',
+    },
+    retention: {
+      heading: 'How long we keep it',
+      account: 'Your account and tracking data: until you ask us to delete them.',
+      offers: 'Offers you never touched: they expire 14 days after they leave their job board.',
+      logs: 'Logs kept by the services above: as set out in their own policies.',
+    },
+    rights: {
+      heading: 'Your rights',
+      list: 'You can ask to access your data, have it corrected or erased, restrict its processing or get it in a portable format, and you can object to processing based on legitimate interest.',
+      how: 'To use any of these rights, email',
+      complaint:
+        'You can also complain to the Polish supervisory authority, the President of the Personal Data Protection Office (PUODO):',
     },
   },
   offers: {
@@ -216,6 +317,34 @@ export const en = {
     hours: (n: number) => `${n} h`,
     days: (n: number) => `${n} d`,
     unknown: 'date unknown',
+  },
+  // App bar and account menu (§4.4). Language names stay in their own language (AccountMenu).
+  shell: {
+    skipToOffers: 'Skip to offers',
+    // The view's h1, for screen readers; the list itself shows no title.
+    heading: 'Offers',
+    account: 'Account',
+    // Before the email, in the menu's header.
+    signedInAs: 'Signed in as',
+    language: 'Language',
+    signOut: 'Sign out',
+  },
+  theme: {
+    label: 'Theme',
+    options: { auto: 'Auto', light: 'Light', dark: 'Dark' },
+  },
+  notFound: {
+    title: 'Page not found',
+    body: "This page doesn't exist or has moved.",
+    home: 'Go to JOffers',
+  },
+  offline: {
+    message: "You're offline. Reconnect to load offers and save changes.",
+  },
+  // A route chunk that failed to load (main.tsx's error boundary).
+  boot: {
+    failed: "Couldn't load JOffers. Check your connection.",
+    reload: 'Reload',
   },
 }
 

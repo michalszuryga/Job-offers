@@ -1,0 +1,24 @@
+/* Access gate (plan §4.3); the card itself is authScreen.css. */
+.gate__icon {
+  display: grid;
+  place-items: center;
+  inline-size: 48px;
+  block-size: 48px;
+  margin-block-end: var(--space-2);
+  border-radius: var(--radius-full);
+  background: var(--brand-tint);
+  color: var(--brand-ink);
+}
+
+.gate__title {
+  font-size: var(--fs-h2);
+  line-height: var(--lh-h2);
+  font-weight: var(--fw-h2);
+  letter-spacing: var(--ls-h2);
+}
+
+.gate__email {
+  font-size: var(--fs-sm);
+  line-height: var(--lh-sm);
+  overflow-wrap: anywhere;
+}

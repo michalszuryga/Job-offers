@@ -26,6 +26,10 @@ jobs:
     env:
       VITE_SUPABASE_URL: ${{ vars.SUPABASE_URL }}
       VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.SUPABASE_PUBLISHABLE_KEY }}
+      # The data controller and contact shown on /privacy and used for "Request access".
+      # Repository variables CONTROLLER_NAME / CONTACT_EMAIL override the owner's defaults.
+      VITE_CONTROLLER_NAME: ${{ vars.CONTROLLER_NAME || 'Michał Szuryga' }}
+      VITE_CONTACT_EMAIL: ${{ vars.CONTACT_EMAIL || 'msklin6@gmail.com' }}
       BASE_PATH: /${{ github.event.repository.name }}/
     steps:
       - name: Check configuration

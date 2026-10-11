@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { signInErrorKey } from './authErrors'
+import { codeErrorKey, signInErrorKey } from './authErrors'
 
 describe('signInErrorKey', () => {
   test.each([
@@ -13,5 +13,18 @@ describe('signInErrorKey', () => {
     [null, 'generic'],
   ] as const)('%j → %s', (error, key) => {
     expect(signInErrorKey(error)).toBe(key)
+  })
+})
+
+describe('codeErrorKey', () => {
+  test.each([
+    [{ status: 403, code: 'otp_expired', message: 'Token has expired or is invalid' }, 'invalidCode'],
+    [{ status: 403, message: 'Token has expired or is invalid' }, 'invalidCode'],
+    [{ status: 429, code: 'over_request_rate_limit', message: 'Request rate limit reached' }, 'rateLimit'],
+    [{ status: 500, message: 'Internal server error' }, 'codeFailed'],
+    [{ message: 'Failed to fetch' }, 'codeFailed'],
+    [null, 'codeFailed'],
+  ] as const)('%j → %s', (error, key) => {
+    expect(codeErrorKey(error)).toBe(key)
   })
 })
