@@ -3,9 +3,10 @@ name: Daily fetch
 on:
   schedule:
     # GitHub cron is UTC-only. Both fire every day; the gate step below keeps
-    # whichever one is 18:00 in Europe/Warsaw (CEST in summer, CET in winter).
-    - cron: "0 16 * * *"
-    - cron: "0 17 * * *"
+    # whichever one is 17:41 in Europe/Warsaw (CEST in summer, CET in winter).
+    # Off the full hour on purpose: GitHub delays or drops scheduled runs at :00.
+    - cron: "41 15 * * *"
+    - cron: "41 16 * * *"
   workflow_dispatch:
     inputs:
       skip_sensitive:
@@ -33,7 +34,7 @@ jobs:
           if [ "$EVENT" != "schedule" ]; then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
           # Compare against the cron that fired, not the clock, so a delayed
           # scheduled run still counts.
-          if [ "$(TZ=Europe/Warsaw date +%z)" = "+0200" ]; then want="0 16 * * *"; else want="0 17 * * *"; fi
+          if [ "$(TZ=Europe/Warsaw date +%z)" = "+0200" ]; then want="41 15 * * *"; else want="41 16 * * *"; fi
           if [ "$FIRED_CRON" = "$want" ]; then echo "run=true" >> "$GITHUB_OUTPUT"; else echo "run=false" >> "$GITHUB_OUTPUT"; fi
 
       - uses: actions/checkout@v4

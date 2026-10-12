@@ -22,7 +22,7 @@ every evening and e-mails a summary of new offers.
   highlights matched to each offer. `applied_at` is stamped the first time an
   offer is marked `APPLIED` and is never cleared afterwards: moving the status
   back, or undoing the change, keeps the original date.
-- **Daily summary e-mail** at 18:00 Europe/Warsaw (Gmail SMTP), listing the
+- **Daily summary e-mail** at about 18:00 Europe/Warsaw (scheduled for 17:41) (Gmail SMTP), listing the
   offers that fetch added; every fetch also rescores stored offers, so freshness
   and the stale-offer penalty stay current. If the fetch fails before it records
   anything, the e-mail lists offers first seen in the last 24 h instead and says
@@ -33,7 +33,7 @@ every evening and e-mails a summary of new offers.
 ## Architecture
 
 ```
-GitHub Actions (18:00 daily) ──┐                                         ┌── Web app (GitHub Pages, Supabase Auth + RLS)
+GitHub Actions (17:41 daily) ──┐                                         ┌── Web app (GitHub Pages, Supabase Auth + RLS)
                                ├──► scrapers + scoring (Python) ──► Supabase Postgres
 Dashboard "Fetch live jobs" ───┘                                         ├── Streamlit dashboard (legacy)
                                                                          └──► e-mail summary
