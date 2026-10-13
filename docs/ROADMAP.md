@@ -16,7 +16,8 @@ the way the author does today.
   (GitHub's own cron at 17:41 is only a fallback: it ran hours late or not at all)
 - [x] Fetch history stored in the database (diagnostics survive reloads)
 - [x] Daily summary e-mail (Gmail SMTP)
-- [ ] Check whether boards block GitHub-hosted runners; mitigate if they do
+- [x] Check whether boards block GitHub-hosted runners: CzyJestEldorado does (403 on every run),
+  so the scheduled fetch leaves it out (`--skip-source CzyJestEldorado`); the others work
 - [ ] Alert when a source returns nothing for several runs in a row
 
 ## Stage 3 — new web app (alongside Streamlit, same database)

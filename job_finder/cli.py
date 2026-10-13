@@ -20,6 +20,8 @@ def main():
     fetch_cmd = sub.add_parser("fetch", help="Fetch every source and store the results")
     fetch_cmd.add_argument("--skip-sensitive", action="store_true")
     fetch_cmd.add_argument("--trigger", default="cli")
+    fetch_cmd.add_argument("--skip-source", action="append", default=[], metavar="NAME",
+                           help="Leave out a source by its name, e.g. CzyJestEldorado (repeatable)")
     summary_cmd = sub.add_parser("notify-summary", help="E-mail a summary of the offers new in the last fetch")
     summary_cmd.add_argument("--hours", type=int, default=24,
                              help="Fallback window when the last fetch's new ids aren't recorded")
@@ -40,7 +42,7 @@ def main():
                 created += 1
         print(f"Processed {created} new demo jobs.")
     elif args.cmd == "fetch":
-        results = run_fetch(store, args.trigger, skip_sensitive=args.skip_sensitive)
+        results = run_fetch(store, args.trigger, skip_sensitive=args.skip_sensitive, skip_names=args.skip_source)
         for r in results:
             status = f"{r.error_type}: {r.error}" if r.error else "ok"
             print(f"{r.name:<18} candidates={r.candidates:<4} inserted={r.inserted:<4} "

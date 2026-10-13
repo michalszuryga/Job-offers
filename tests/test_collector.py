@@ -252,3 +252,13 @@ def test_run_fetch_rescores_known_offers_daily(monkeypatch, tmp_path):
     assert json.loads(after["score_breakdown"])["freshness"] == 3
     assert after["score"] == before["score"] - 7
     assert after["last_seen_at"] == before["last_seen_at"]  # a rescore isn't a sighting
+
+
+def test_collect_live_jobs_can_leave_out_a_source_by_name(monkeypatch, tmp_path):
+    store = JobStore(str(tmp_path / "jobs.db"))
+    for attr in ("NoFluffSource", "PracujSource", "JustJoinSource", "RemoteOKSource", "WeWorkRemotelySource",
+                 "BulldogJobSource", "TestDevJobsSource", "EldoradoSource"):
+        monkeypatch.setattr(collector_mod, attr, lambda attr=attr: _fake_source(attr, []))
+    results, _ = collector_mod.collect_live_jobs(store=store, skip_names=["eldoradosource"])
+    assert "EldoradoSource" not in {r.name for r in results}
+    assert len(results) == 7

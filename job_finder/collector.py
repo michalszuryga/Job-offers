@@ -93,7 +93,7 @@ SENSITIVE_SOURCE_COUNT = 3  # Pracuj.pl, No Fluff Jobs, CzyJestEldorado
 
 
 def collect_live_jobs(config_path="config/profile.yaml", on_source_fetched=None, skip_sensitive=False,
-                      store=None, expire_after_days=14):
+                      store=None, expire_after_days=14, skip_names=()):
     """Returns (results, cfg): cfg is the effective config (profile + DB
     overrides) every offer was scored with, so callers can record and reuse it
     instead of reloading a possibly different one."""
@@ -109,6 +109,11 @@ def collect_live_jobs(config_path="config/profile.yaml", on_source_fetched=None,
         # (Pracuj.pl, No Fluff Jobs, CzyJestEldorado) — for a fast run, or to
         # avoid poking a site that's already actively blocking this IP.
         sources = [source for source in sources if not source.sensitive]
+    if skip_names:
+        # E.g. a board that blocks GitHub-hosted runners: leaving it out keeps
+        # a permanent "failed" off the dashboard and the e-mail.
+        skip = {name.lower() for name in skip_names}
+        sources = [source for source in sources if source.name.lower() not in skip]
     # Offers already in the database don't need their detail page re-fetched;
     # this is what keeps repeat fetches fast (and Pracuj.pl's Cloudflare
     # protection happy) once the first cold run has populated the store.
@@ -224,12 +229,12 @@ def result_to_dict(result):
     }
 
 
-def run_fetch(store, trigger, skip_sensitive=False, on_source_fetched=None):
+def run_fetch(store, trigger, skip_sensitive=False, on_source_fetched=None, skip_names=()):
     """One fetch end to end — shared by the dashboard button and the scheduled
     GitHub Actions run so both record the same "last fetch" state."""
     started_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
     results, cfg = collect_live_jobs(on_source_fetched=on_source_fetched, skip_sensitive=skip_sensitive,
-                                     store=store)
+                                     store=store, skip_names=skip_names)
     finished_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
     store.set_meta("last_fetch_at", finished_at)
     store.set_meta("last_fetch_new_ids", json.dumps(sorted({url for r in results for url in r.inserted_urls})))

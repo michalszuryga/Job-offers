@@ -173,6 +173,8 @@ the external trigger is not affected.
 
 Scrapers read public search pages; respect each site's terms, robots rules and
 rate limits. Pracuj.pl, No Fluff Jobs and CzyJestEldorado are fetched serially
-and slowly on purpose, and can be skipped with `--skip-sensitive`.
+and slowly on purpose, and can be skipped with `--skip-sensitive`. CzyJestEldorado blocks GitHub-hosted runners
+(HTTP 403), so the scheduled fetch leaves it out with `--skip-source CzyJestEldorado`;
+any source can be left out by name the same way.
 
 Never commit `.streamlit/secrets.toml`, `jobs.db` or any API key.

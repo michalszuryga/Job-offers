@@ -76,7 +76,9 @@ jobs:
           SKIP_SENSITIVE: ${{ inputs.skip_sensitive }}
         run: |
           if [ "$SKIP_SENSITIVE" = "true" ]; then extra="--skip-sensitive"; else extra=""; fi
-          python -m job_finder.cli fetch --trigger "${{ github.event_name }}" $extra
+          # CzyJestEldorado answers 403 to every GitHub-hosted runner (Oct 2026), so it is
+          # left out here; it still runs locally and from the dashboard.
+          python -m job_finder.cli fetch --trigger "${{ github.event_name }}" --skip-source CzyJestEldorado $extra
 
       - name: Send summary
         # Still report when some sources failed — that's worth knowing too.
