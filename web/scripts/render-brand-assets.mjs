@@ -25,10 +25,10 @@ function token(name) {
 const light = (name) => token(name).light
 
 const [, glyph] = MARK.match(/(<g[\s\S]*<\/g>)/)
-// The mark is flat: one fill under the ring and J.
+// The mark is flat: one fill under the bars and the dot.
 const [, markFill] = MARK.match(/<rect[^>]*fill="([^"]+)"/)
-// Outer diameter of the match ring (r=10 plus half its 2.5 stroke), the widest part of the glyph.
-const GLYPH = 22.5
+// Width of the glyph: the bars from x=7 to the dot's right edge at 26.7.
+const GLYPH = 20
 
 // The glyph on a full-bleed square, scaled so the ring spans `ratio` of the side.
 // The platform (iOS corners, maskable shapes) crops it, so nothing here is transparent.

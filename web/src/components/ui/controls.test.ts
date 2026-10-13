@@ -48,13 +48,12 @@ describe('Logo', () => {
     expect(html).not.toContain('role="img"')
   })
 
-  test('geometry and colours follow §2.1 and the --mark tokens', () => {
+  test('geometry and colours follow brand/mark.svg and the --mark tokens', () => {
     const html = render(el(Logo, { size: 24 }))
-    expect(html).toContain('rx="9"')
-    expect(html).toContain('stroke-dasharray="50.3 12.6"')
-    expect(html).toContain('transform="rotate(-90 16 16)"')
-    expect(html).toContain('d="M18.5 10.5v6.5a3.5 3.5 0 0 1-7 0"')
+    expect(html).toContain('rx="8"')
+    expect(html.match(/<rect x="7"/g)).toHaveLength(3)
     expect(html).toContain('fill:var(--mark-bg)')
+    expect(html).toContain('fill:var(--mark-dot)')
     expect(html).not.toContain('Gradient')
     expect(html).toContain('--logo-size:24px')
   })

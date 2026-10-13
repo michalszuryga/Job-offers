@@ -29,10 +29,12 @@
 }
 
 /* Brand mark (§2.1): flat, the same in both themes, so plain values rather than light-dark().
-   A bottle-green squircle with the ivory ring and J; og.png uses the same pair. */
+   A bottle-green squircle with three ivory bars, shortest last (offers ranked by match),
+   and a terracotta dot; og.png uses the same colours. */
 :root {
   --mark-bg: #1E5A45;
   --mark-ink: #FFFDF9;
+  --mark-dot: #E8875C;
 }
 
 :root {
