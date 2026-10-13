@@ -12,3 +12,6 @@ logs/
 # Real database password lives only here, locally. Never commit this file —
 # only secrets.toml.example (with a placeholder) is tracked.
 .streamlit/secrets.toml
+
+# Local planning notes, not published.
+docs/SOURCES_PLAN.md
