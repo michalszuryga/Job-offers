@@ -24,7 +24,13 @@ the way the author does today.
 - [x] Supabase Auth (magic link) + row-level security, access via `app_members`
 - [x] Offer list with the daily filters, details, status/rate/notice tracking
 - [x] Playwright end-to-end tests (desktop + phone, Supabase mocked) in CI
-- [ ] Scoring settings and fetch diagnostics in the web app
+- [x] Product redesign (docs/UI_REDESIGN_PLAN.md): design tokens with light/dark themes,
+  Polish and English, prerendered landing page, demo on sample data, privacy page
+- [x] Daily triage: the "New" view from the e-mail, explained match score, status in
+  two taps with Undo, "Not for me", previous/next, keyboard shortcuts on desktop
+- [x] Accessibility (axe, WCAG 2.2 AA) and per-route bundle budgets checked in CI
+- [x] Fetch diagnostics in the web app (per-source results of the last fetch)
+- [ ] Scoring settings in the web app
 - [ ] "Fetch now" triggers the GitHub workflow instead of scraping in the page
 
 ## Stage 3b — multi-tenant data model (once Streamlit is retired)
@@ -37,7 +43,8 @@ the way the author does today.
 
 ## Before going public
 - [ ] Legal review: terms of service of each board for commercial reuse of listings
-- [ ] Privacy policy / GDPR for user accounts and application data
+- [x] Privacy policy page (`/privacy`, for the private beta)
+- [ ] GDPR review for multi-user accounts and application data
 - [ ] Per-user scheduled fetch costs and rate limits
 - [ ] Email notifications (account-based) alongside push
 - [ ] Billing, if commercialized
@@ -45,3 +52,5 @@ the way the author does today.
 ## Later ideas
 - [ ] AI-assisted offer analysis and tailored CV generation
 - [ ] Application assistant with human approval before anything is sent
+- [ ] Visual redesign with a distinct art direction (current UI reads as generic/AI-generated)
+- [ ] Hide 'Not for me' offers from the default list (decide)

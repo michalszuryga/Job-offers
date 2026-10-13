@@ -1,6 +1,6 @@
 import { join } from 'node:path'
 import { expect, test, type Page } from '@playwright/test'
-import { mockSupabase, OWNER, signIn } from './supabase-mock'
+import { mockSupabase, OWNER, signIn, gotoLanding } from './supabase-mock'
 
 // Signed-out paths (plan §4.2): the private-beta reply, code sign-in, an expired magic link
 // (P5), and the public surface (P8): the demo, the access gate's way into it, language and
@@ -9,7 +9,7 @@ const CONTACT = 'privacy@example.test'
 
 test('an address without an account hears about the private beta, never the raw reply', async ({ page }) => {
   const supabase = await mockSupabase(page, { otp: 'signupsDisabled' })
-  await page.goto('./')
+  await gotoLanding(page, './')
 
   await page.getByLabel('Email').fill('stranger@example.com')
   await page.getByRole('button', { name: 'Send sign-in link' }).click()
@@ -30,7 +30,7 @@ test('an address without an account hears about the private beta, never the raw 
 
 test('the code from the email signs in, for the installed app', async ({ page }) => {
   const supabase = await mockSupabase(page)
-  await page.goto('./')
+  await gotoLanding(page, './')
 
   await page.getByLabel('Email').fill(OWNER.email)
   await page.getByRole('button', { name: 'Send sign-in link' }).click()
@@ -53,7 +53,7 @@ test('the code from the email signs in, for the installed app', async ({ page })
 
 test('a code can be entered before sending a link, e.g. after the installed app reloaded', async ({ page }) => {
   const supabase = await mockSupabase(page)
-  await page.goto('./')
+  await gotoLanding(page, './')
 
   await page.getByRole('button', { name: 'Have a code? Enter it' }).click()
   const code = page.getByLabel('6-digit code')
@@ -74,7 +74,7 @@ test('a code can be entered before sending a link, e.g. after the installed app 
 
 test('an expired magic link says so, focuses the email field and leaves a clean URL', async ({ page }) => {
   await mockSupabase(page)
-  await page.goto('./#error_code=otp_expired&error=access_denied&error_description=Email+link+is+invalid+or+has+expired')
+  await gotoLanding(page, './#error_code=otp_expired&error=access_denied&error_description=Email+link+is+invalid+or+has+expired')
 
   // On the landing, which stays signed out (no app, no supabase-js until the card is used).
   await expect(page.getByRole('heading', { level: 1, name: 'QA jobs, scored for you.' })).toBeVisible()
@@ -93,7 +93,7 @@ test('an expired magic link says so, focuses the email field and leaves a clean 
 test('after sending, the link can be resent after a minute or sent to another address', async ({ page }) => {
   await page.clock.install()
   const supabase = await mockSupabase(page)
-  await page.goto('./')
+  await gotoLanding(page, './')
 
   await page.getByLabel('Email').fill('owner@gmail.com')
   await page.getByRole('button', { name: 'Send sign-in link' }).click()
@@ -121,7 +121,7 @@ test('after sending, the link can be resent after a minute or sent to another ad
 test('a resend that answers after "Use a different email" leaves the new form alone', async ({ page }) => {
   await page.clock.install()
   await mockSupabase(page)
-  await page.goto('./')
+  await gotoLanding(page, './')
   await page.getByLabel('Email').fill(OWNER.email)
   await page.getByRole('button', { name: 'Send sign-in link' }).click()
   await expect(page.getByRole('status')).toContainText(`sent a sign-in link to ${OWNER.email}`)

@@ -43,6 +43,14 @@ for (const scheme of ['light', 'dark'] as const) {
       await page.locator('.offer').first().waitFor()
       await shot('list')
 
+      // Desktop: the shortcuts dialog (P9) over the list.
+      if (testInfo.project.name === 'desktop') {
+        await page.keyboard.press('?')
+        await page.getByRole('dialog', { name: 'Keyboard shortcuts' }).waitFor()
+        await shot('shortcuts')
+        await page.keyboard.press('Escape')
+      }
+
       await page.locator('.offer', { hasText: 'Senior QA Engineer' }).click()
       await page.getByText('Full description of Senior QA Engineer').waitFor()
       await shot('details')

@@ -1,8 +1,10 @@
-import { LogOut, Monitor, Moon, ShieldCheck, Sun, User, type LucideIcon } from 'lucide-react'
+import { Keyboard, LogOut, Monitor, Moon, ShieldCheck, Sun, User, type LucideIcon } from 'lucide-react'
 import { useLocation } from 'wouter'
 import { Icon, Menu, MenuGroup, MenuItem, MenuRadioItem, MenuSeparator } from '../ui'
 import { LANG_NAMES, LANGS, useI18n } from '../../i18n'
+import { setShortcutsHelp } from '../../lib/shortcuts'
 import { setThemePref, THEME_PREFS, useThemePref, type ThemePref } from '../../lib/theme'
+import { useMediaQuery } from '../../lib/useMediaQuery'
 
 const THEME_ICONS: Record<ThemePref, LucideIcon> = { auto: Monitor, light: Sun, dark: Moon }
 
@@ -12,11 +14,13 @@ interface Props {
 }
 
 // §4.4: the signed-in email, theme, language, Privacy and Sign out. The Menu is a popover where
-// the browser has one and a toggled panel otherwise. "Keyboard shortcuts" arrives in P9.
+// the browser has one and a toggled panel otherwise. "Keyboard shortcuts" (P9) only from
+// 1024 px, where the offers page answers to them and shows the dialog.
 export function AccountMenu({ email, onSignOut }: Props) {
   const { t, lang, setLang } = useI18n()
   const theme = useThemePref()
   const [, navigate] = useLocation()
+  const wide = useMediaQuery('(min-width: 1024px)')
   // By code point, so an address starting with a non-BMP character isn't split in half.
   const initial = [...email.trim()][0]?.toLocaleUpperCase()
 
@@ -48,6 +52,11 @@ export function AccountMenu({ email, onSignOut }: Props) {
         ))}
       </MenuGroup>
       <MenuSeparator />
+      {wide && (
+        <MenuItem icon={Keyboard} onSelect={() => setShortcutsHelp(true)}>
+          {t.shell.shortcuts}
+        </MenuItem>
+      )}
       <MenuItem icon={ShieldCheck} onSelect={() => navigate('/privacy')}>
         {t.shell.privacy}
       </MenuItem>

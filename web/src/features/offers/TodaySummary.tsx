@@ -1,10 +1,11 @@
 import { ArrowRight } from 'lucide-react'
 import { useId } from 'react'
-import { Button, ScoreRing } from '../../components/ui'
+import { Button, Kbd, ScoreRing } from '../../components/ui'
 import { useI18n } from '../../i18n'
 import { bestOffer, inProgress } from '../../lib/batch'
 import { formatAgo, timeOf } from '../../lib/format'
 import { openOffer } from '../../lib/router'
+import { setShortcutsHelp, useShortcutsEnabled } from '../../lib/shortcuts'
 import type { SourceHealth } from '../../lib/sources'
 import type { FetchRun, Offer } from '../../lib/types'
 import './TodaySummary.css'
@@ -17,6 +18,40 @@ interface Props {
   health: SourceHealth
   lastRun: FetchRun | null
   onSources: () => void
+}
+
+// Under the tiles (§4.7): the triage keys in short, and the way to the full list, which is
+// also where shortcuts come back on once turned off.
+function KeyHints() {
+  const { t } = useI18n()
+  const enabled = useShortcutsEnabled()
+  const hints = [
+    { keys: ['j', 'k'], label: t.shortcuts.hintNext },
+    { keys: ['o'], label: t.shortcuts.hintOriginal },
+    { keys: ['i'], label: t.shortcuts.hintInterested },
+    { keys: ['/'], label: t.shortcuts.hintSearch },
+  ]
+  return (
+    <div className="summary__keys">
+      {enabled ? (
+        <ul className="summary__key-list" aria-label={t.shortcuts.hintsLabel}>
+          {hints.map(({ keys, label }) => (
+            <li key={label} className="summary__key">
+              {keys.map((key) => (
+                <Kbd key={key}>{key}</Kbd>
+              ))}
+              {label}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="summary__key-list">{t.shortcuts.off}</p>
+      )}
+      <Button variant="ghost" size="sm" aria-keyshortcuts={enabled ? '?' : undefined} onClick={() => setShortcutsHelp(true)}>
+        {enabled ? t.shortcuts.hintAll : t.shortcuts.title}
+      </Button>
+    </div>
+  )
 }
 
 // Desktop with no offer open (§4.7): the right pane is never empty. Four tiles, and the best
@@ -94,6 +129,7 @@ export function TodaySummary({ offers, batch, reviewed, health, lastRun, onSourc
           )}
         </div>
       </div>
+      <KeyHints />
     </section>
   )
 }

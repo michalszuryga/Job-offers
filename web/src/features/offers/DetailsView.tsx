@@ -9,6 +9,7 @@ import { useDataSource } from '../../lib/dataSource'
 import { closeOffer, openOffer, useKeyShortcut } from '../../lib/router'
 import type { SalaryConfig } from '../../lib/salary'
 import { parseBreakdown, scoringFrom } from '../../lib/score'
+import { statusAtLeast } from '../../lib/status'
 import type { Offer, OfferDetails, ScoringProfile, Status } from '../../lib/types'
 import { ActionBar } from './ActionBar'
 import { DetailsHeader } from './DetailsHeader'
@@ -125,6 +126,16 @@ export function DetailsView({
   const dismissable = offer.application_status !== 'DISMISSED'
   useKeyShortcut('x', dismissable, dismiss)
   const onDismiss = dismissable ? dismiss : null
+  // Desktop keys for the open offer (§4.7): o opens the original in a new tab, i marks it
+  // Interested through the same path (and toast with Undo) as the phone's Star, and only
+  // where the Star would show, so it never moves an offer back from a later stage.
+  const url = offer.url
+  const openOriginal = useCallback(() => {
+    window.open(url, '_blank', 'noopener,noreferrer')
+  }, [url])
+  const markInterested = useCallback(() => changeStatus(id, 'INTERESTED'), [changeStatus, id])
+  useKeyShortcut('o', wide, openOriginal)
+  useKeyShortcut('i', wide && !statusAtLeast(offer.application_status, 'INTERESTED'), markInterested)
   const published = timeOf(offer.published_at) != null
 
   const aside = (

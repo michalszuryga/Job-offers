@@ -252,3 +252,9 @@ export async function mockSupabase(page: Page, options: MockOptions = {}): Promi
   })
   return state
 }
+
+// The landing is prerendered and its sign-in card hydrates lazily; wait until it reacts.
+export async function gotoLanding(page: Page, path = './') {
+  await page.goto(path)
+  await page.locator('#sign-in[data-ready]').waitFor()
+}

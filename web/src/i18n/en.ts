@@ -351,6 +351,29 @@ export const en = {
     sourcesValue: (ok: number, total: number) => `${formatNumber(ok, 'en')}/${formatNumber(total, 'en')}`,
     viewSources: 'View sources',
   },
+  // Keyboard triage on desktop (§4.7): the dialog behind ?, and the hints under the summary.
+  shortcuts: {
+    title: 'Keyboard shortcuts',
+    toggle: 'Use keyboard shortcuts',
+    toggleHint: 'Single keys, ignored while you type in a field.',
+    // The dialog's list, one row per key (or pair).
+    nextPrevious: 'Next / previous offer',
+    open: 'Open the focused offer',
+    close: 'Close details',
+    original: 'Open the original offer in a new tab',
+    interested: 'Mark as interested',
+    dismiss: 'Not for me',
+    search: 'Search',
+    help: 'Show this list',
+    // Under the summary: short labels after each key, then a way to the full list.
+    hintsLabel: 'Keyboard shortcuts',
+    hintNext: 'next / previous',
+    hintOriginal: 'open offer',
+    hintInterested: 'interested',
+    hintSearch: 'search',
+    hintAll: 'All shortcuts',
+    off: 'Keyboard shortcuts are off.',
+  },
   status: statuses,
   statusGroups,
   // The offer details (§4.8): a full-screen view on phones, the right pane on desktop.
@@ -464,6 +487,8 @@ export const en = {
     signedInAs: 'Signed in as',
     language: 'Language',
     privacy: 'Privacy policy',
+    // Desktop only: opens the shortcuts dialog.
+    shortcuts: 'Keyboard shortcuts',
     signOut: 'Sign out',
   },
   theme: {

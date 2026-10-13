@@ -3,6 +3,13 @@ name: Tests
 on:
   push:
   pull_request:
+  # Run by hand for the visual job: compare, or (update_baselines) write new Linux baselines.
+  workflow_dispatch:
+    inputs:
+      update_baselines:
+        description: Write new visual baselines and upload them as an artifact
+        type: boolean
+        default: false
 
 jobs:
   pytest:
@@ -55,5 +62,64 @@ jobs:
         if: failure()
         with:
           name: playwright-traces
+          path: web/test-results/
+          retention-days: 7
+
+  # Visual baselines (plan §1 #9): list and details × desktop/phone × light/dark. In the
+  # Playwright container so fonts and antialiasing match the committed *-linux.png files.
+  # Opt-in: on push only once baselines are committed, and by hand (workflow_dispatch), where
+  # update_baselines writes fresh ones and uploads them (see README, Visual baselines).
+  # Allowed to fail until it has been green for two weeks.
+  visual:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    container: mcr.microsoft.com/playwright:v1.64.0-noble
+    continue-on-error: true
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: web
+    env:
+      VITE_SUPABASE_URL: http://supabase.test
+      VITE_SUPABASE_PUBLISHABLE_KEY: test-publishable-key
+      VITE_CONTROLLER_NAME: Test Controller
+      VITE_CONTACT_EMAIL: privacy@example.test
+      BASE_PATH: /Job-offers/
+    steps:
+      - uses: actions/checkout@v4
+      - id: gate
+        name: Run only with baselines, or by hand
+        run: |
+          if [ "${{ github.event_name }}" = workflow_dispatch ] || ls e2e/visual.spec.ts-snapshots/*-linux.png >/dev/null 2>&1; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No visual baselines committed yet: skipping."
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.gate.outputs.run == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - if: steps.gate.outputs.run == 'true'
+        run: npm ci
+      - if: steps.gate.outputs.run == 'true'
+        run: npm run build
+      - if: steps.gate.outputs.run == 'true'
+        run: npx playwright test --project=desktop --project=phone --grep @visual ${{ inputs.update_baselines && '--update-snapshots' || '' }}
+        env:
+          VISUAL: "1"
+          PW_PREBUILT: "1"
+      - if: inputs.update_baselines
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-baselines
+          path: web/e2e/visual.spec.ts-snapshots/
+          retention-days: 7
+      - if: failure() && steps.gate.outputs.run == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-diffs
           path: web/test-results/
           retention-days: 7

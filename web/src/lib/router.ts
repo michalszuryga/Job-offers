@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { navigate, useLocationProperty } from 'wouter/use-browser-location'
+import { shortcutsEnabled } from './shortcuts'
 
 // ?offer=<id> (plan §4.1): the open offer lives in the URL, so a deep link, a reload and the
 // back gesture all agree with the screen. popstate drives React state, never the reverse.
@@ -100,14 +101,16 @@ function typing(target: EventTarget | null): boolean {
 }
 
 // A single-key shortcut while `active`, e.g. x for "Not for me" in the details: no modifiers,
-// no auto-repeat (holding x must not dismiss a run of offers), and never while typing or
-// under an open menu or dialog.
+// no auto-repeat (holding x must not dismiss a run of offers), and never while typing, under
+// an open menu or dialog, or with shortcuts turned off (lib/shortcuts.ts). Shift is allowed:
+// it is how ? is typed.
 export function useKeyShortcut(key: string, active: boolean, run: () => void) {
   useEffect(() => {
     if (!active) return
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== key || event.defaultPrevented || event.repeat || event.isComposing) return
       if (event.ctrlKey || event.metaKey || event.altKey || typing(event.target) || overlayOpen()) return
+      if (!shortcutsEnabled()) return
       event.preventDefault()
       run()
     }

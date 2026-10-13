@@ -32,7 +32,26 @@ every evening and e-mails a summary of new offers.
   anything, the e-mail lists offers first seen in the last 24 h instead and says
   "(24 h)" in the subject.
 - **Web app** (`web/`, React + TypeScript) with magic-link sign-in, built for
-  phone and laptop; the Streamlit dashboard is being phased out.
+  phone and laptop; the Streamlit dashboard is being phased out. On a laptop it
+  has keyboard triage (`j`/`k`, `o`, `i`, `x`, `/`; `?` lists them all and can
+  turn them off).
+
+## Screenshots
+
+<p>
+  <img src="docs/screenshots/phone-list.png" width="240" alt="Offer list on a phone: the day's new offers with score rings, salaries and statuses">
+  <img src="docs/screenshots/phone-details.png" width="240" alt="Offer details on a phone: facts, salary, match score and the action bar">
+</p>
+
+*Phone: the evening's new offers, and one offer's details with its status actions.*
+
+![The offer list on a laptop, with the summary of the last fetch and keyboard hints](docs/screenshots/desktop-list.png)
+
+*Laptop: the list beside a summary of the last fetch; details open in the right pane.*
+
+![The public landing page](docs/screenshots/landing.png)
+
+*The public landing page, with a demo on sample data.*
 
 ## Architecture
 
@@ -77,6 +96,19 @@ npm install
 npm run dev
 npx playwright install chromium && npm run test:e2e   # Supabase is mocked
 ```
+
+**Visual baselines.** `e2e/visual.spec.ts` (`@visual`, opt-in) compares the list and
+the details on desktop and phone, light and dark, against PNGs in
+`web/e2e/visual.spec.ts-snapshots/`. Baselines are made only in the Linux Playwright
+container, so they match CI (macOS and Windows ones are gitignored). To refresh them:
+
+- with Docker: `cd web && npm run test:visual:update`, review the PNGs, commit them; or
+- without Docker: run the *Tests* workflow by hand (*Actions → Tests → Run workflow*)
+  with **update_baselines** ticked, download the `visual-baselines` artifact, and copy
+  its `*-linux.png` files into `web/e2e/visual.spec.ts-snapshots/`.
+
+Once baselines are committed, the workflow's `visual` job compares them on every push
+(allowed to fail while it settles; diffs are uploaded as `visual-diffs`).
 
 ## Deployment
 

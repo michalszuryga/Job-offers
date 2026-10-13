@@ -49,7 +49,7 @@
 .tracking__chevron {
   flex: none;
   color: var(--fg-muted);
-  transition: rotate var(--dur-base) var(--ease-out);
+  transition: rotate var(--dur-fast) var(--ease-out);
 }
 
 .tracking__toggle[aria-expanded='true'] .tracking__chevron {

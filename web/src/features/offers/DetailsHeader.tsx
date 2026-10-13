@@ -78,6 +78,7 @@ export function DetailsHeader({ wide, position, status, onStatus, onDismiss, url
             target="_blank"
             rel="noopener noreferrer"
             trailingIcon={ExternalLink}
+            aria-keyshortcuts="o"
             className="details-header__open"
           >
             {t.details.openOffer}

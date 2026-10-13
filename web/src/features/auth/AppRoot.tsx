@@ -1,4 +1,4 @@
-import type { Session } from '@supabase/supabase-js'
+import type { Session } from '@supabase/auth-js'
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { OffersPage } from '../offers/OffersPage'
 import { AppShell } from '../../components/shell/AppShell'

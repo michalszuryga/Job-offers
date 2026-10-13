@@ -6,8 +6,9 @@ import { newOffers, reviewedCount } from '../../lib/batch'
 import { useDataSource } from '../../lib/dataSource'
 import { applyFilters, sortOffers } from '../../lib/format'
 import { DEFAULT_FILTERS, loadFilters, saveFilters, type Filters } from '../../lib/prefs'
-import { clearView, closeOffer, useEscapeToClose, useOfferParam, viewFrom } from '../../lib/router'
+import { clearView, closeOffer, openOffer, useEscapeToClose, useKeyShortcut, useOfferParam, viewFrom } from '../../lib/router'
 import { scoringFrom } from '../../lib/score'
+import { setShortcutsHelp, useShortcutsHelp } from '../../lib/shortcuts'
 import { sourceHealth } from '../../lib/sources'
 import { useMediaQuery } from '../../lib/useMediaQuery'
 import { ActiveFilterChips } from './ActiveFilterChips'
@@ -32,6 +33,7 @@ const FilterSheet = lazy(() => import('./FilterSheet').then((m) => ({ default: m
 const SourcesSheet = lazy(() =>
   import('../../components/shell/SourcesSheet').then((m) => ({ default: m.SourcesSheet })),
 )
+const ShortcutsDialog = lazy(() => import('./ShortcutsDialog').then((m) => ({ default: m.ShortcutsDialog })))
 
 type SheetName = 'filters' | 'sources'
 
@@ -39,6 +41,15 @@ type SheetName = 'filters' | 'sources'
 function cardOf(id: string): HTMLElement | null {
   return [...document.querySelectorAll<HTMLElement>('.offer[data-offer]')].find((card) => card.dataset.offer === id) ?? null
 }
+
+// / puts the cursor in the toolbar's search (FilterPanel), with what is there selected.
+function focusSearch() {
+  const search = document.querySelector<HTMLInputElement>('.offers-page input[type="search"]')
+  search?.focus()
+  search?.select()
+}
+
+const openHelp = () => setShortcutsHelp(true)
 
 // The demo starts from the defaults and remembers nothing (DataSource.persistent).
 function initialFilters(persistent: boolean): Filters {
@@ -71,6 +82,11 @@ export function OffersPage() {
     setSheet(name)
   }
   const closeSheet = useCallback(() => setSheet(null), [])
+  // The shortcuts dialog (?, the account menu, the summary's hints): loaded on first open.
+  const helpOpen = useShortcutsHelp()
+  const [helpUsed, setHelpUsed] = useState(false)
+  if (helpOpen && !helpUsed) setHelpUsed(true)
+  const closeHelp = useCallback(() => setShortcutsHelp(false), [])
 
   const dashboard = load.kind === 'ready' ? load.dashboard : null
   const batch = useMemo(() => (dashboard ? newOffers(dashboard.offers, dashboard.newIds) : []), [dashboard])
@@ -95,6 +111,27 @@ export function OffersPage() {
     () => selected && listPosition(visible, selected, (offers) => sortOffers(offers, filters.sort, salaryCfg)),
     [visible, selected, filters.sort, salaryCfg],
   )
+
+  // Keyboard triage on desktop (§4.7). j/k walk the list as it is now, starting with its first
+  // offer when none is open; openOffer pushes that first one and replaces after it, so back
+  // still lands on the list. Enter is the focused card's own link, Esc useEscapeToClose, and
+  // o, i and x belong to the open offer (DetailsView).
+  const firstId = visible[0]?.external_id ?? null
+  const step = useCallback(
+    (id: string | null | undefined) => {
+      const target = selectedId == null ? firstId : id
+      if (target == null) return
+      openOffer(target)
+      // The pane is sticky; the card it belongs to should stay in sight beside it.
+      cardOf(target)?.scrollIntoView({ block: 'nearest' })
+    },
+    [selectedId, firstId],
+  )
+  const triage = wide && dashboard != null
+  useKeyShortcut('j', triage, useCallback(() => step(position?.nextId), [step, position]))
+  useKeyShortcut('k', triage, useCallback(() => step(position?.previousId), [step, position]))
+  useKeyShortcut('/', triage, focusSearch)
+  useKeyShortcut('?', triage, openHelp)
 
   // Closing hands focus back to the card of the offer that was open (§4.8), when it was
   // inside the details: a click elsewhere (the logo) keeps its own. On phones the details
@@ -254,6 +291,11 @@ export function OffersPage() {
       {sheetsUsed.has('sources') && (
         <Suspense fallback={null}>
           <SourcesSheet open={sheet === 'sources'} onClose={closeSheet} run={dashboard.lastRun} />
+        </Suspense>
+      )}
+      {wide && helpUsed && (
+        <Suspense fallback={null}>
+          <ShortcutsDialog open={helpOpen} onClose={closeHelp} />
         </Suspense>
       )}
     </div>

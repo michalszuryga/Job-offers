@@ -13,7 +13,8 @@ const KB = 1000
 const ENTRY = 'index.html'
 const ROUTES = {
   // supabase-js lives in the AppRoot chunk, never in the entry (asserted below).
-  app: { chunks: [ENTRY, 'src/features/auth/AppRoot.tsx'], maxJs: 160 * KB },
+  // 180 kB is our own target (raised from 160 in P9), not a platform limit.
+  app: { chunks: [ENTRY, 'src/features/auth/AppRoot.tsx'], maxJs: 180 * KB },
   // The signed-out home page; its sign-in card imports supabase-js only when used.
   landing: { chunks: [ENTRY, 'src/features/landing/Landing.tsx'], maxJs: 90 * KB, noSupabase: true },
   // The offers screens on fixtures (lib/dataSource.ts), with no Supabase at all.
@@ -22,7 +23,7 @@ const ROUTES = {
   privacy: { chunks: [ENTRY, 'src/pages/Privacy.tsx'], maxJs: 90 * KB, noSupabase: true },
 }
 
-const MAX_CSS = 20 * KB
+const MAX_CSS = 24 * KB
 // Measured in P1: inter-latin 48 256 B + inter-latin-ext 85 068 B = 133 324 B; +10%.
 const FONT_BUDGET = 146_657
 // The only font files we ship: Inter Variable, latin + latin-ext subsets.
@@ -70,7 +71,7 @@ function staticGraph(chunks) {
 }
 
 // supabase-js must stay out of public routes: look for it by chunk key/name
-// and by strings that survive minification (its auth client's name and X-Client-Info
+// and by strings that survive minification (auth-js's GoTrueClient name and X-Client-Info
 // header). Not "supabase-js": a chunk that lazily imports supabase-<hash>.js names the
 // file, and a hash starting "js" would match.
 function hasSupabase(graph) {

@@ -71,6 +71,15 @@ export function SignInCard({ notice, onSignedIn }: Props) {
   const emailRef = useRef<HTMLInputElement>(null)
   const sentRef = useRef<HTMLParagraphElement>(null)
   const codeRef = useRef<HTMLInputElement>(null)
+  // The landing is prerendered, so an address typed before hydration lives only in the DOM;
+  // adopt it instead of letting the controlled input reset it to ''.
+  // data-ready marks the card as interactive (hydrated), for tests and nothing else.
+  const [ready, setReady] = useState(false)
+  useEffect(() => {
+    const typed = emailRef.current?.value
+    if (typed) setEmail((current) => current || typed)
+    setReady(true)
+  }, [])
   // Where focus goes once the next render is on screen, so it never drops to <body> when
   // the control that had it unmounts. A notice (expired link or session) starts on the field.
   const focusNext = useRef<FocusTarget | null>(notice ? 'email' : null)
@@ -180,7 +189,7 @@ export function SignInCard({ notice, onSignedIn }: Props) {
 
   return (
     // The nav's "Sign in" scrolls here (and focuses it, so keyboard users land on the card).
-    <section ref={cardRef} id={SIGN_IN_ID} className="sign-in" aria-labelledby={titleId} tabIndex={-1}>
+    <section ref={cardRef} id={SIGN_IN_ID} className="sign-in" aria-labelledby={titleId} tabIndex={-1} data-ready={ready || undefined}>
       <h2 id={titleId} className="sign-in__title">
         {t.login.title}
       </h2>

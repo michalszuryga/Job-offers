@@ -1,0 +1,92 @@
+/* ShortcutsDialog (§4.7): a centred modal, sized and lit like Sheet's desktop form. */
+.shortcuts {
+  position: fixed;
+  inset: 0;
+  box-sizing: border-box;
+  inline-size: min(480px, 100% - 2 * var(--gutter));
+  max-block-size: min(85dvh, 640px);
+  margin: auto;
+  padding: 0 var(--space-4) var(--space-6) var(--space-6);
+  overflow-y: auto;
+  /* Transparent until forced colours paint it, so the dialog keeps an edge there. */
+  border: 1px solid transparent;
+  border-radius: var(--radius-xl);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-lg);
+  color: var(--fg);
+  transition: opacity var(--dur-slow) var(--ease-out);
+}
+
+/* The page dimmed as under a Sheet. */
+.shortcuts::backdrop {
+  background: light-dark(
+    color-mix(in srgb, var(--fg) 45%, transparent),
+    color-mix(in srgb, var(--canvas) 72%, transparent)
+  );
+}
+
+/* Entry only: a fade, the same in every motion setting (100 ms with reduced motion). */
+@starting-style {
+  .shortcuts[open] {
+    opacity: 0;
+  }
+}
+
+.shortcuts__header {
+  display: flex;
+  align-items: center;
+  min-block-size: 56px;
+}
+
+.shortcuts__title {
+  flex: 1;
+  font-size: var(--fs-h3);
+  line-height: var(--lh-h3);
+  font-weight: var(--fw-h3);
+}
+
+.shortcuts__list {
+  display: grid;
+  gap: var(--space-2);
+  margin-block: var(--space-2) var(--space-5);
+}
+
+.shortcuts__row {
+  display: grid;
+  grid-template-columns: 5rem minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.shortcuts__keys {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.shortcuts__row dd,
+.shortcuts__hint {
+  color: var(--fg-muted);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-sm);
+  font-weight: var(--fw-sm);
+}
+
+.shortcuts__toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding-block-start: var(--space-4);
+  border-block-start: 1px solid var(--line);
+  font-weight: var(--fw-semibold);
+}
+
+.shortcuts__toggle input {
+  flex: none;
+  inline-size: 20px;
+  block-size: 20px;
+  margin: 2px 0 0;
+}
+
+.shortcuts__hint {
+  display: block;
+}

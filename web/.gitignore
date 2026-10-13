@@ -28,3 +28,6 @@ test-results/
 playwright-report/
 # npm run test:screens output, reviewed by hand
 screens/
+# Visual baselines come from the Linux Playwright container only (README, Visual baselines)
+e2e/visual.spec.ts-snapshots/*-darwin.png
+e2e/visual.spec.ts-snapshots/*-win32.png
