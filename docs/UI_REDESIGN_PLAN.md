@@ -18,7 +18,7 @@
   - The summary e-mail uses the last fetch's new ids only when that fetch is under 12 h old; otherwise it falls back to `--hours`.
   - Rescore keeps the original remote re-inference (inference overrides the stored flag).
   - Toaster: `--actionbar-h` is the ActionBar's full height incl. safe area; Callout has no `live` prop (wrap it in the view's single `role=status` region).
-- **Owner actions still open:** add `Or enter this code: {{ .Token }}` to the Supabase Magic Link template; set repo variable `APP_URL=https://michalszuryga.github.io/Job-offers/`; manual checks (magic link on phone, code sign-in in the installed iOS app, Android back gesture closes details, forced dark theme in an iOS 17.5 simulator — Xcode simulator components are not installed on the work laptop; WebKit was used as a stand-in).
+- **Owner actions:** done — `{{ .Token }}` added to the Supabase Magic Link template; the daily fetch is triggered by cron-job.org at 17:45 (see README *Daily trigger*, docs/HOSTING.md). Still open: confirm the repo variable `APP_URL=https://michalszuryga.github.io/Job-offers/`; manual checks (magic link on phone, code sign-in in the installed iOS app, Android back gesture closes details, forced dark theme in an iOS 17.5 simulator — not available on the work laptop; WebKit was used as a stand-in).
 
 **For the executing session:** the app is in `/Users/michalszuryga/Documents/Projects/Personal/JOffers/Job-offers/web`. Stack: Vite 8, React 19, TS 6, supabase-js. It is hosted on GitHub Pages under `BASE_PATH=/Job-offers/`.
 

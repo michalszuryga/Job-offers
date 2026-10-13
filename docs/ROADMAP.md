@@ -12,7 +12,8 @@ the way the author does today.
 - [x] Stale offers expire after 14 days off their board
 
 ## Stage 2 — fetch in the background ✅
-- [x] Scheduled fetch in GitHub Actions at ~18:00 Europe/Warsaw (cron 17:41, off the full hour)
+- [x] Scheduled fetch in GitHub Actions, triggered at 17:45 Europe/Warsaw by cron-job.org
+  (GitHub's own cron at 17:41 is only a fallback: it ran hours late or not at all)
 - [x] Fetch history stored in the database (diagnostics survive reloads)
 - [x] Daily summary e-mail (Gmail SMTP)
 - [ ] Check whether boards block GitHub-hosted runners; mitigate if they do

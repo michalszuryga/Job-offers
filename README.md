@@ -22,7 +22,8 @@ every evening and e-mails a summary of new offers.
   highlights matched to each offer. `applied_at` is stamped the first time an
   offer is marked `APPLIED` and is never cleared afterwards: moving the status
   back, or undoing the change, keeps the original date.
-- **Daily summary e-mail** at about 18:00 Europe/Warsaw (scheduled for 17:41) (Gmail SMTP), listing the
+- **Daily summary e-mail** at about 17:45 Europe/Warsaw (fetch triggered by
+  cron-job.org, GitHub's cron as a fallback; sent with Gmail SMTP), listing the
   offers that fetch added; every fetch also rescores stored offers, so freshness
   and the stale-offer penalty stay current. If the fetch fails before it records
   anything, the e-mail lists offers first seen in the last 24 h instead and says
@@ -33,10 +34,10 @@ every evening and e-mails a summary of new offers.
 ## Architecture
 
 ```
-GitHub Actions (17:41 daily) ──┐                                         ┌── Web app (GitHub Pages, Supabase Auth + RLS)
-                               ├──► scrapers + scoring (Python) ──► Supabase Postgres
-Dashboard "Fetch live jobs" ───┘                                         ├── Streamlit dashboard (legacy)
-                                                                         └──► e-mail summary
+cron-job.org 17:45 ─► GitHub Actions ─┐                                  ┌── Web app (GitHub Pages, Supabase Auth + RLS)
+  (GitHub cron 17:41 = fallback)      ├──► scrapers + scoring ──► Supabase Postgres
+Dashboard "Fetch live jobs" ──────────┘     (Python)              ├── Streamlit dashboard (legacy)
+                                                                  └──► e-mail summary (Gmail SMTP)
 ```
 
 - `job_finder/sources/` — one adapter per board, all returning the common `Job` model.
@@ -44,7 +45,7 @@ Dashboard "Fetch live jobs" ───┘                                        
 - `job_finder/scoring.py` — the match score.
 - `job_finder/storage.py` — Postgres when `DATABASE_URL` is set, SQLite otherwise (local dev, tests).
 - `job_finder/app.py` — Streamlit dashboard.
-- `job_finder/cli.py` — `fetch` and `notify-summary` for the scheduled run.
+- `job_finder/cli.py` — `fetch`, `notify-summary` and `daily-due` (has today's evening fetch run?) for the scheduled run.
 - `web/` — the web app; talks to Supabase directly with the publishable key.
 - `db/web_access.sql` — row-level security and the one write function the web app may call.
 
@@ -109,16 +110,24 @@ settings add:
 | Variable | `APP_URL` | the web app's URL, for this repo `https://michalszuryga.github.io/Job-offers/` (the trailing `/` is optional); the e-mail links to its New view (`?view=new`) and to the best new offer (`?offer=…`) |
 Run it once by hand from *Actions → Daily fetch → Run workflow*.
 
-GitHub's own cron is unreliable (runs hours late or not at all on busy days),
-so the punctual trigger is external. On [cron-job.org](https://cron-job.org)
-create a job for 17:45 Europe/Warsaw, every day:
+**Daily trigger (cron-job.org)** — GitHub's own cron proved unreliable (in
+October 2026 it ran ~4 h late twice and skipped two days), so the punctual
+trigger is external. The owner's [cron-job.org](https://cron-job.org) account
+(free, no payment details) has a job that runs every day at 17:45
+Europe/Warsaw:
 
 - URL: `https://api.github.com/repos/michalszuryga/Job-offers/actions/workflows/daily-fetch.yml/dispatches`
 - Method `POST`, body `{"ref":"main","inputs":{"daily":"true"}}`
 - Headers: `Accept: application/vnd.github+json`,
   `Authorization: Bearer <token>`, `Content-Type: application/json`
-- Token: a fine-grained personal access token limited to this repository with
-  *Actions: Read and write*.
+- Token: the fine-grained personal access token `joffers-daily-fetch-trigger`
+  (GitHub → Settings → Developer settings → Fine-grained tokens), limited to this
+  repository with *Actions: Read and write* only. It can start or cancel
+  workflow runs here and nothing else. **It expires** (set for about a year):
+  when it does, the daily fetch silently falls back to GitHub's cron — create a
+  new token and paste it into the cron-job.org job's `Authorization` header.
+- Check it works: cron-job.org's job history should show HTTP 204, and
+  *Actions → Daily fetch* gets a `workflow_dispatch` run at 17:45.
 
 Daily runs (external or cron) skip when today's evening fetch already happened
 (`python -m job_finder.cli daily-due`); a manual *Run workflow* always fetches.
