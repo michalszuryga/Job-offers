@@ -18,7 +18,7 @@ README's *Deployment* section.
 | `DATABASE_URL` (Supabase session pooler, `postgres` role) | GitHub secret, Streamlit secrets, local `.streamlit/secrets.toml` (gitignored) | When the DB password changes, update all three. |
 | `SMTP_USER` / `SMTP_PASSWORD` (Gmail app password) | GitHub secrets; Supabase Auth SMTP settings | If the app password is revoked. |
 | Supabase URL + publishable key | GitHub variables `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` | Public by design. |
-| `joffers-daily-fetch-trigger` GitHub token | cron-job.org job header | Before it expires (≈ 1 year from creation). |
+| `joffers-daily-fetch-trigger` GitHub token | cron-job.org job header | **Expires 2027-06-14** — renew before then. |
 | `APP_URL`, `SUMMARY_TO`, `CONTROLLER_NAME`, `CONTACT_EMAIL` | GitHub variables (the last two default to the owner's in `web-pages.yml`) | — |
 
 Never put keys in Git; use the hosting provider's secret settings.

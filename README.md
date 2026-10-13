@@ -123,7 +123,7 @@ Europe/Warsaw:
 - Token: the fine-grained personal access token `joffers-daily-fetch-trigger`
   (GitHub → Settings → Developer settings → Fine-grained tokens), limited to this
   repository with *Actions: Read and write* only. It can start or cancel
-  workflow runs here and nothing else. **It expires** (set for about a year):
+  workflow runs here and nothing else. **It expires on 2027-06-14**:
   when it does, the daily fetch silently falls back to GitHub's cron — create a
   new token and paste it into the cron-job.org job's `Authorization` header.
 - Check it works: cron-job.org's job history should show HTTP 204, and
