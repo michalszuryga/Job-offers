@@ -109,7 +109,21 @@ settings add:
 | Variable | `APP_URL` | the web app's URL, for this repo `https://michalszuryga.github.io/Job-offers/` (the trailing `/` is optional); the e-mail links to its New view (`?view=new`) and to the best new offer (`?offer=…`) |
 Run it once by hand from *Actions → Daily fetch → Run workflow*.
 
-GitHub pauses scheduled workflows after 60 days without repository activity.
+GitHub's own cron is unreliable (runs hours late or not at all on busy days),
+so the punctual trigger is external. On [cron-job.org](https://cron-job.org)
+create a job for 17:45 Europe/Warsaw, every day:
+
+- URL: `https://api.github.com/repos/michalszuryga/Job-offers/actions/workflows/daily-fetch.yml/dispatches`
+- Method `POST`, body `{"ref":"main","inputs":{"daily":"true"}}`
+- Headers: `Accept: application/vnd.github+json`,
+  `Authorization: Bearer <token>`, `Content-Type: application/json`
+- Token: a fine-grained personal access token limited to this repository with
+  *Actions: Read and write*.
+
+Daily runs (external or cron) skip when today's evening fetch already happened
+(`python -m job_finder.cli daily-due`); a manual *Run workflow* always fetches.
+GitHub pauses scheduled workflows after 60 days without repository activity;
+the external trigger is not affected.
 
 ## Notes
 

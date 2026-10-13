@@ -3,6 +3,7 @@ import argparse
 from .collector import run_fetch
 from .config import load_config, overrides_from_meta
 from .notify import build_summary, fetch_is_current, send_email, summary_rows
+from .schedule import daily_fetch_done
 from .scoring import score_job
 from .storage import JobStore
 from .sources.sample import SampleSource
@@ -22,12 +23,15 @@ def main():
     summary_cmd = sub.add_parser("notify-summary", help="E-mail a summary of the offers new in the last fetch")
     summary_cmd.add_argument("--hours", type=int, default=24,
                              help="Fallback window when the last fetch's new ids aren't recorded")
+    sub.add_parser("daily-due", help="Print 'yes' unless today's evening fetch already ran")
     args = parser.parse_args()
 
     store = JobStore()
 
     if args.cmd == "init-db":
         print("Database initialized.")
+    elif args.cmd == "daily-due":
+        print("no" if daily_fetch_done(store.get_meta("last_fetch_at")) else "yes")
     elif args.cmd == "demo":
         cfg = load_config(overrides=overrides_from_meta(store.get_all_meta()))
         created = 0
