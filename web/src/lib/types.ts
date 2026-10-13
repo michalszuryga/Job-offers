@@ -11,6 +11,8 @@ export const STATUSES = [
   'INTERVIEW',
   'REJECTED',
   'WITHDRAWN',
+  // "Not for me": the triage verdict (plan P10). Expires like an untouched offer (storage.py).
+  'DISMISSED',
 ] as const
 
 export type Status = (typeof STATUSES)[number]

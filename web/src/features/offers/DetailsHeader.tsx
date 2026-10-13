@@ -1,32 +1,27 @@
-import { ChevronDown, ChevronLeft, ChevronUp, ExternalLink, X } from 'lucide-react'
+import { ChevronDown, ChevronLeft, ChevronUp, ExternalLink, ThumbsDown, X } from 'lucide-react'
 import { Button, cx, IconButton, VisuallyHidden } from '../../components/ui'
 import { useI18n } from '../../i18n'
 import { closeOffer, openOffer } from '../../lib/router'
 import type { Status } from '../../lib/types'
+import type { ListPosition } from './position'
 import { StatusSelect } from './StatusSelect'
 import './DetailsHeader.css'
-
-// Where the open offer sits in the list as filtered and sorted right now.
-export interface ListPosition {
-  index: number
-  total: number
-  previousId: string | null
-  nextId: string | null
-}
 
 interface Props {
   wide: boolean
   position: ListPosition | null
   status: Status | null
   onStatus: (status: Status) => void
+  // "Not for me" (DetailsView): null hides it, once the offer is Not for me already.
+  onDismiss: (() => void) | null
   url: string
 }
 
 // Sticky, 56 px (§4.8). Back (phone) or Close (desktop) go through the router's close, like
 // Esc and the back gesture. Previous and next replace the history entry (lib/router.ts
-// openOffer), so back still lands on the list. Desktop also gets the Status select and
-// "Open offer" here; the phone has them in the action bar at the bottom.
-export function DetailsHeader({ wide, position, status, onStatus, url }: Props) {
+// openOffer), so back still lands on the list. Desktop also gets "Not for me", the Status
+// select and "Open offer" here; the phone has them in the action bar at the bottom.
+export function DetailsHeader({ wide, position, status, onStatus, onDismiss, url }: Props) {
   const { t } = useI18n()
   // aria-disabled rather than disabled at either end: focus stays on the button that took
   // you there instead of dropping to <body>.
@@ -66,6 +61,17 @@ export function DetailsHeader({ wide, position, status, onStatus, url }: Props) 
       )}
       {wide && (
         <div className="details-header__actions">
+          {onDismiss && (
+            <Button
+              variant="secondary"
+              icon={ThumbsDown}
+              aria-keyshortcuts="x"
+              className="details-header__dismiss"
+              onClick={onDismiss}
+            >
+              {t.details.dismiss}
+            </Button>
+          )}
           <StatusSelect status={status} onChange={onStatus} className="details-header__status" />
           <Button
             href={url}

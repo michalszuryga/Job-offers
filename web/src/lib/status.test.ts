@@ -8,7 +8,7 @@ describe('status groups (§2.4)', () => {
       { key: 'triage', statuses: ['TO_REVIEW', 'REVIEW'] },
       { key: 'preparing', statuses: ['INTERESTED', 'CV_GENERATED', 'READY_TO_APPLY'] },
       { key: 'active', statuses: ['APPLIED', 'INTERVIEW'] },
-      { key: 'closed', statuses: ['REJECTED', 'WITHDRAWN'] },
+      { key: 'closed', statuses: ['REJECTED', 'WITHDRAWN', 'DISMISSED'] },
     ])
   })
 
@@ -28,6 +28,7 @@ test('tones follow §2.4', () => {
     INTERVIEW: 'success',
     REJECTED: 'danger',
     WITHDRAWN: 'outline',
+    DISMISSED: 'outline',
   })
 })
 
@@ -41,5 +42,5 @@ test('statusAtLeast compares pipeline positions; no status is TO_REVIEW', () => 
 
 test('isStatus accepts only the statuses this build knows', () => {
   expect(STATUSES.every(isStatus)).toBe(true)
-  expect([null, undefined, '', 'DISMISSED', 'applied'].some(isStatus)).toBe(false)
+  expect([null, undefined, '', 'ARCHIVED', 'applied'].some(isStatus)).toBe(false)
 })

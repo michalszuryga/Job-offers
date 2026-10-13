@@ -270,6 +270,7 @@ export const pl: Messages = {
     INTERVIEW: 'Rozmowa',
     REJECTED: 'Odrzucona',
     WITHDRAWN: 'Wycofana',
+    DISMISSED: 'Nie dla mnie',
   },
   statusGroups: {
     triage: 'Selekcja',
@@ -295,6 +296,7 @@ export const pl: Messages = {
     newTab: '(otwiera się w nowej karcie)',
     status: 'Status',
     interested: 'Oznacz jako interesującą',
+    dismiss: 'Nie dla mnie',
     why: (score) => `Dlaczego ${score}?`,
     scoresToday: 'Wyniki zaktualizowano dziś',
     scoresYesterday: 'Wyniki zaktualizowano wczoraj',

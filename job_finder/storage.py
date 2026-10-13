@@ -6,7 +6,9 @@ from pathlib import Path
 from .models import Job, canonical_job_url
 
 
-DEFAULT_STATUSES = ["TO_REVIEW", "REVIEW", "INTERESTED", "CV_GENERATED", "READY_TO_APPLY", "APPLIED", "INTERVIEW", "REJECTED", "WITHDRAWN"]
+# Mirrored by web/src/lib/types.ts STATUSES and the allow-list in db/web_access.sql.
+# DISMISSED ("Not for me") is set from the web app's triage action.
+DEFAULT_STATUSES = ["TO_REVIEW", "REVIEW", "INTERESTED", "CV_GENERATED", "READY_TO_APPLY", "APPLIED", "INTERVIEW", "REJECTED", "WITHDRAWN", "DISMISSED"]
 
 # All timestamp columns are plain TEXT (matches how SQLite already stores
 # job.published_at.isoformat() etc.). SQLite's CURRENT_TIMESTAMP already
@@ -274,13 +276,14 @@ class JobStore:
                     self._exec(conn, f"UPDATE jobs SET last_seen_at={_NOW} WHERE external_id IN ({marks})", chunk)
 
     # Statuses that mean nothing was done with an offer yet. The web app moves an offer
-    # to REVIEW just by opening it, so "opened" still counts as untouched.
-    UNTOUCHED_STATUSES = ("TO_REVIEW", "REVIEW")
+    # to REVIEW just by opening it, so "opened" still counts as untouched; DISMISSED
+    # ("Not for me") is a triage verdict, so it expires the same way.
+    UNTOUCHED_STATUSES = ("TO_REVIEW", "REVIEW", "DISMISSED")
 
     def delete_expired(self, source, older_than_days=14):
         """Drop offers of `source` not seen on its listing for N days. Only
-        untouched offers go: To review, or Reviewed (merely opened), with no
-        rate or notice period recorded. Anything you've acted on is kept, even
+        untouched offers go: To review, Reviewed (merely opened) or Not for me
+        (DISMISSED), with no rate or notice period recorded. Anything you've acted on is kept, even
         after the posting disappears."""
         cutoff = self._ago(older_than_days, "days")
         statuses = ", ".join("?" * len(self.UNTOUCHED_STATUSES))

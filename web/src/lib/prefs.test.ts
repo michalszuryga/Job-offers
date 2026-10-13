@@ -27,7 +27,7 @@ describe('parseFilters', () => {
   })
 
   test('replaces only the invalid fields', () => {
-    const stored = { window: 'week', minScore: '70', status: 'DISMISSED', source: 3, query: null, sort: 'random' }
+    const stored = { window: 'week', minScore: '70', status: 'ARCHIVED', source: 3, query: null, sort: 'random' }
     expect(parseFilters(v2(stored))).toEqual(DEFAULT_FILTERS)
     expect(parseFilters(v2({ window: '3d', status: 'WEIRD' }))).toEqual({ ...DEFAULT_FILTERS, window: '3d' })
   })

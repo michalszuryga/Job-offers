@@ -14,8 +14,8 @@ interface Props {
 
 type SaveState = 'idle' | 'saving' | 'saved' | 'error'
 
-// What you told the employer (§4.8). Collapsed until it matters: from Ready to apply on, or
-// once something is noted. The status itself is not here; it saves the moment it is picked.
+// What you told the employer (§4.8). Collapsed until it matters: from Ready to apply on (Not
+// for me aside: nothing was sent), or once something is noted. The status itself is not here; it saves the moment it is picked.
 // Keyed per offer by its parent, so nothing typed for one offer shows on the next.
 export function TrackingForm({ offer, onSave }: Props) {
   const { t } = useI18n()
@@ -29,7 +29,8 @@ export function TrackingForm({ offer, onSave }: Props) {
   const [toggled, setToggled] = useState<boolean | null>(null)
 
   const noted = saved.rate !== '' || saved.notice !== ''
-  const open = toggled ?? (statusAtLeast(offer.application_status, 'READY_TO_APPLY') || noted)
+  const applying = offer.application_status !== 'DISMISSED' && statusAtLeast(offer.application_status, 'READY_TO_APPLY')
+  const open = toggled ?? (applying || noted)
   const dirty = rate !== saved.rate || notice !== saved.notice
   const busy = state === 'saving'
 

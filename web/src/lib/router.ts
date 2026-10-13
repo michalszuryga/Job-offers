@@ -94,6 +94,28 @@ function overlayOpen(): boolean {
   return [...document.querySelectorAll('[role="menu"]')].some((menu) => menu.checkVisibility())
 }
 
+// Keys typed into a field, or picking an option in a select, are never shortcuts.
+function typing(target: EventTarget | null): boolean {
+  return target instanceof HTMLElement && (target.isContentEditable || target.matches('input, textarea, select'))
+}
+
+// A single-key shortcut while `active`, e.g. x for "Not for me" in the details: no modifiers,
+// no auto-repeat (holding x must not dismiss a run of offers), and never while typing or
+// under an open menu or dialog.
+export function useKeyShortcut(key: string, active: boolean, run: () => void) {
+  useEffect(() => {
+    if (!active) return
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== key || event.defaultPrevented || event.repeat || event.isComposing) return
+      if (event.ctrlKey || event.metaKey || event.altKey || typing(event.target) || overlayOpen()) return
+      event.preventDefault()
+      run()
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [key, active, run])
+}
+
 // Esc closes the details (§4.1) unless something already handled it.
 export function useEscapeToClose(active: boolean, close: () => void) {
   useEffect(() => {

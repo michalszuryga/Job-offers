@@ -52,7 +52,7 @@ create or replace function public.save_offer_tracking(
 language plpgsql security invoker set search_path = public as $$
 begin
   if p_status not in ('TO_REVIEW', 'REVIEW', 'INTERESTED', 'CV_GENERATED', 'READY_TO_APPLY',
-                      'APPLIED', 'INTERVIEW', 'REJECTED', 'WITHDRAWN') then
+                      'APPLIED', 'INTERVIEW', 'REJECTED', 'WITHDRAWN', 'DISMISSED') then
     raise exception 'unknown status %', p_status;
   end if;
   update public.jobs

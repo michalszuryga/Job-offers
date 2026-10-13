@@ -80,7 +80,7 @@ describe('English copy the current e2e relies on', () => {
     expect(en.details).toMatchObject({
       label: 'Offer details', back: 'Back to list', close: 'Close details', previous: 'Previous offer',
       next: 'Next offer', rate: 'Rate you quoted', notice: 'Notice period you gave', save: 'Save', saved: 'Saved.',
-      interested: 'Mark as interested', status: 'Status',
+      interested: 'Mark as interested', dismiss: 'Not for me', status: 'Status',
     })
     expect(en.details.position(3, 12)).toBe('3 / 12')
     expect(en.score.matchedKeywords).toBe('Matched keywords')
@@ -101,10 +101,11 @@ describe('plan tables', () => {
   test('status labels (§2.4)', () => {
     expect(Object.values(en.status)).toEqual([
       'To review', 'Reviewed', 'Interested', 'CV ready', 'Ready to apply', 'Applied', 'Interview', 'Rejected', 'Withdrawn',
+      'Not for me',
     ])
     expect(Object.values(pl.status)).toEqual([
       'Do przejrzenia', 'Przejrzana', 'Interesuje mnie', 'CV gotowe', 'Gotowe do wysłania', 'Wysłano', 'Rozmowa',
-      'Odrzucona', 'Wycofana',
+      'Odrzucona', 'Wycofana', 'Nie dla mnie',
     ])
   })
 

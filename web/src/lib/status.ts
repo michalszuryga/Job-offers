@@ -15,6 +15,7 @@ export const STATUS_META: Readonly<Record<Status, { tone: StatusTone; group: Sta
   INTERVIEW: { tone: 'success', group: 'active' },
   REJECTED: { tone: 'danger', group: 'closed' },
   WITHDRAWN: { tone: 'outline', group: 'closed' },
+  DISMISSED: { tone: 'outline', group: 'closed' },
 }
 
 const GROUP_ORDER: readonly StatusGroupKey[] = ['triage', 'preparing', 'active', 'closed']
@@ -31,6 +32,7 @@ export function isStatus(value: unknown): value is Status {
 }
 
 // Pipeline position, e.g. the Star hides at INTERESTED or later (§4.8). No status yet means TO_REVIEW.
+// DISMISSED comes last, so it counts as past every stage.
 export function statusAtLeast(status: Status | null, min: Status): boolean {
   return STATUSES.indexOf(status ?? 'TO_REVIEW') >= STATUSES.indexOf(min)
 }

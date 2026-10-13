@@ -14,6 +14,7 @@ import { ActiveFilterChips } from './ActiveFilterChips'
 import { BatchHeader } from './BatchHeader'
 import { EmptyList, LoadError } from './ListStates'
 import { OfferList } from './OfferList'
+import { listPosition } from './position'
 import { TodaySummary } from './TodaySummary'
 import { Toolbar } from './Toolbar'
 import { useDashboard } from './useDashboard'
@@ -89,20 +90,11 @@ export function OffersPage() {
   )
   const selected = dashboard?.offers.find((o) => o.external_id === selectedId) ?? null
 
-  // "3 / 12" and previous/next walk the list as filtered and sorted now. The open offer always
-  // keeps its place, even once a change takes it out of the filter (opening one under "To
-  // review" marks it Reviewed), so next still means the one after it.
-  const position = useMemo(() => {
-    if (!selected) return null
-    const sequence = visible.includes(selected) ? visible : sortOffers([...visible, selected], filters.sort, salaryCfg)
-    const index = sequence.indexOf(selected)
-    return {
-      index,
-      total: sequence.length,
-      previousId: sequence[index - 1]?.external_id ?? null,
-      nextId: sequence[index + 1]?.external_id ?? null,
-    }
-  }, [visible, selected, filters.sort, salaryCfg])
+  // "3 / 12", previous/next and "Not for me" walk the list as filtered and sorted now.
+  const position = useMemo(
+    () => selected && listPosition(visible, selected, (offers) => sortOffers(offers, filters.sort, salaryCfg)),
+    [visible, selected, filters.sort, salaryCfg],
+  )
 
   // Closing hands focus back to the card of the offer that was open (§4.8), when it was
   // inside the details: a click elsewhere (the logo) keeps its own. On phones the details

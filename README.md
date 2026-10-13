@@ -15,13 +15,16 @@ every evening and e-mails a summary of new offers.
   salary, freshness) plus hard exclusions (e.g. Java-as-a-requirement, junior-only).
 - **Deduplication** across boards by normalized title + company.
 - **Lifecycle:** offers you haven't acted on (`TO_REVIEW`, or `REVIEW`, which the
-  web app sets when you merely open one) are removed after 14 days without appearing
+  web app sets when you merely open one) and offers marked Not for me
+  (`DISMISSED`) are removed after 14 days without appearing
   on their board, unless you recorded a rate or notice period; anything you've
   triaged further is kept.
 - **Tracking:** application status, the rate and notice period you quoted, CV
   highlights matched to each offer. `applied_at` is stamped the first time an
   offer is marked `APPLIED` and is never cleared afterwards: moving the status
-  back, or undoing the change, keeps the original date.
+  back, or undoing the change, keeps the original date. **Not for me**
+  (`DISMISSED`, button or `x` in the web app's details) sets the status and
+  moves straight on to the next offer; Undo puts the status back.
 - **Daily summary e-mail** at about 17:45 Europe/Warsaw (fetch triggered by
   cron-job.org, GitHub's cron as a fallback; sent with Gmail SMTP), listing the
   offers that fetch added; every fetch also rescores stored offers, so freshness

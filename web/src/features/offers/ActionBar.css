@@ -24,8 +24,22 @@
   flex: none;
 }
 
+.action-bar__dismiss {
+  flex: none;
+  flex-direction: column;
+  gap: 0;
+  padding-inline: var(--space-2);
+  font-size: var(--fs-xs);
+  line-height: var(--lh-xs);
+  white-space: nowrap;
+}
+
+/* Icon only (its name is visually hidden), square like the Star. */
 .action-bar__open {
   flex: none;
+  gap: 0;
+  padding-inline: 0;
+  inline-size: var(--control-h);
 }
 
 @media (forced-colors: active) {

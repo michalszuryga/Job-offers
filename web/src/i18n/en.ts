@@ -20,6 +20,7 @@ const statuses: Record<Status, string> = {
   INTERVIEW: 'Interview',
   REJECTED: 'Rejected',
   WITHDRAWN: 'Withdrawn',
+  DISMISSED: 'Not for me',
 }
 
 const statusGroups: Record<StatusGroupKey, string> = {
@@ -373,6 +374,8 @@ export const en = {
     newTab: '(opens in a new tab)',
     status: 'Status',
     interested: 'Mark as interested',
+    // Sets DISMISSED and moves on to the next offer (§4.9's one exception); key x.
+    dismiss: 'Not for me',
     // The match card (§4.8).
     why: (score: number) => `Why ${score}?`,
     scoresToday: 'Scores updated today',

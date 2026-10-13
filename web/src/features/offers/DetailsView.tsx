@@ -1,25 +1,25 @@
 import { Building2, Clock, FileText, Globe, MapPin, type LucideIcon } from 'lucide-react'
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { useCoverPage } from '../../components/shell/pageCover'
 import { Button, Callout, cx, Icon, VisuallyHidden } from '../../components/ui'
 import { useI18n } from '../../i18n'
 import { formatAgo, formatDateTime, timeOf } from '../../lib/format'
 import { useDataSource } from '../../lib/dataSource'
+import { closeOffer, openOffer, useKeyShortcut } from '../../lib/router'
 import type { SalaryConfig } from '../../lib/salary'
 import { parseBreakdown, scoringFrom } from '../../lib/score'
 import type { Offer, OfferDetails, ScoringProfile, Status } from '../../lib/types'
 import { ActionBar } from './ActionBar'
-import { DetailsHeader, type ListPosition } from './DetailsHeader'
+import { DetailsHeader } from './DetailsHeader'
 import { Description } from './Description'
 import { candidateCasing, salaryThreshold } from './match'
 import { MatchCard } from './MatchCard'
+import type { ListPosition } from './position'
 import { SalaryBlock } from './SalaryBlock'
 import { TrackingForm } from './TrackingForm'
 import { useTracking, type GetOffer, type UpdateOffer } from './useTracking'
 import './DetailsView.css'
-
-export type { ListPosition }
 
 interface Props {
   // The open offer as the list has it (status changes show there at once).
@@ -112,6 +112,19 @@ export function DetailsView({
   const scoring = useMemo(() => scoringFrom(scoringProfile), [scoringProfile])
   const casing = useMemo(() => candidateCasing(scoringProfile), [scoringProfile])
   const onStatus = (status: Status) => changeStatus(id, status)
+
+  // "Not for me" (§4.9), button or x: the one status change that moves on, to the next offer
+  // in the list as it is now, replacing this history entry so back still lands on the list.
+  // After the last offer it closes. Undo puts the status back and stays where it is.
+  const nextId = position?.nextId ?? null
+  const dismiss = useCallback(() => {
+    changeStatus(id, 'DISMISSED')
+    if (nextId != null) openOffer(nextId)
+    else closeOffer()
+  }, [changeStatus, id, nextId])
+  const dismissable = offer.application_status !== 'DISMISSED'
+  useKeyShortcut('x', dismissable, dismiss)
+  const onDismiss = dismissable ? dismiss : null
   const published = timeOf(offer.published_at) != null
 
   const aside = (
@@ -120,7 +133,14 @@ export function DetailsView({
       className={cx('details', wide ? 'details--pane' : 'details--view')}
       aria-label={t.details.label}
     >
-      <DetailsHeader wide={wide} position={position} status={offer.application_status} onStatus={onStatus} url={offer.url} />
+      <DetailsHeader
+        wide={wide}
+        position={position}
+        status={offer.application_status}
+        onStatus={onStatus}
+        onDismiss={onDismiss}
+        url={offer.url}
+      />
       {/* Keyed: what one offer loaded, typed or unfolded never shows on the next. */}
       <div key={id} className="details__body">
         <div className="details__hero">
@@ -185,7 +205,9 @@ export function DetailsView({
         <TrackingForm offer={offer} onSave={(notes) => saveNotes(id, notes)} />
         {current !== 'error' && <Description text={details ? (details.description ?? '') : null} clamp={!wide} />}
       </div>
-      {!wide && <ActionBar status={offer.application_status} onStatus={onStatus} url={offer.url} />}
+      {!wide && (
+        <ActionBar status={offer.application_status} onStatus={onStatus} onDismiss={onDismiss} url={offer.url} />
+      )}
     </aside>
   )
 

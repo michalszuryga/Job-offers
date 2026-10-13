@@ -1,5 +1,5 @@
 from job_finder.models import Job
-from job_finder.storage import JobStore
+from job_finder.storage import DEFAULT_STATUSES, JobStore
 
 
 def test_upsert_works(tmp_path):
@@ -176,6 +176,29 @@ def test_delete_expired_also_expires_offers_that_were_only_opened(tmp_path):
     assert store.delete_expired("src", older_than_days=3) == 2
     remaining = {row["external_id"] for row in store.list_all()}
     assert remaining == {interested.external_id, noted.external_id}
+
+
+def test_delete_expired_also_expires_dismissed_offers(tmp_path):
+    # "Not for me" is a triage verdict: it expires like an untouched offer, unless a rate or
+    # notice period was recorded, and only once the posting has not been seen for N days.
+    db = tmp_path / "jobs.db"
+    store = JobStore(db)
+    dismissed = Job("QA 1", "A", "https://example.com/jobs/1", "src")
+    noted = Job("QA 2", "B", "https://example.com/jobs/2", "src")
+    recent = Job("QA 3", "C", "https://example.com/jobs/3", "src")
+    for job in (dismissed, noted, recent):
+        store.upsert(job)
+        store.set_status(job.external_id, "DISMISSED")
+    for job in (dismissed, noted):
+        _set_last_seen(db, job.external_id, "2020-01-01 00:00:00")
+    import sqlite3
+    with sqlite3.connect(db) as conn:
+        conn.execute("UPDATE jobs SET notice_period='1 month' WHERE external_id=?", (noted.external_id,))
+
+    assert "DISMISSED" in DEFAULT_STATUSES
+    assert store.delete_expired("src", older_than_days=3) == 1
+    remaining = {row["external_id"] for row in store.list_all()}
+    assert remaining == {noted.external_id, recent.external_id}
 
 
 def test_fetch_runs_and_new_since(tmp_path):

@@ -42,10 +42,12 @@ describe('StatusPill', () => {
     expect(render(el(StatusPill, { status: 'APPLIED' }))).toMatch(/ui-status-pill--info.*>Applied</)
     expect(render(el(StatusPill, { status: 'WITHDRAWN' }))).toContain('ui-status-pill--outline')
     expect(render(el(StatusPill, { status: 'APPLIED' }), 'pl')).toContain('>Wysłano<')
+    expect(render(el(StatusPill, { status: 'DISMISSED' }))).toMatch(/ui-status-pill--outline.*>Not for me</)
+    expect(render(el(StatusPill, { status: 'DISMISSED' }), 'pl')).toContain('>Nie dla mnie<')
   })
 
   test('an unknown or missing status renders nothing', () => {
-    expect(render(el(StatusPill, { status: 'DISMISSED' }))).toBe('')
+    expect(render(el(StatusPill, { status: 'ARCHIVED' }))).toBe('')
     expect(render(el(StatusPill, { status: null }))).toBe('')
   })
 })

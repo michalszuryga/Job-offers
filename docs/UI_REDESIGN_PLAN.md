@@ -4,13 +4,16 @@
 
 **Done and deployed (one commit each on `main`):** P1 `914dfd6`, P2 `52b1008`, P3 `1584ea4`, P4 `08ea2cd`, P5 `a4dbc72`, P6 `603a2e0`, P7 `1bcc822`, P8 (commit "Redesign P8: …", after the docs commits). Every phase passed V locally; check CI for the latest.
 
-**Next: P9**, then P10.
+**P10 ("Not for me") is implemented but not committed or deployed yet.** P9 is still open. The production database needs the `DISMISSED` allow-list in `db/web_access.sql` (`save_offer_tracking`) **before** this web build is deployed; until then every "Not for me" write fails and rolls back.
+
+**Next: P9.**
 
 **Things the next session must know:**
 - **Bundle (gzip):** app 158.9 / 160, landing 87.0 / 90, demo 107.8 / 120, privacy 84.5 / 90, CSS 19.2 / 20. P8 made Polish messages a lazy chunk (`i18n/messages.ts` `loadMessages`; vitest registers them in `src/i18n/testSetup.ts`), so English is the only language in the entry. The landing's sign-in card, phone preview and score model are lazy chunks, prerendered in place (`progressiveChunkSize: Infinity`).
 - **P8 structure:** `src/App.tsx` is the route tree shared by `main.tsx` and `prerender.tsx`; each route chunk is preloaded before the first render (`route()`), and `main.tsx` hydrates only when the prerendered page and language (`#root[data-prerendered][data-lang]`) match. `/` shows AppRoot only with a stored session or `#access_token` (`lib/session.ts`, mirrored by the head script's `data-boot=app`). Offers screens read `lib/dataSource.ts` from context (`supabaseSource` in `lib/offers.ts`, `demoSource` in `features/demo`); the demo persists nothing (`persistent:false`).
 - **Controller/contact** for `/privacy` are set: `web-pages.yml` defaults to `Michał Szuryga` / `msklin6@gmail.com` (repo variables `CONTROLLER_NAME` / `CONTACT_EMAIL` override) and sets `REQUIRE_PUBLIC_CONFIG=1`.
 - **P10 needs the owner first:** the `DISMISSED` SQL must be applied to production Supabase before the web change ships. Ask before running anything against the production database.
+- **P10 structure:** `DISMISSED` is last in `STATUSES` (group Closed, tone `outline` like WITHDRAWN; `statusAtLeast` treats it as past every stage, so the Star hides and the tracking form stays collapsed for it). `features/offers/position.ts` `listPosition` gives "3 / 12", previous/next and where "Not for me" moves to; `lib/router.ts` `useKeyShortcut` handles `x` (no modifiers or repeat, not in a field/select, not under a menu or dialog) and is meant for P9's j/k/o/i. On the phone the ActionBar stacks the "Not for me" label under its icon and shows "Open offer" as an icon only (name kept for screen readers) so it fits 360 px; triage.spec checks it in EN and PL. `delete_expired` expires DISMISSED like TO_REVIEW/REVIEW.
 - `npm run test:screens` now writes more than 8 PNGs (auth, gate, privacy, kit). `e2e/filters.ts` has `openFilters`/`closeFilters`.
 - Deviations from this plan, all deliberate:
   - `build.cssTarget` omits `'es2022'` (see §3).
