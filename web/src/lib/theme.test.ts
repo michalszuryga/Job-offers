@@ -3,7 +3,7 @@ import indexHtml from '../../index.html?raw'
 import tokensCss from '../styles/tokens.css?raw'
 import { colorSchemeFor, parseThemePref, THEME_KEY, THEME_PREFS, themeColorFor, toHex } from './theme'
 
-const COLORS = { light: '#FFFFFF', dark: '#131726' }
+const COLORS = { light: '#FFFDF9', dark: '#1D1914' }
 const LIGHT = '(prefers-color-scheme: light)'
 const DARK = '(prefers-color-scheme: dark)'
 
@@ -42,8 +42,8 @@ describe('head values', () => {
 
 describe('toHex', () => {
   test('writes computed colours the way tokens.css and the head script spell them', () => {
-    expect(toHex('rgb(255, 255, 255)')).toBe('#FFFFFF')
-    expect(toHex('rgb(19, 23, 38)')).toBe('#131726')
+    expect(toHex('rgb(255, 253, 249)')).toBe('#FFFDF9')
+    expect(toHex('rgb(29, 25, 20)')).toBe('#1D1914')
     expect(toHex('rgb(0, 0, 0)')).toBe('#000000')
   })
 

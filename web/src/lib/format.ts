@@ -123,6 +123,12 @@ export function formatDateTime(iso: string | null | undefined, lang: Lang): stri
   return time == null ? '' : dateTimeFormat(lang, { dateStyle: 'medium', timeStyle: 'short' }).format(time)
 }
 
+// Today as a newspaper dateline, in Warsaw time like the daily fetch:
+// "Wednesday 14 October" / "środa, 14 października".
+export function formatDateline(lang: Lang, now = Date.now()): string {
+  return dateTimeFormat(lang, { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Europe/Warsaw' }).format(now)
+}
+
 // A calendar day written as 'YYYY-MM-DD' (no time, no zone): "8 Oct" / "8 paź". Empty when unreadable.
 export function formatDay(day: string, lang: Lang): string {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(day)

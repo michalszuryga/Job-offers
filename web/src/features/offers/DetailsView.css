@@ -49,8 +49,8 @@
   inset-block-start: var(--pane-top);
   block-size: calc(100dvh - var(--pane-top) - var(--space-4));
   scroll-padding-block-end: calc(var(--toast-h, 0px) + var(--space-4));
+  border: 1px solid var(--line);
   border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-card);
 }
 
 .details__body {
@@ -60,6 +60,12 @@
   align-content: start;
   gap: var(--space-6);
   padding: var(--space-5) var(--details-pad) var(--space-8);
+}
+
+/* Calm sections separated by rules rather than boxes (visual refresh). */
+.details__body > :is(.match, .tracking, .description) {
+  padding-block-start: var(--space-6);
+  border-block-start: 1px solid var(--line);
 }
 
 .details__hero {
@@ -105,9 +111,8 @@
   flex: none;
 }
 
-/* Windows contrast themes drop box-shadows, which carry the pane's edge on desktop. */
 @media (forced-colors: active) {
   .details--pane {
-    border: 1px solid CanvasText;
+    border-color: CanvasText;
   }
 }

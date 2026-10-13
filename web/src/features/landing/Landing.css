@@ -1,11 +1,10 @@
 /* The landing (plan §4.2): sticky nav, hero (2 columns from 1024 px), feature tiles, how the
-   score works, the privacy note and the footer. Tokens only; the gradient appears in the
-   mark and the hero glow, nowhere else (§2.1). */
+   score works, the privacy note and the footer. Tokens only, and flat: editorial, warm,
+   rules instead of boxes, no gradients (visual refresh). */
 .landing {
   display: flex;
   flex-direction: column;
   min-block-size: 100dvh;
-  /* The glow bleeds past the hero; it must never widen the page. */
   overflow-x: clip;
 }
 
@@ -16,9 +15,7 @@
   top: 0;
   z-index: var(--z-sticky);
   border-block-end: 1px solid var(--line);
-  background: color-mix(in srgb, var(--canvas) 86%, transparent);
-  -webkit-backdrop-filter: saturate(1.5) blur(14px);
-  backdrop-filter: saturate(1.5) blur(14px);
+  background: var(--canvas);
 }
 
 .landing-nav__inner {
@@ -92,26 +89,12 @@
 /* ---------- Hero ---------- */
 
 .hero {
-  position: relative;
-  /* The glow sits behind the hero's content and nothing else. */
-  isolation: isolate;
   display: grid;
   gap: var(--space-12);
   inline-size: 100%;
   max-inline-size: var(--container-max);
   margin-inline: auto;
   padding: var(--space-10) var(--gutter) var(--space-6);
-}
-
-.hero__glow {
-  position: absolute;
-  z-index: -1;
-  inset: -160px -20% auto;
-  block-size: 760px;
-  pointer-events: none;
-  background:
-    radial-gradient(42% 46% at 72% 38%, color-mix(in oklab, var(--mark-to) 20%, transparent), transparent 70%),
-    radial-gradient(38% 40% at 22% 18%, color-mix(in oklab, var(--mark-from) 14%, transparent), transparent 70%);
 }
 
 .hero__copy {
@@ -121,11 +104,27 @@
   min-inline-size: 0;
 }
 
-.hero__badge {
-  justify-self: start;
+/* "Private beta" as a kicker: small caps in the accent, with a short rule before it. */
+.hero__kicker {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  color: var(--brand-ink);
+  font-size: var(--fs-xs);
+  line-height: var(--lh-xs);
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.hero__kicker::before {
+  content: '';
+  inline-size: 28px;
+  border-block-start: 1px solid currentColor;
 }
 
 .hero__title {
+  max-inline-size: 13em;
   font-size: var(--fs-display);
   line-height: var(--lh-display);
   font-weight: var(--fw-display);
@@ -151,7 +150,6 @@
 .hero__demo {
   min-block-size: 48px;
   padding-inline: var(--space-6);
-  border-radius: var(--radius-lg);
   font-size: var(--fs-title);
 }
 
@@ -215,26 +213,25 @@
   line-height: var(--lh-body-lg);
 }
 
-/* Cards on the canvas, like the list's (§2.6). */
+/* Ruled columns on the page rather than cards (visual refresh). */
 .feature,
 .how__card,
 .privacy-note {
-  border-radius: var(--radius-xl);
-  background: var(--surface);
-  box-shadow: var(--shadow-card);
+  border-block-start: 1px solid var(--fg);
 }
 
 /* ---------- Feature tiles ---------- */
 
 .features {
   display: grid;
-  gap: var(--space-4);
+  gap: var(--space-8);
   padding: 0;
   list-style: none;
 }
 
 @media (min-width: 768px) {
   .features {
+    column-gap: var(--space-10);
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
@@ -243,25 +240,24 @@
   display: grid;
   align-content: start;
   gap: var(--space-2);
-  padding: var(--space-6);
+  padding-block-start: var(--space-5);
 }
 
 .feature__icon {
   display: grid;
   place-items: center;
   flex: none;
-  inline-size: 40px;
-  block-size: 40px;
-  margin-block-end: var(--space-2);
-  border-radius: var(--radius-md);
-  background: var(--brand-tint);
+  inline-size: 24px;
+  block-size: 24px;
+  margin-block-end: var(--space-1);
   color: var(--brand-ink);
 }
 
 .feature__title {
-  font-size: var(--fs-h3);
-  line-height: var(--lh-h3);
-  font-weight: var(--fw-h3);
+  font-family: var(--font-serif);
+  font-size: 22px;
+  line-height: 28px;
+  font-weight: var(--fw-semibold);
 }
 
 .feature__body {
@@ -291,7 +287,7 @@
   display: grid;
   align-content: start;
   gap: var(--space-4);
-  padding: var(--space-6);
+  padding-block-start: var(--space-5);
 }
 
 .how__card-title {
@@ -381,7 +377,7 @@
   display: flex;
   align-items: flex-start;
   gap: var(--space-4);
-  padding: var(--space-8) var(--space-6);
+  padding-block: var(--space-6) var(--space-2);
 }
 
 .privacy-note .feature__icon {
@@ -429,6 +425,9 @@
 
 .landing-footer__inner {
   display: flex;
+  color: var(--fg-muted);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-sm);
   flex-wrap: wrap;
   align-items: flex-end;
   justify-content: space-between;
@@ -464,8 +463,14 @@
   display: inline-flex;
   align-items: center;
   min-block-size: var(--target);
-  color: var(--brand-ink);
+  color: var(--fg-muted);
   font-weight: var(--fw-medium);
+}
+
+@media (hover: hover) {
+  .landing-footer__links a:hover {
+    color: var(--fg);
+  }
 }
 
 .landing-footer__prefs {

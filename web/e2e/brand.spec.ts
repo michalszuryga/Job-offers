@@ -113,7 +113,7 @@ test('the favicons are the JOffers mark and no Vite asset is linked', async ({ p
       continue
     }
     const svg = await favicon.text()
-    expect(svg).toContain('#4B3BE8')
+    expect(svg).toContain('#1E5A45')
     // npm run brand copies it from the source of truth.
     expect(svg).toBe(readFileSync(join(WEB, 'brand/mark.svg'), 'utf8'))
   }

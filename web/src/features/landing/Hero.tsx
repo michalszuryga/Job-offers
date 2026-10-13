@@ -1,7 +1,7 @@
 import { lazy, Suspense } from 'react'
 import { ArrowRight } from 'lucide-react'
 import { Link } from 'wouter'
-import { Badge, Button } from '../../components/ui'
+import { Button } from '../../components/ui'
 import { useI18n } from '../../i18n'
 import type { SignInNotice } from '../auth/SignInCard'
 
@@ -21,12 +21,9 @@ export function Hero({ notice, onSignedIn }: Props) {
   const { t } = useI18n()
   return (
     <section className="hero" aria-labelledby="hero-title">
-      {/* The soft brand glow: one of the three places the mark's gradient may appear (§2.1). */}
-      <div className="hero__glow" aria-hidden="true" />
       <div className="hero__copy">
-        <Badge tone="brand" className="hero__badge">
-          {t.landing.badge}
-        </Badge>
+        {/* A small-caps kicker over the headline, as an editorial page would (visual refresh). */}
+        <p className="hero__kicker">{t.landing.badge}</p>
         <h1 id="hero-title" className="hero__title">
           {t.landing.title}
         </h1>

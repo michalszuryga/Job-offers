@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import {
-  applyFilters, formatAgeShort, formatAgo, formatApproxMonthly, formatNumber, formatPoints, formatSalary, sortOffers,
+  applyFilters, formatAgeShort, formatAgo, formatApproxMonthly, formatDateline, formatNumber, formatPoints, formatSalary, sortOffers,
   timeOf,
 } from './format'
 import { DEFAULT_FILTERS } from './prefs'
@@ -180,5 +180,14 @@ describe('applyFilters', () => {
     expect(ids(applyFilters(offers, { ...any, status: 'TO_REVIEW' }, { now: NOW }))).toEqual(['fresh', 'old'])
     expect(ids(applyFilters(offers, { ...any, source: 'Other' }, { now: NOW }))).toEqual([])
     expect(ids(applyFilters(offers, { ...any, query: 'gam' }, { now: NOW }))).toEqual(['old'])
+  })
+})
+
+describe('formatDateline', () => {
+  test('is the Warsaw day, written out', () => {
+    // 23:30 UTC is already the next day in Warsaw (UTC+2 in October).
+    const late = Date.parse('2026-10-13T23:30:00Z')
+    expect(formatDateline('en', late)).toBe('Wednesday 14 October')
+    expect(formatDateline('pl', late)).toBe('środa, 14 października')
   })
 })

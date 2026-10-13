@@ -21,12 +21,15 @@
   vertical-align: middle;
 }
 
-/* "New": solid brand, 12/16 700, uppercase via CSS so the copy stays sentence case. */
+/* "New": a small terracotta label, no fill (visual refresh). 12/16 700, uppercase via CSS
+   so the copy stays sentence case. */
 .ui-badge--new {
-  --badge-fg: var(--on-brand);
-  --badge-bg: var(--brand);
+  --badge-fg: var(--new);
+  --badge-bg: transparent;
+  /* No padding: 18 px tall like the status text, so a row keeps its height when read. */
+  padding: 0;
   font-weight: var(--fw-bold);
-  letter-spacing: 0.04em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 

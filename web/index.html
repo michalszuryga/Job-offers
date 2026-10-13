@@ -6,8 +6,8 @@
     <meta name="color-scheme" content="light dark" />
     <!-- The app bar's --surface in each theme (tokens.css); the head script below
          pins both to one theme when the user forces it. brand.spec keeps them in sync. -->
-    <meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#131726" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#FFFDF9" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#1D1914" media="(prefers-color-scheme: dark)" />
     <script>
       // Runs before any stylesheet so a saved theme or language never flashes, and a member
       // never sees the prerendered landing. ES5 on purpose; storage access can throw (private
@@ -15,7 +15,7 @@
       (function () {
         var root = document.documentElement
         var supported = ['en', 'pl']
-        var themeColors = { light: '#FFFFFF', dark: '#131726' }
+        var themeColors = { light: '#FFFDF9', dark: '#1D1914' }
         var theme = null
         var lang = null
         var session = null

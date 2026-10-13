@@ -15,11 +15,33 @@
 .batch__summary {
   flex: 1;
   min-width: 0;
-  color: var(--fg);
+  color: var(--fg-muted);
   font-size: var(--fs-sm);
   line-height: var(--lh-sm);
-  font-weight: var(--fw-semibold);
+  font-weight: var(--fw-medium);
   font-variant-numeric: tabular-nums;
+}
+
+/* The dateline leads in ink; the summary follows in muted text, on its own line below
+   1024 px and after a middle dot beside it on desktop. */
+.batch__date {
+  display: block;
+  color: var(--fg);
+  font-weight: var(--fw-semibold);
+}
+
+.batch__sep {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .batch__date {
+    display: inline;
+  }
+
+  .batch__sep {
+    display: inline;
+  }
 }
 
 /* A pill that opens SourcesSheet: drawn 28 px tall by ::before, while the button itself is
@@ -51,7 +73,7 @@
   inset: calc(50% - 14px) 0;
   /* Transparent until forced colours paint it, so the pill keeps an edge there. */
   border: 1px solid transparent;
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-sm);
   background: var(--chip-bg);
 }
 

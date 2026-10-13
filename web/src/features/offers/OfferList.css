@@ -1,16 +1,17 @@
 .offers {
   list-style: none;
   display: grid;
-  gap: var(--card-gap);
+  /* Rows on the page, not floating cards: hairlines between them (visual refresh). The row
+     reaches 8 px past the text column so its hover and selected fill have room. */
+  margin-inline: calc(-1 * var(--space-2));
+  border-block-start: 1px solid var(--line);
 }
 
-/* Up to 2 000 cards: those far off screen skip rendering (progressive, §3), sized meanwhile
-   by the 120 px estimate or their last real height. content-visibility clips paint to the
-   item, so the item reaches 4 px past its card (and gives that back in margin): room for the
-   focus ring and the card's shadow. */
+/* Up to 2 000 rows: those far off screen skip rendering (progressive, §3), sized meanwhile
+   by the 104 px estimate or their last real height. content-visibility clips paint to the
+   item, so the row's focus ring is drawn inside it (OfferCard.css). */
 .offers > li {
-  margin: -4px;
-  padding: 4px;
+  border-block-end: 1px solid var(--line);
   content-visibility: auto;
-  contain-intrinsic-size: auto 120px;
+  contain-intrinsic-size: auto 104px;
 }

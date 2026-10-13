@@ -8,27 +8,27 @@
 }
 
 .summary__heading {
-  font-size: var(--fs-h3);
-  line-height: var(--lh-h3);
-  font-weight: var(--fw-h3);
+  font-size: var(--fs-h2);
+  line-height: var(--lh-h2);
+  font-weight: var(--fw-h2);
+  letter-spacing: var(--ls-h2);
 }
 
 .summary__grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-3);
+  gap: var(--space-6) var(--space-8);
 }
 
+/* Stats under a rule of ink, like a newspaper's figures box (visual refresh). */
 .summary__tile {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: var(--space-1);
   min-width: 0;
-  padding: var(--space-4) var(--space-5);
-  border-radius: var(--radius-lg);
-  background: var(--surface);
-  box-shadow: var(--shadow-card);
+  padding-block-start: var(--space-3);
+  border-block-start: 1px solid var(--fg);
 }
 
 .summary__label {
@@ -40,11 +40,11 @@
 
 .summary__value {
   color: var(--fg);
-  font-size: var(--fs-num-lg);
-  line-height: 36px;
+  font-family: var(--font-serif);
+  font-size: 36px;
+  line-height: 40px;
   font-weight: var(--fw-num-lg);
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.02em;
+  font-variant-numeric: lining-nums tabular-nums;
 }
 
 .summary__detail {
@@ -111,6 +111,6 @@
 
 @media (forced-colors: active) {
   .summary__tile {
-    border: 1px solid CanvasText;
+    border-color: CanvasText;
   }
 }

@@ -54,6 +54,12 @@ h4 {
   text-wrap: balance;
 }
 
+/* Editorial headings (visual refresh): page and section titles in the serif. Zero
+   specificity, so a component can still opt a heading out. */
+:where(h1, h2) {
+  font-family: var(--font-serif);
+}
+
 p,
 li {
   text-wrap: pretty;

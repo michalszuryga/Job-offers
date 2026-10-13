@@ -52,7 +52,8 @@ const PAIRS: [string[], string[], number, string][] = [
   [['fg-muted'], ['canvas', 'surface', 'surface-2', 'surface-raised', 'brand-tint'], TEXT, 'secondary text, incl. meta on the selected card'],
   [['brand'], ['canvas', 'surface', 'surface-2', 'surface-raised'], TEXT, 'links and link buttons'],
   [['brand-ink'], ['brand-tint', 'surface', 'canvas'], TEXT, 'text on brand tint'],
-  [['on-brand'], ['brand', 'brand-hover'], TEXT, 'primary buttons, NEW badge'],
+  [['on-brand'], ['brand', 'brand-hover'], TEXT, 'primary buttons'],
+  [['new'], ['canvas', 'surface', 'surface-2', 'surface-raised', 'brand-tint'], TEXT, 'the terracotta New label, incl. on the selected row'],
   [['success', 'info', 'warning', 'danger'], ['surface', 'surface-raised'], TEXT, 'status text'],
   [['warning', 'danger'], ['canvas'], TEXT, 'fetch warning, page-level errors'],
   [['success', 'danger'], ['surface-2'], TEXT, 'save feedback in panels'],
@@ -61,7 +62,7 @@ const PAIRS: [string[], string[], number, string][] = [
   [['focus'], ['canvas', 'surface', 'surface-2', 'surface-raised', 'brand-tint'], UI, 'focus ring'],
   // Callouts sit on the tone tints and hold buttons and "Technical details".
   [['line-strong', 'focus'], ['success-tint', 'info-tint', 'warning-tint', 'danger-tint'], UI, 'controls inside callouts'],
-  [['brand'], ['surface', 'brand-tint'], UI, 'NEW badge, selected card ring'],
+  [['brand'], ['surface', 'brand-tint'], UI, 'selected row rule, unread dot'],
   [['fg-muted'], ['surface-2'], UI, 'low band ring'],
 ]
 

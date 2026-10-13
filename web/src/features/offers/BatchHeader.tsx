@@ -1,7 +1,7 @@
 import { CircleAlert, RefreshCw, TriangleAlert } from 'lucide-react'
 import { cx, Icon, IconButton } from '../../components/ui'
 import { useI18n, type Messages } from '../../i18n'
-import { formatAgo, timeOf } from '../../lib/format'
+import { formatAgo, formatDateline, timeOf } from '../../lib/format'
 import type { SourceHealth } from '../../lib/sources'
 import type { FetchRun } from '../../lib/types'
 import './BatchHeader.css'
@@ -41,7 +41,14 @@ export function BatchHeader({ lastRun, newCount, reviewed, health, refreshing, o
   return (
     <div className="batch">
       <div className="batch__line">
-        <p className="batch__summary">{summary}</p>
+        {/* The dateline (visual refresh), then the summary in its own element. */}
+        <p className="batch__summary">
+          <span className="batch__date">{formatDateline(lang)}</span>
+          <span className="batch__sep" aria-hidden="true">
+            {' · '}
+          </span>
+          <span className="batch__text">{summary}</span>
+        </p>
         {chip && (
           <button
             type="button"

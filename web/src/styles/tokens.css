@@ -9,46 +9,46 @@
 :root[data-theme=light]{color-scheme:light}
 :root[data-theme=dark]{color-scheme:dark}
 
-/* §2.2 colours, verbatim. */
+/* §2.2 colours: the editorial, warm palette (visual refresh). Ivory canvas, warm near-black
+   ink, hairline warm-grey lines and one accent, bottle green; terracotta marks "New" only.
+   Score bands run moss (top), slate (strong), ochre (fair), muted ink (low). */
 :root{
---canvas:light-dark(#F5F6FA,#0A0C14);   --surface:light-dark(#FFFFFF,#131726);
---surface-2:light-dark(#EEF0F5,#1A1F31); --surface-raised:light-dark(#FFFFFF,#20263A);
---line:light-dark(#E4E7EF,#252B3D);      /* decorative only */
---line-strong:light-dark(#737B8F,#727C92);/* control borders: 3.71 on light surface-2; 3.58 on dark raised, 4.26 on dark surface */
---fg:light-dark(#0E1120,#E6E9F2);        --fg-muted:light-dark(#586074,#99A1B5); /* ≥5.4:1 everywhere */
---brand:light-dark(#4B3BE8,#9A90FF);     --brand-hover:light-dark(#3B2BC9,#B0A8FF);
---on-brand:light-dark(#FFFFFF,#0A0C14);  --brand-tint:light-dark(#EEECFF,#211C47);
---brand-ink:light-dark(#4B3BE8,#A99FFF); --focus:var(--brand);
---success:light-dark(#047857,#3DD68C);   --success-tint:light-dark(#E1F5EC,#0F2A20);
---info:light-dark(#0369A1,#5BB6F2);      --info-tint:light-dark(#E2EFFA,#0D2335);
---warning:light-dark(#9A5B00,#F0B44C);   --warning-tint:light-dark(#FCF1DC,#2D2210);
---danger:light-dark(#B42318,#FF8A80);    --danger-tint:light-dark(#FDECEA,#2E1517);
+--canvas:light-dark(#F7F3EC,#15120E);   --surface:light-dark(#FFFDF9,#1D1914);
+--surface-2:light-dark(#EFE9DF,#27221B); --surface-raised:light-dark(#FFFDF9,#2B251E);
+--line:light-dark(#E4DCCF,#352E25);      /* decorative only: hairlines between rows */
+--line-strong:light-dark(#857A6B,#857A6A);/* control borders: ≥3.48 on light surface-2; ≥3.60 on dark raised */
+--fg:light-dark(#1F1A14,#EFE8DC);        --fg-muted:light-dark(#665C50,#AFA493); /* ≥5.4:1 everywhere */
+--brand:light-dark(#1E5A45,#7CC4A2);     --brand-hover:light-dark(#164535,#9AD3B8);
+--on-brand:light-dark(#FFFDF9,#15120E);  --brand-tint:light-dark(#E2ECE5,#1C3128);
+--brand-ink:light-dark(#1E5A45,#8FD0B1); --focus:var(--brand);
+--new:light-dark(#A84B24,#EA8E66);       /* terracotta: the "New" label and nothing else */
+--success:light-dark(#2F6A35,#8CCB8A);   --success-tint:light-dark(#E4EEDD,#1D2A1A);
+--info:light-dark(#2C5E78,#8DBFD8);      --info-tint:light-dark(#E1EBEE,#18262D);
+--warning:light-dark(#875200,#E2B262);   --warning-tint:light-dark(#F5E8D0,#2E2414);
+--danger:light-dark(#A3381F,#F09A82);    --danger-tint:light-dark(#F7E2DA,#33201A);
 }
 
-/* Brand mark (§2.1): the same in both themes, so plain values rather than light-dark().
-   The gradient appears only in the mark, the hero glow and og.png; ink is the ring and J. */
+/* Brand mark (§2.1): flat, the same in both themes, so plain values rather than light-dark().
+   A bottle-green squircle with the ivory ring and J; og.png uses the same pair. */
 :root {
-  --mark-from: #4B3BE8;
-  --mark-to: #8B5CF6;
-  --mark-ink: #FFFFFF;
+  --mark-bg: #1E5A45;
+  --mark-ink: #FFFDF9;
 }
 
 :root {
-  /* Shadow colours. Dark mode leans on the surface step (surface → surface-raised)
-     for elevation, so its drops are dark and its ring/highlight are faint light. */
-  --sh-ring: light-dark(rgb(14 17 32 / 0.07), rgb(255 255 255 / 0.06));
-  --sh-hi: light-dark(rgb(255 255 255 / 0.8), rgb(255 255 255 / 0.05));
-  --sh-drop: light-dark(rgb(14 17 32 / 0.06), rgb(0 0 0 / 0.35));
-  --sh-drop-strong: light-dark(rgb(14 17 32 / 0.12), rgb(0 0 0 / 0.5));
+  /* Depth is a hairline, not a shadow: cards and panes get a 1 px warm line, and only
+     floating layers (menus, sheets, toasts) keep a soft drop to lift them off the page. */
+  --sh-ring: var(--line);
+  --sh-drop: light-dark(rgb(31 26 20 / 0.08), rgb(0 0 0 / 0.4));
 
-  --shadow-card: 0 0 0 1px var(--sh-ring), 0 1px 2px var(--sh-drop), inset 0 1px 0 var(--sh-hi);
-  --shadow-md: 0 0 0 1px var(--sh-ring), 0 6px 16px -4px var(--sh-drop-strong), 0 2px 4px var(--sh-drop),
-    inset 0 1px 0 var(--sh-hi);
-  --shadow-lg: 0 0 0 1px var(--sh-ring), 0 24px 48px -12px var(--sh-drop-strong), 0 8px 16px -8px var(--sh-drop),
-    inset 0 1px 0 var(--sh-hi);
+  --shadow-card: 0 0 0 1px var(--line);
+  --shadow-md: 0 0 0 1px var(--line), 0 8px 20px -10px var(--sh-drop);
+  --shadow-lg: 0 0 0 1px var(--line), 0 20px 40px -16px var(--sh-drop);
 
   /* §2.5 typography. Sizes are mobile-first; the ≥640 block below holds the larger variants. */
   --font-sans: 'Inter Variable', 'Inter Fallback', system-ui, sans-serif;
+  /* Newsreader 600 for headings and the big numbers only (fonts.css); body stays Inter. */
+  --font-serif: 'Newsreader', 'Newsreader Fallback', Georgia, serif;
   --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
 
   --fw-regular: 400;
@@ -57,9 +57,9 @@
   --fw-heading: 650;
   --fw-bold: 700;
 
-  --fs-display: 36px;  --lh-display: 40px;  --fw-display: var(--fw-bold);     --ls-display: -0.03em;
-  --fs-h1: 24px;       --lh-h1: 30px;       --fw-h1: var(--fw-bold);          --ls-h1: -0.02em;
-  --fs-h2: 22px;       --lh-h2: 28px;       --fw-h2: var(--fw-heading);       --ls-h2: -0.015em;
+  --fs-display: 38px;  --lh-display: 42px;  --fw-display: var(--fw-semibold); --ls-display: -0.015em;
+  --fs-h1: 26px;       --lh-h1: 32px;       --fw-h1: var(--fw-semibold);      --ls-h1: -0.01em;
+  --fs-h2: 24px;       --lh-h2: 30px;       --fw-h2: var(--fw-semibold);      --ls-h2: -0.01em;
   --fs-h3: 17px;       --lh-h3: 24px;       --fw-h3: var(--fw-semibold);
   --fs-h4: 15px;       --lh-h4: 22px;       --fw-h4: var(--fw-heading);
   --fs-title: 16px;    --lh-title: 22px;    --fw-title: var(--fw-medium);     --fw-title-unread: var(--fw-heading);
@@ -67,7 +67,7 @@
   --fs-body: 15px;     --lh-body: 22px;     --fw-body: var(--fw-regular);
   --fs-sm: 13px;       --lh-sm: 18px;       --fw-sm: var(--fw-medium);
   --fs-xs: 12px;       --lh-xs: 16px;       --fw-xs: var(--fw-semibold);      --ls-xs: 0.02em;
-  --fs-num-lg: 28px;   --lh-num-lg: 1;      --fw-num-lg: var(--fw-bold);
+  --fs-num-lg: 30px;   --lh-num-lg: 1;      --fw-num-lg: var(--fw-semibold);
   /* Form fields stay at 16px so iOS Safari never zooms on focus. */
   --fs-input: 16px;
 
@@ -88,10 +88,11 @@
   --card-pad-x: 16px;
   --card-gap: 8px;
 
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
-  --radius-xl: 20px;
+  /* Small and squared-off (visual refresh): controls 4–6, cards 8, sheets and panes 12. */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
   --radius-full: 999px;
 
   /* Hit targets: 32px with a mouse, 44px on touch (WCAG 2.5.8 / Apple HIG). */
@@ -122,8 +123,8 @@
 
 @media (min-width: 640px) {
   :root {
-    --fs-display: 48px;  --lh-display: 52px;
-    --fs-h1: 30px;       --lh-h1: 36px;
+    --fs-display: 56px;  --lh-display: 60px;
+    --fs-h1: 32px;       --lh-h1: 38px;
     --fs-body-lg: 17px;  --lh-body-lg: 28px;
     --gutter: 24px;
   }

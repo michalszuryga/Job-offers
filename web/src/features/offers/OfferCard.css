@@ -3,9 +3,6 @@
    Ring in column 1; title + age, meta, then salary + status in column 2. */
 .offer,
 .offer-preview {
-  /* The edge is a shadow, so no border here (a transparent one would show the selected tint
-     outside its inset ring). Forced colours, which drop shadows, set one at the end. */
-  --card-border: 0px;
   display: grid;
   grid-template-columns: 44px minmax(0, 1fr);
   grid-template-areas:
@@ -15,39 +12,29 @@
   align-items: start;
   column-gap: var(--space-3);
   row-gap: 2px;
-  padding: calc(var(--card-pad-y) - var(--card-border)) calc(var(--card-pad-x) - var(--card-border));
-  border: var(--card-border) solid transparent;
-  border-radius: var(--radius-lg);
-  background: var(--surface);
-  box-shadow: var(--shadow-card);
+  padding: var(--space-4) var(--space-2);
   color: var(--fg);
   text-decoration: none;
-  transition:
-    background-color var(--dur-fast) var(--ease-out),
-    box-shadow var(--dur-fast) var(--ease-out),
-    transform var(--dur-fast) var(--ease-out);
+  transition: background-color var(--dur-fast) var(--ease-out);
 }
 
-/* The list item clips paint 4 px out (OfferList.css), so hover stays inside that: a lift
-   and, in dark mode, the raised surface, rather than a deeper drop shadow. */
+/* An editorial row on the page (visual refresh): no card, no lift. Hover warms the row. */
 @media (hover: hover) {
   .offer:hover {
-    background: var(--surface-raised);
-    transform: translateY(var(--lift));
+    background: var(--surface);
   }
 }
 
-.offer:active {
-  transform: scale(var(--press));
+/* The list item clips paint at its edge (OfferList.css), so the ring sits inside the row. */
+.offer:focus-visible {
+  outline-offset: -2px;
 }
 
-/* Desktop: the offer open beside the list. */
+/* Desktop: the offer open beside the list, a tinted row with a green rule at its start. */
 .offer--selected,
 .offer--selected:hover {
   background: var(--brand-tint);
-  box-shadow:
-    inset 0 0 0 1.5px var(--brand),
-    var(--shadow-card);
+  box-shadow: inset 3px 0 0 var(--brand);
 }
 
 .offer__ring {
@@ -90,8 +77,11 @@
   margin-inline-end: var(--space-2);
   border-radius: var(--radius-full);
   background: var(--brand);
-  /* Centred on the capitals of 16/22 text. */
-  vertical-align: 0.1em;
+  /* Centred on the capitals of 16/22 text. Raised by relative position rather than
+     vertical-align, so the dot never grows the line box and reading an offer never shifts
+     the list's height. */
+  position: relative;
+  inset-block-start: -0.1em;
 }
 
 .offer__age,
@@ -157,18 +147,12 @@
   flex: none;
 }
 
-/* Windows contrast themes drop box-shadows and author backgrounds, which carry the card
-   edges, the selected card and the unread dot here. System colours bring those back. */
+/* Windows contrast themes drop box-shadows and author backgrounds, which carry the
+   selected row and the unread dot here. System colours bring those back. */
 @media (forced-colors: active) {
-  .offer,
-  .offer-preview {
-    --card-border: 1px;
-    border-color: CanvasText;
-  }
-
   .offer--selected {
-    --card-border: 3px;
-    border-color: Highlight;
+    outline: 3px solid Highlight;
+    outline-offset: -3px;
   }
 
   .offer--unread :is(.offer-title, .offer-preview__title)::before {

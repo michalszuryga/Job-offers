@@ -60,18 +60,18 @@
 
 .ui-score-ring__value {
   color: var(--fg);
-  font-size: var(--fs-body);
+  /* Serif numerals (visual refresh), lining and tabular so scores line up down the list. */
+  font-family: var(--font-serif);
+  font-size: 18px;
   line-height: 1;
-  font-weight: var(--fw-bold);
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.02em;
+  font-weight: var(--fw-semibold);
+  font-variant-numeric: lining-nums tabular-nums;
 }
 
 .ui-score-ring--64 .ui-score-ring__value {
   font-size: var(--fs-num-lg);
   line-height: var(--lh-num-lg);
   font-weight: var(--fw-num-lg);
-  letter-spacing: -0.03em;
 }
 
 .ui-score-ring__band {

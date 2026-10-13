@@ -26,15 +26,9 @@ const tagWith = (html: string, className: string) => html.match(new RegExp(`<[^>
 const radios = (html: string) => [...html.matchAll(/<input type="radio"[^>]*>/g)].map((match) => match[0])
 
 describe('Logo', () => {
-  test('each instance has its own url-safe gradient id', () => {
+  test('the mark is flat: no gradient, so no ids to collide between instances', () => {
     const html = render(jsxs('div', { children: [el(Logo, {}), el(Logo, { showWordmark: false })] }))
-    const ids = [...html.matchAll(/<linearGradient id="([^"]+)"/g)].map((match) => match[1])
-    expect(ids).toHaveLength(2)
-    expect(new Set(ids).size).toBe(2)
-    for (const id of ids) {
-      expect(id).toMatch(/^[\w-]+$/)
-      expect(html).toContain(`fill="url(#${id})"`)
-    }
+    expect(html).not.toMatch(/Gradient|url\(#| id="/)
   })
 
   test('the wordmark names it, so the mark is silent', () => {
@@ -60,8 +54,8 @@ describe('Logo', () => {
     expect(html).toContain('stroke-dasharray="50.3 12.6"')
     expect(html).toContain('transform="rotate(-90 16 16)"')
     expect(html).toContain('d="M18.5 10.5v6.5a3.5 3.5 0 0 1-7 0"')
-    expect(html).toContain('stop-color:var(--mark-from)')
-    expect(html).toContain('stop-color:var(--mark-to)')
+    expect(html).toContain('fill:var(--mark-bg)')
+    expect(html).not.toContain('Gradient')
     expect(html).toContain('--logo-size:24px')
   })
 })

@@ -3,9 +3,10 @@ import { SCORE_MAX, scoreBand } from '../../lib/score'
 import { cx } from './cx'
 import './ScoreRing.css'
 
-// 44 on cards, 64 in details. The stroke grows with the ring so both read as the same mark;
-// the unscored ring is thinner and dashed, so "no score" never looks like a low one.
-const STROKE = { 44: { arc: 3, none: 2 }, 64: { arc: 4, none: 2.5 } } as const
+// 44 on cards, 64 in details. A fine line (visual refresh) that grows a little with the ring
+// so both read as the same mark; the unscored ring is thinner still and dashed, so "no score"
+// never looks like a low one.
+const STROKE = { 44: { arc: 2, none: 1.5 }, 64: { arc: 2.5, none: 1.5 } } as const
 // Dashes around the unscored ring; whole numbers so the pattern closes without a seam.
 const NONE_DASHES = { 44: 14, 64: 20 } as const
 

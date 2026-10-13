@@ -1,57 +1,47 @@
-/* Status pill (plan §2.4): a 6px dot plus the label. The label carries the meaning;
-   tone only groups statuses at a glance. Not interactive. */
+/* Status (plan §2.4), since the visual refresh small text after a 7px dot rather than a
+   pill. The label carries the meaning; the dot's tone only groups statuses at a glance.
+   Muted text on every tone, so it reads on any row background. Not interactive. */
 .ui-status-pill {
-  --pill-fg: var(--fg-muted);
-  --pill-bg: var(--surface-2);
+  --pill-dot: var(--fg-muted);
   display: inline-flex;
   align-items: center;
   flex: none;
   gap: 6px;
-  padding: 1px var(--space-2);
-  /* Transparent so every tone is the same height; forced colours paint it as the outline. */
-  border: 1px solid transparent;
-  border-radius: var(--radius-full);
-  background: var(--pill-bg);
-  color: var(--pill-fg);
-  font-size: var(--fs-xs);
-  line-height: var(--lh-xs);
-  font-weight: var(--fw-xs);
-  letter-spacing: var(--ls-xs);
+  color: var(--fg-muted);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-sm);
+  font-weight: var(--fw-medium);
   white-space: nowrap;
 }
 
 .ui-status-pill__dot {
   flex: none;
-  inline-size: 6px;
-  block-size: 6px;
+  inline-size: 7px;
+  block-size: 7px;
   border-radius: var(--radius-full);
-  background: currentColor;
+  background: var(--pill-dot);
 }
 
 .ui-status-pill--brand {
-  --pill-fg: var(--brand-ink);
-  --pill-bg: var(--brand-tint);
+  --pill-dot: var(--brand);
 }
 
 .ui-status-pill--info {
-  --pill-fg: var(--info);
-  --pill-bg: var(--info-tint);
+  --pill-dot: var(--info);
 }
 
 .ui-status-pill--success {
-  --pill-fg: var(--success);
-  --pill-bg: var(--success-tint);
+  --pill-dot: var(--success);
 }
 
 .ui-status-pill--danger {
-  --pill-fg: var(--danger);
-  --pill-bg: var(--danger-tint);
+  --pill-dot: var(--danger);
 }
 
-/* Withdrawn: no fill, so it reads as closed on any card background (incl. the selected tint). */
-.ui-status-pill--outline {
-  --pill-bg: transparent;
-  border-color: var(--line-strong);
+/* Withdrawn and Not for me: a hollow dot, closed. */
+.ui-status-pill--outline .ui-status-pill__dot {
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px var(--line-strong);
 }
 
 /* Forced colours flatten backgrounds to Canvas, which would erase the dot. */

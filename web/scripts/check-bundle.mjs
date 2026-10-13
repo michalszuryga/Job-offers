@@ -24,10 +24,11 @@ const ROUTES = {
 }
 
 const MAX_CSS = 24 * KB
-// Measured in P1: inter-latin 48 256 B + inter-latin-ext 85 068 B = 133 324 B; +10%.
-const FONT_BUDGET = 146_657
-// The only font files we ship: Inter Variable, latin + latin-ext subsets.
-const ALLOWED_FONT = /^inter-latin(?:-ext)?-wght-normal-[\w-]+\.woff2$/
+// Measured in the visual refresh: inter-latin 48 256 B + inter-latin-ext 85 068 B
+// + newsreader-latin-600 23 876 B + newsreader-latin-ext-600 15 168 B = 172 368 B; +10%.
+const FONT_BUDGET = 189_605
+// The only font files we ship: Inter Variable and Newsreader 600, latin + latin-ext subsets.
+const ALLOWED_FONT = /^(?:inter-latin(?:-ext)?-wght-normal|newsreader-latin(?:-ext)?-600-normal)-[\w-]+\.woff2$/
 const FONT_EXT = /\.(?:woff2?|ttf|otf|eot)$/i
 
 const dist = resolve(process.argv[2] ?? fileURLToPath(new URL('../dist', import.meta.url)))
@@ -150,8 +151,8 @@ const fontBytes = woff2.reduce((sum, file) => sum + statSync(join(dist, file)).s
 rows.push([`Fonts (${woff2.length} woff2, raw)`, `${fontBytes} B`, `${FONT_BUDGET} B`,
   check(fontBytes <= FONT_BUDGET, `fonts ${fontBytes} B exceed ${FONT_BUDGET} B`)])
 const unexpected = fonts.filter((file) => !ALLOWED_FONT.test(file.split('/').pop()))
-rows.push(['Only Inter latin + latin-ext fonts', '', '', check(unexpected.length === 0,
-  `unexpected font files (only Inter latin/latin-ext woff2 allowed): ${unexpected.join(', ')}`)])
+rows.push(['Only Inter + Newsreader latin/latin-ext fonts', '', '', check(unexpected.length === 0,
+  `unexpected font files (only Inter and Newsreader 600 latin/latin-ext woff2 allowed): ${unexpected.join(', ')}`)])
 
 const latin = woff2.find((file) => /inter-latin-wght-normal/.test(file))
 const html = existsSync(join(dist, 'index.html')) ? read('index.html').toString('utf8') : ''

@@ -13,18 +13,17 @@
 
 .phone-mock__device {
   inline-size: min(100%, 420px);
-  padding: 9px;
-  border-radius: 46px;
-  background: var(--surface-raised);
-  box-shadow:
-    var(--shadow-lg),
-    0 0 0 1px var(--line);
+  /* A plain frame: one line in ink, no shadow (visual refresh). */
+  padding: 8px;
+  border: 1.5px solid var(--fg);
+  border-radius: 44px;
+  background: var(--surface);
 }
 
 .phone-mock__screen {
   overflow: hidden;
   padding-block-end: var(--space-4);
-  border-radius: 37px;
+  border-radius: 35px;
   background: var(--canvas);
 }
 
@@ -92,7 +91,11 @@
 
 .phone-mock__list {
   display: grid;
-  gap: var(--card-gap);
-  padding: 0 var(--space-3);
+  padding: 0 var(--space-2);
+  border-block-start: 1px solid var(--line);
   list-style: none;
+}
+
+.phone-mock__list > li {
+  border-block-end: 1px solid var(--line);
 }

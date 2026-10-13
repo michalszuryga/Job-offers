@@ -53,5 +53,5 @@ the way the author does today.
 ## Later ideas
 - [ ] AI-assisted offer analysis and tailored CV generation
 - [ ] Application assistant with human approval before anything is sent
-- [ ] Visual redesign with a distinct art direction (current UI reads as generic/AI-generated)
+- [~] Visual redesign with a distinct art direction (current UI reads as generic/AI-generated) — partially done: a gentle editorial, warm refresh (ivory + bottle green, Newsreader serif headings, hairline rows; see UI_REDESIGN_PLAN.md Progress). A full art direction can come later.
 - [ ] Hide 'Not for me' offers from the default list (decide)
