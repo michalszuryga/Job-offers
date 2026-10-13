@@ -1,15 +1,23 @@
+import { LogIn } from 'lucide-react'
 import { Link, useLocation, useSearch } from 'wouter'
+import { useI18n } from '../../i18n'
 import { useOfferParam } from '../../lib/router'
-import { Logo } from '../ui'
+import { Button, Logo } from '../ui'
 import { AccountMenu } from './AccountMenu'
 import './AppBar.css'
 
-interface Props {
+export interface Account {
   email: string
   onSignOut: () => void
 }
 
-export function AppBar({ email, onSignOut }: Props) {
+// The landing's sign-in card (features/auth/SignInCard.tsx SIGN_IN_ID), which the landing
+// brings into view on a hash it is opened with.
+const SIGN_IN_HREF = '/#sign-in'
+
+// `account` null: the demo, which has no one to sign out, only a way to sign in.
+export function AppBar({ account }: { account: Account | null }) {
+  const { t } = useI18n()
   const [path] = useLocation()
   const search = useSearch()
   const { offerId, closeOffer } = useOfferParam()
@@ -37,7 +45,15 @@ export function AppBar({ email, onSignOut }: Props) {
       >
         <Logo />
       </Link>
-      <AccountMenu email={email} onSignOut={onSignOut} />
+      {account ? (
+        <AccountMenu email={account.email} onSignOut={account.onSignOut} />
+      ) : (
+        <Link href={SIGN_IN_HREF} asChild>
+          <Button href="" variant="secondary" size="sm" icon={LogIn}>
+            {t.demo.signIn}
+          </Button>
+        </Link>
+      )}
     </header>
   )
 }

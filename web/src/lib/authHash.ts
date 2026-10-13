@@ -29,7 +29,13 @@ export function captureAuthHash(win: Win = window): void {
   win.history.replaceState(win.history.state, '', win.location.pathname + win.location.search)
 }
 
-// Hands the notice over once (AppRoot shows it on the sign-in card).
+// Whether this page load opened a failed link: main.tsx won't hydrate the prerendered landing
+// then, as the notice changes its markup.
+export function hasAuthNotice(): boolean {
+  return pending != null
+}
+
+// Hands the notice over once (App.tsx; the landing's sign-in card shows it).
 export function takeAuthNotice(): AuthNotice | null {
   const notice = pending
   pending = null

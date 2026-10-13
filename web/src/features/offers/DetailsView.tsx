@@ -5,7 +5,7 @@ import { useCoverPage } from '../../components/shell/pageCover'
 import { Button, Callout, cx, Icon, VisuallyHidden } from '../../components/ui'
 import { useI18n } from '../../i18n'
 import { formatAgo, formatDateTime, timeOf } from '../../lib/format'
-import { loadOfferDetails } from '../../lib/offers'
+import { useDataSource } from '../../lib/dataSource'
 import type { SalaryConfig } from '../../lib/salary'
 import { parseBreakdown, scoringFrom } from '../../lib/score'
 import type { Offer, OfferDetails, ScoringProfile, Status } from '../../lib/types'
@@ -67,6 +67,7 @@ export function DetailsView({
   const [attempt, setAttempt] = useState(0)
   const [loaded, setLoaded] = useState<Loaded | null>(null)
   const { changeStatus, saveNotes } = useTracking(getOffer, updateOffer)
+  const { loadOfferDetails } = useDataSource()
 
   useEffect(() => {
     let current = true
@@ -77,7 +78,7 @@ export function DetailsView({
     return () => {
       current = false
     }
-  }, [id, attempt])
+  }, [id, attempt, loadOfferDetails])
 
   // Phone: the page behind goes inert and stops scrolling; its scroll position comes back on
   // close, whatever the browser did meanwhile.

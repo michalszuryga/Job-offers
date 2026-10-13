@@ -3,18 +3,20 @@ import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { OffersPage } from '../offers/OffersPage'
 import { AppShell } from '../../components/shell/AppShell'
 import { BootSkeleton } from '../../components/shell/BootSkeleton'
-import { takeAuthNotice } from '../../lib/authHash'
-import { isMember } from '../../lib/offers'
+import { DataSourceContext } from '../../lib/dataSource'
+import { isMember, supabaseSource } from '../../lib/offers'
 import { supabase } from '../../lib/supabase'
 import type { SignInNotice } from './SignInCard'
 
-// The app at '/': session, membership, then the offers. lib/supabase (imported here and
-// through lib/offers) must only be reachable from this lazy chunk, never from the entry,
-// Privacy or NotFound, so supabase-js stays out of them (check-bundle asserts it).
+// The app at '/' once there is a session to check (main.tsx routes there only with a stored
+// session or a magic-link fragment): session, membership, then the offers. lib/supabase
+// (imported here and through lib/offers) must only be reachable from this lazy chunk, never
+// from the entry, the landing, the demo, Privacy or NotFound, so supabase-js stays out of
+// them (check-bundle asserts it).
 
 // The signed-out and no-access screens are their own chunks: a member's daily visit never
 // needs them, and the list's first load stays inside its budget (check-bundle).
-const SignInCard = lazy(() => import('./SignInCard').then((m) => ({ default: m.SignInCard })))
+const Landing = lazy(() => import('../landing/Landing').then((m) => ({ default: m.Landing })))
 const AccessGate = lazy(() => import('./AccessGate').then((m) => ({ default: m.AccessGate })))
 
 type Notice = SignInNotice | null
@@ -23,10 +25,6 @@ type Access = 'checking' | 'member' | 'no-access' | 'error'
 // At startup an expired link the user just opened says more than the stored session it
 // failed to replace.
 const expiredUnlessLink = (current: Notice): Notice => (current === 'linkExpired' ? current : 'sessionExpired')
-
-// An expired-link fragment, captured by main.tsx before supabase-js could consume it. Read
-// once per page load; cleared after the first mount so a later visit to '/' starts clean.
-let pageNotice: Notice = takeAuthNotice()
 
 // A stored session that can no longer be refreshed (expired or revoked) is reported as
 // SIGNED_OUT once supabase-js finishes starting up, which can be before AppRoot's first
@@ -38,19 +36,17 @@ const startup = supabase.auth.onAuthStateChange((event) => {
   if (event === 'SIGNED_OUT') expiredAtStartup = true
 })
 
-export function AppRoot() {
+// `notice`: an expired-link fragment from this page load (main.tsx), shown if the stored
+// session doesn't take over.
+export function AppRoot({ notice: linkNotice = null }: { notice?: Notice }) {
   const [session, setSession] = useState<Session | null | undefined>(undefined)
-  const [notice, setNotice] = useState<Notice>(() => pageNotice)
+  const [notice, setNotice] = useState<Notice>(linkNotice)
   // Set by this tab's Sign out, so its SIGNED_OUT isn't mistaken for an expired session.
   const signingOut = useRef(false)
   // Remembered per user and attempt, so switching accounts shows "checking" and a retry
   // really asks again.
   const [checked, setChecked] = useState<{ userId: string; attempt: number; access: Access } | null>(null)
   const [attempt, setAttempt] = useState(0)
-
-  useEffect(() => {
-    pageNotice = null
-  }, [])
 
   useEffect(() => {
     let started = false
@@ -96,10 +92,11 @@ export function AppRoot() {
   const retry = useCallback(() => setAttempt((n) => n + 1), [])
 
   if (session === undefined) return <BootSkeleton />
+  // Signed out here (Sign out, or an expired session): the landing, with its sign-in card.
   if (!session) {
     return (
       <Suspense fallback={<BootSkeleton />}>
-        <SignInCard notice={notice} />
+        <Landing notice={notice} />
       </Suspense>
     )
   }
@@ -120,8 +117,10 @@ export function AppRoot() {
     )
   }
   return (
-    <AppShell email={email} onSignOut={signOut}>
-      <OffersPage />
-    </AppShell>
+    <DataSourceContext value={supabaseSource}>
+      <AppShell account={{ email, onSignOut: signOut }}>
+        <OffersPage />
+      </AppShell>
+    </DataSourceContext>
   )
 }

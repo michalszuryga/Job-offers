@@ -1,0 +1,21 @@
+/* The demo's strip under the app bar (§4.11), in the brand tint; the icon and the words carry
+   the meaning, not the colour. */
+.demo-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--gutter);
+  border-block-end: 1px solid var(--line);
+  background: var(--brand-tint);
+  color: var(--fg);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-sm);
+  font-weight: var(--fw-sm);
+  text-align: center;
+}
+
+.demo-banner__icon {
+  flex: none;
+  color: var(--brand-ink);
+}

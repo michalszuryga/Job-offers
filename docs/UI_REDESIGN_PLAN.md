@@ -1,14 +1,15 @@
 # JOffers redesign plan (v2)
 
-## Progress (updated 2026-10-11) — start here
+## Progress (updated 2026-10-13) — start here
 
-**Done and deployed (one commit each on `main`):** P1 `914dfd6`, P2 `52b1008`, P3 `1584ea4`, P4 `08ea2cd`, P5 `a4dbc72`, P6 `603a2e0`, P7 (the commit after P6). Every phase passed the standard verify (V) locally and in CI.
+**Done and deployed (one commit each on `main`):** P1 `914dfd6`, P2 `52b1008`, P3 `1584ea4`, P4 `08ea2cd`, P5 `a4dbc72`, P6 `603a2e0`, P7 `1bcc822`, P8 (commit "Redesign P8: …", after the docs commits). Every phase passed V locally; check CI for the latest.
 
-**Next: P8** (prerendered Landing, `/demo` + `lib/dataSource.ts`, Privacy linked, AccessGate "Try the demo", landing/demo budgets in `check-bundle`, `REQUIRE_PUBLIC_CONFIG`), then P9, then P10.
+**Next: P9**, then P10.
 
 **Things the next session must know:**
-- **Bundle:** the app route is at ~158.9 of 160 kB gzip. Before adding to it, lazy-load `SignInCard` and `AccessGate` from `AppRoot` (~2.5 kB). Details, Filters and Sources sheets are already lazy chunks.
-- **Controller/contact** for `/privacy` are already set: `web-pages.yml` defaults to `Michał Szuryga` / `msklin6@gmail.com` (repo variables `CONTROLLER_NAME` / `CONTACT_EMAIL` override). P8 only has to add `REQUIRE_PUBLIC_CONFIG`.
+- **Bundle (gzip):** app 158.9 / 160, landing 87.0 / 90, demo 107.8 / 120, privacy 84.5 / 90, CSS 19.2 / 20. P8 made Polish messages a lazy chunk (`i18n/messages.ts` `loadMessages`; vitest registers them in `src/i18n/testSetup.ts`), so English is the only language in the entry. The landing's sign-in card, phone preview and score model are lazy chunks, prerendered in place (`progressiveChunkSize: Infinity`).
+- **P8 structure:** `src/App.tsx` is the route tree shared by `main.tsx` and `prerender.tsx`; each route chunk is preloaded before the first render (`route()`), and `main.tsx` hydrates only when the prerendered page and language (`#root[data-prerendered][data-lang]`) match. `/` shows AppRoot only with a stored session or `#access_token` (`lib/session.ts`, mirrored by the head script's `data-boot=app`). Offers screens read `lib/dataSource.ts` from context (`supabaseSource` in `lib/offers.ts`, `demoSource` in `features/demo`); the demo persists nothing (`persistent:false`).
+- **Controller/contact** for `/privacy` are set: `web-pages.yml` defaults to `Michał Szuryga` / `msklin6@gmail.com` (repo variables `CONTROLLER_NAME` / `CONTACT_EMAIL` override) and sets `REQUIRE_PUBLIC_CONFIG=1`.
 - **P10 needs the owner first:** the `DISMISSED` SQL must be applied to production Supabase before the web change ships. Ask before running anything against the production database.
 - `npm run test:screens` now writes more than 8 PNGs (auth, gate, privacy, kit). `e2e/filters.ts` has `openFilters`/`closeFilters`.
 - Deviations from this plan, all deliberate:
@@ -18,6 +19,7 @@
   - The summary e-mail uses the last fetch's new ids only when that fetch is under 12 h old; otherwise it falls back to `--hours`.
   - Rescore keeps the original remote re-inference (inference overrides the stored flag).
   - Toaster: `--actionbar-h` is the ActionBar's full height incl. safe area; Callout has no `live` prop (wrap it in the view's single `role=status` region).
+  - P8: on phones the full-screen details view covers the DemoBanner (it shows on the list and on desktop details). The landing nav hides How it works / Demo / GitHub below 768 px (the hero CTA and the footer carry them). Lighthouse mobile (local, gzip like Pages): Perf 96, A11y 100, BP 100, SEO 100; without compression the local static server scores Perf 80.
 - **Owner actions:** done — `{{ .Token }}` added to the Supabase Magic Link template; the daily fetch is triggered by cron-job.org at 17:45 (see README *Daily trigger*, docs/HOSTING.md). Still open: confirm the repo variable `APP_URL=https://michalszuryga.github.io/Job-offers/`; manual checks (magic link on phone, code sign-in in the installed iOS app, Android back gesture closes details, forced dark theme in an iOS 17.5 simulator — not available on the work laptop; WebKit was used as a stand-in).
 
 **For the executing session:** the app is in `/Users/michalszuryga/Documents/Projects/Personal/JOffers/Job-offers/web`. Stack: Vite 8, React 19, TS 6, supabase-js. It is hosted on GitHub Pages under `BASE_PATH=/Job-offers/`.

@@ -3,18 +3,38 @@ import { mockSupabase, OFFERS, signIn } from './supabase-mock'
 
 // The built app as GitHub Pages serves it (scripts/static-server.mjs, the `pages` project):
 // no SPA fallback, a 301 to the trailing slash for a directory, and 404.html with status 404
-// for anything else. P5 scope; P8 adds ./demo and ./demo/.
+// for anything else. P5 scope, plus P8: the prerendered landing, ./demo and ./demo/.
 const ACME = OFFERS.find((offer) => offer.title === 'Senior QA Engineer')!
 
 test.beforeEach(async ({ page }) => {
   await mockSupabase(page)
 })
 
-test('the base path answers 200 with the app', async ({ page }) => {
+test('the base path answers 200 with the prerendered landing', async ({ page, request }) => {
+  // Crawlers and the first paint get the landing as HTML, before any script runs.
+  const raw = await request.get('./')
+  expect(raw.status()).toBe(200)
+  expect(await raw.text()).toMatch(/<h1[^>]*>QA jobs, scored for you\.<\/h1>/)
+
   const response = await page.goto('./')
   expect(response?.status()).toBe(200)
-  await expect(page.getByRole('heading', { level: 1, name: 'Sign in' })).toBeVisible()
+  await expect(page.getByRole('heading', { level: 1, name: 'QA jobs, scored for you.' })).toBeVisible()
+  await expect(page.getByLabel('Email')).toBeVisible()
 })
+
+for (const path of ['./demo', './demo/']) {
+  test(`${path} shows the demo`, async ({ page, request }) => {
+    if (path === './demo') {
+      const redirect = await request.get(path, { maxRedirects: 0 })
+      expect(redirect.status()).toBe(301)
+      expect(new URL(redirect.headers().location, redirect.url()).href).toBe(new URL('./demo/', redirect.url()).href)
+    }
+    const response = await page.goto(path)
+    expect(response?.status()).toBe(200)
+    await expect(page.getByText('Demo with sample data')).toBeVisible()
+    await expect(page.locator('.offer').first()).toBeVisible()
+  })
+}
 
 test('./privacy redirects to ./privacy/ and shows the policy without supabase-js', async ({ page, request }) => {
   const redirect = await request.get('./privacy', { maxRedirects: 0 })
@@ -40,12 +60,12 @@ test('./privacy redirects to ./privacy/ and shows the policy without supabase-js
   expect(supabaseRequests).toEqual([])
 })
 
-test('signed in, Sign out on the privacy page signs out and returns to sign-in', async ({ page, baseURL }) => {
+test('signed in, Sign out on the privacy page signs out and returns to the landing', async ({ page, baseURL }) => {
   await signIn(page)
   await page.goto('./privacy/')
 
   await page.getByRole('button', { name: 'Sign out' }).click()
-  await expect(page.getByRole('heading', { level: 1, name: 'Sign in' })).toBeVisible()
+  await expect(page.getByRole('heading', { level: 1, name: 'QA jobs, scored for you.' })).toBeVisible()
   expect(new URL(page.url()).pathname).toBe(new URL(baseURL!).pathname)
   expect(await page.evaluate(() => localStorage.getItem('joffers-auth'))).toBeNull()
 })
@@ -69,11 +89,13 @@ test('a route chunk that fails to load offers a reload, not a blank page', async
   // What Pages answers for a chunk the last deploy removed: its 404 page, as HTML.
   const CHUNK = '**/assets/AppRoot-*.js'
   await page.route(CHUNK, (route) => route.fulfill({ status: 404, contentType: 'text/html', body: '<!doctype html>' }))
+  // Signed in, so '/' loads the app's chunk.
+  await signIn(page)
   await page.goto('./')
 
   const status = page.getByRole('status')
   await expect(status).toContainText("Couldn't load JOffers. Check your connection.")
   await page.unroute(CHUNK)
   await status.getByRole('button', { name: 'Reload' }).click()
-  await expect(page.getByRole('heading', { level: 1, name: 'Sign in' })).toBeVisible()
+  await expect(page.locator('.offer').first()).toBeVisible()
 })

@@ -9,11 +9,15 @@ const KB = 1000
 
 // Initial JS per route: the static import graphs of the main entry and of the lazy
 // route chunk main.tsx loads for that path at once (other dynamic imports load later and
-// are not counted). P8 adds landing and demo with noSupabase: true.
+// are not counted).
 const ENTRY = 'index.html'
 const ROUTES = {
   // supabase-js lives in the AppRoot chunk, never in the entry (asserted below).
   app: { chunks: [ENTRY, 'src/features/auth/AppRoot.tsx'], maxJs: 160 * KB },
+  // The signed-out home page; its sign-in card imports supabase-js only when used.
+  landing: { chunks: [ENTRY, 'src/features/landing/Landing.tsx'], maxJs: 90 * KB, noSupabase: true },
+  // The offers screens on fixtures (lib/dataSource.ts), with no Supabase at all.
+  demo: { chunks: [ENTRY, 'src/features/demo/Demo.tsx'], maxJs: 120 * KB, noSupabase: true },
   // A public page, held to the landing's budget (§1 #7); its Sign out imports supabase-js lazily.
   privacy: { chunks: [ENTRY, 'src/pages/Privacy.tsx'], maxJs: 90 * KB, noSupabase: true },
 }
@@ -106,12 +110,25 @@ if (manifest[ENTRY]) {
 
 const files = walk(dist)
 
-// GitHub Pages has no SPA fallback: postbuild copies the shell to 404.html (unknown paths)
-// and privacy/index.html (so /privacy/ is a real directory).
-const copies = ['404.html', 'privacy/index.html']
+// GitHub Pages has no SPA fallback: postbuild writes 404.html (unknown paths) and a real
+// directory for every route, with the Landing and Privacy prerendered (§4.1).
+const copies = ['404.html', 'privacy/index.html', 'demo/index.html']
 const missingCopies = copies.filter((file) => !files.includes(file))
-rows.push(['Pages copies (404.html, privacy/)', '', '', check(missingCopies.length === 0,
+rows.push(['Pages files (404.html, privacy/, demo/)', '', '', check(missingCopies.length === 0,
   `missing ${missingCopies.join(', ')}: run node scripts/postbuild.mjs after vite build (npm run build does)`)])
+const htmlOf = (file) => (files.includes(file) ? read(file).toString('utf8') : '')
+const prerendered = [['index.html', 'landing'], ['privacy/index.html', 'privacy']]
+  .filter(([file, page]) => !(htmlOf(file).includes(`data-prerendered="${page}"`) && /<h1[\s>]/.test(htmlOf(file))))
+rows.push(['Landing and Privacy prerendered', '', '', check(prerendered.length === 0,
+  `not prerendered (no data-prerendered root with an h1): ${prerendered.map(([file]) => file).join(', ')}`)])
+// Every lazy part written in place: no fallback whose content an inline script swaps in after
+// first paint (src/prerender.tsx progressiveChunkSize).
+const outlined = ['index.html', 'privacy/index.html'].filter((file) => /<!--\$\?-->|\$RC\(/.test(htmlOf(file)))
+rows.push(['Prerendered pages complete in place', '', '', check(outlined.length === 0,
+  `prerendered with outlined Suspense boundaries ($RC): ${outlined.join(', ')}`)])
+const shells = ['404.html', 'demo/index.html'].filter((file) => htmlOf(file).includes('data-prerendered'))
+rows.push(['404 and demo are the plain shell', '', '', check(shells.length === 0,
+  `prerendered markup where the plain app shell belongs: ${shells.join(', ')}`)])
 
 const cssFiles = files.filter((file) => file.endsWith('.css'))
 const cssTotal = cssFiles.reduce((sum, file) => sum + gzip(file), 0)

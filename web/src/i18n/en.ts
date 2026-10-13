@@ -100,9 +100,9 @@ export const en = {
   app: {
     signOut: 'Sign out',
   },
+  // The sign-in card on the landing (§4.2): the demo comes first, this is for members.
   login: {
-    title: 'Sign in',
-    tagline: 'QA jobs, scored for you.',
+    title: 'Beta members: sign in',
     email: 'Email',
     hint: 'No password. We’ll email you a one-time link.',
     send: 'Send sign-in link',
@@ -123,8 +123,11 @@ export const en = {
       linkExpired: 'This sign-in link has expired or was already used. Send a new one.',
       sessionExpired: 'Your session expired. Sign in again.',
     },
-    // privateBeta is followed by a "Request access" mailto when a contact address is set.
-    requestAccess: 'Request access',
+    // privateBeta is followed by "Try the demo", then "or request access" (a mailto) when a
+    // contact address is set: "JOffers is in private beta. Try the demo or request access."
+    tryDemo: 'Try the demo',
+    or: 'or',
+    requestAccess: 'request access',
     requestBody: (email: string) => `Hi, I'd like access to JOffers for ${email}.`,
     errors: {
       privateBeta: 'JOffers is in private beta.',
@@ -138,7 +141,9 @@ export const en = {
   accessGate: {
     noAccess: "This account doesn't have access yet.",
     privateBeta: 'JOffers is in private beta.',
+    exploreDemo: 'Explore the demo with sample data.',
     signedInAs: (email: string) => `Signed in as ${email}`,
+    tryDemo: 'Try the demo',
     requestAccess: 'Request access',
     requestBody: (email: string) => `Hi, I'd like access to JOffers for ${email}.`,
     signOut: 'Sign out',
@@ -146,6 +151,62 @@ export const en = {
     checkHeading: 'Access check',
     checkFailed: "Couldn't check your access.",
     retry: 'Retry',
+    privacy: 'Privacy policy',
+  },
+  // The signed-out home page (§4.2). No board names until the legal review (§8 Q7).
+  landing: {
+    nav: 'Main',
+    home: 'JOffers, top of the page',
+    howItWorks: 'How it works',
+    demo: 'Demo',
+    signIn: 'Sign in',
+    badge: 'Private beta',
+    title: 'QA jobs, scored for you.',
+    lead: 'Every evening around 18:00 JOffers checks Polish and international job boards, scores each offer 0–100 against your profile and shows why.',
+    tryDemo: 'Try the live demo',
+    demoNote: 'Sample data, no sign-up.',
+    preview: 'Preview of the JOffers offer list',
+    features: {
+      heading: 'What JOffers does',
+      scored: {
+        title: 'A score with reasons',
+        body: 'Every offer gets 0–100 against your profile, with a breakdown of where each point came from.',
+      },
+      daily: {
+        title: 'New offers around 18:00',
+        body: 'One fetch every evening. Open JOffers and start with what’s new since yesterday.',
+      },
+      track: {
+        title: 'Track every application',
+        body: 'Mark offers as interesting, applied or in interview, and note the rate and notice period you gave.',
+      },
+    },
+    how: {
+      heading: 'How the score works',
+      intro: 'Each offer earns points for what matches your profile and loses some for warning signs. The total is capped at 100.',
+      points: 'Points',
+      upTo: (max: number) => `up to ${formatNumber(max, 'en')}`,
+      penalties: 'Penalties',
+      bands: 'Score bands',
+      range: (from: number, to: number) => `${from}–${to}`,
+    },
+    privacy: {
+      heading: 'Private by design',
+      line: 'No passwords. No ads. No analytics.',
+      body: 'You sign in with a one-time link. JOffers keeps your email address and the statuses and notes you save.',
+      link: 'Read the privacy policy',
+    },
+    footer: {
+      label: 'Footer',
+      copyright: '© JOffers',
+      privacy: 'Privacy',
+      contact: 'Contact',
+    },
+  },
+  // /demo (§4.11): the offers screens on fixtures.
+  demo: {
+    banner: 'Demo with sample data · changes aren’t saved',
+    signIn: 'Sign in',
   },
   // Plan §4.11. Processor names stay as written; the controller and contact come from the build.
   privacy: {
@@ -233,7 +294,7 @@ export const en = {
     showAll: 'Show all offers',
     emptyNew: 'No new offers from the last fetch',
     // Warsaw time, when the scheduled fetch runs.
-    nextFetch: (today: boolean) => (today ? 'Next fetch today at 18:00' : 'Next fetch tomorrow at 18:00'),
+    nextFetch: (today: boolean) => (today ? 'Next fetch today around 18:00' : 'Next fetch tomorrow around 18:00'),
     showRecent: 'Show last 3 days',
     // Sentence case; the badge draws it in capitals (§2.4).
     newBadge: 'New',
@@ -399,6 +460,7 @@ export const en = {
     // Before the email, in the menu's header.
     signedInAs: 'Signed in as',
     language: 'Language',
+    privacy: 'Privacy policy',
     signOut: 'Sign out',
   },
   theme: {

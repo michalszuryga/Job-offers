@@ -1,22 +1,24 @@
 import { useCallback, useRef, type ReactNode } from 'react'
 import { useI18n } from '../../i18n'
 import { ToastProvider } from '../ui'
-import { AppBar } from './AppBar'
+import { AppBar, type Account } from './AppBar'
+import { DemoBanner } from './DemoBanner'
 import { OfflineBanner } from './OfflineBanner'
 import { PageCoverContext } from './pageCover'
 import './AppShell.css'
 
 interface Props {
-  email: string
-  onSignOut: () => void
+  // The signed-in member; null in the demo, which has a Sign in link and its banner instead.
+  account: Account | null
   children: ReactNode
 }
 
 const MAIN_ID = 'offers'
 
-// The signed-in frame (§4.4): skip link, app bar, offline strip, then the page. No bottom nav.
-// Toasts (§4.9) sit outside the page, so they stay usable while a view covers it.
-export function AppShell({ email, onSignOut, children }: Props) {
+// The signed-in frame (§4.4), also the demo's (§4.11): skip link, app bar, the demo and
+// offline strips, then the page. No bottom nav. Toasts (§4.9) sit outside the page, so they
+// stay usable while a view covers it.
+export function AppShell({ account, children }: Props) {
   const { t } = useI18n()
   const pageRef = useRef<HTMLDivElement>(null)
   const setCovered = useCallback((covered: boolean) => {
@@ -43,7 +45,8 @@ export function AppShell({ email, onSignOut, children }: Props) {
           >
             {t.shell.skipToOffers}
           </a>
-          <AppBar email={email} onSignOut={onSignOut} />
+          <AppBar account={account} />
+          {!account && <DemoBanner />}
           <OfflineBanner />
           <main id={MAIN_ID} className="app-main" tabIndex={-1}>
             {/* One h1 per view (§5); P6's BatchHeader may take it over. */}

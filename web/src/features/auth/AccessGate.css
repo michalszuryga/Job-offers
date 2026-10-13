@@ -22,3 +22,13 @@
   line-height: var(--lh-sm);
   overflow-wrap: anywhere;
 }
+
+.gate__privacy {
+  justify-self: center;
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--target);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-sm);
+  font-weight: var(--fw-sm);
+}

@@ -101,13 +101,15 @@ describe('applyLang and chooseLang', () => {
 describe('the index.html head script', () => {
   const script = /<script>([\s\S]*?)<\/script>/.exec(indexHtml)?.[1] ?? ''
 
-  function runHeadScript(stored: string | null, languages: string[]) {
-    const root = { lang: '', setAttribute: () => {} }
+  function runHeadScript(stored: string | null, languages: string[], { session = null as string | null, hash = '' } = {}) {
+    const attributes = new Map<string, string>()
+    const root = { lang: '', setAttribute: (name: string, value: string) => attributes.set(name, value) }
     const document = { documentElement: root, querySelector: () => null, querySelectorAll: () => [] }
     const navigator = { language: languages[0] ?? '', languages }
-    const localStorage = { getItem: (key: string) => (key === LANG_KEY ? stored : null) }
-    new Function('document', 'navigator', 'localStorage', script)(document, navigator, localStorage)
-    return root.lang
+    const stores: Record<string, string | null> = { [LANG_KEY]: stored, 'joffers-auth': session }
+    const localStorage = { getItem: (key: string) => stores[key] ?? null }
+    new Function('document', 'navigator', 'localStorage', 'location', script)(document, navigator, localStorage, { hash })
+    return { lang: root.lang, boot: attributes.get('data-boot') ?? null }
   }
 
   test('was found', () => {
@@ -115,6 +117,18 @@ describe('the index.html head script', () => {
   })
 
   test.each(CASES)('stored %j, browser %j → %s', (stored, languages, expected) => {
-    expect(runHeadScript(stored, languages)).toBe(expected)
+    expect(runHeadScript(stored, languages).lang).toBe(expected)
+  })
+
+  // §4.1: members boot into the app over the prerendered landing, never seeing it flash.
+  test.each([
+    [{}, null],
+    [{ session: '{"access_token":"x"}' }, 'app'],
+    [{ hash: '#access_token=x&type=magiclink' }, 'app'],
+    [{ hash: '#error=access_denied&error_code=otp_expired' }, 'app'],
+    [{ hash: '#sign-in' }, null],
+    [{ hash: '#offers' }, null],
+  ] as const)('boot flag for %j → %s', (state, expected) => {
+    expect(runHeadScript(null, ['en-US'], state).boot).toBe(expected)
   })
 })

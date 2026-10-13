@@ -1,74 +1,34 @@
-import { lazy, StrictMode, Suspense } from 'react'
-import { createRoot } from 'react-dom/client'
-import { Route, Router, Switch } from 'wouter'
+import { createRoot, hydrateRoot } from 'react-dom/client'
 // Cascade order matters: tokens first, component styles last.
 import './styles/tokens.css'
 import './styles/fonts.css'
 import './styles/base.css'
 import './styles/utilities.css'
 import './app.css'
-import { BootSkeleton } from './components/shell/BootSkeleton'
-import { RouteErrorBoundary } from './components/shell/RouteErrorBoundary'
-import { I18nProvider } from './i18n'
-import { captureAuthHash } from './lib/authHash'
+import { App, pageAt, preloadPage } from './App'
+import { detectLang, loadMessages } from './i18n'
+import { captureAuthHash, hasAuthNotice } from './lib/authHash'
+import { startsInApp } from './lib/session'
 
 // Before the AppRoot chunk can load: supabase-js (detectSessionInUrl) consumes an expired-link
 // fragment as soon as its client exists. Nothing imported above loads supabase-js.
 captureAuthHash()
 
-// One lazy chunk per route (§5): supabase-js lives only in AppRoot's. The entry is never a
-// Fast Refresh boundary (an edit here reloads the page), so components may live here.
-/* oxlint-disable react/only-export-components */
-const AppRoot = lazy(() => import('./features/auth/AppRoot').then((m) => ({ default: m.AppRoot })))
-const Privacy = lazy(() => import('./pages/Privacy').then((m) => ({ default: m.Privacy })))
-const NotFound = lazy(() => import('./pages/NotFound').then((m) => ({ default: m.NotFound })))
+const container = document.getElementById('root')!
+const page = pageAt(location.pathname, startsInApp())
 
-// The UI kit at <base>/dev/kit (§4.1), dev server only. import.meta.env.DEV is a literal false
-// in a build, so the chunk is dropped from dist (check-bundle asserts it).
-const Kit = import.meta.env.DEV
-  ? lazy(async () => {
-      const [{ Kit }, { ToastProvider }] = await Promise.all([import('./dev/Kit'), import('./components/ui')])
-      return {
-        default: () => (
-          <ToastProvider>
-            <Kit />
-          </ToastProvider>
-        ),
-      }
-    })
-  : null
+// postbuild.mjs prerenders the Landing and Privacy in English and marks the root with what it
+// rendered. React takes that markup over (hydrates) when this visit renders the same thing;
+// anything else (another language, an expired-link notice, the app) renders from scratch.
+const lang = detectLang()
+const hydrate = container.dataset.prerendered === page && container.dataset.lang === lang
+  && !(page === 'landing' && hasAuthNotice())
 
-// Routes are relative to the base path (GitHub Pages serves the app from /Job-offers/).
-const BASE = import.meta.env.BASE_URL.replace(/\/$/, '')
-
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <I18nProvider>
-      <Router base={BASE}>
-        {/* Each route is a second request after the entry, so it can fail on its own. */}
-        <RouteErrorBoundary>
-          <Suspense fallback={<BootSkeleton />}>
-            <Switch>
-              <Route path="/">
-                <AppRoot />
-              </Route>
-              {/* Patterns take an optional trailing slash: Pages redirects /privacy to /privacy/. */}
-              <Route path="/privacy">
-                <Privacy />
-              </Route>
-              {Kit && (
-                <Route path="/dev/kit">
-                  <Kit />
-                </Route>
-              )}
-              {/* /demo too, until P8. */}
-              <Route>
-                <NotFound />
-              </Route>
-            </Switch>
-          </Suspense>
-        </RouteErrorBoundary>
-      </Router>
-    </I18nProvider>
-  </StrictMode>,
-)
+// The page's chunk and the language's messages first (App.tsx route(), i18n/messages.ts), so
+// the first render is the page itself, in its language, not a fallback. A chunk that fails to
+// load is retried by the route and caught by its boundary; missing messages fall back to English.
+Promise.allSettled([preloadPage(page), loadMessages(lang)])
+  .then(() => {
+    if (hydrate) hydrateRoot(container, <App />)
+    else createRoot(container).render(<App />)
+  })

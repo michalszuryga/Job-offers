@@ -2,8 +2,9 @@ import { join } from 'node:path'
 import { expect, test, type Page } from '@playwright/test'
 import { mockSupabase, OWNER, signIn } from './supabase-mock'
 
-// Signed-out paths (plan §4.2, P5 scope): the private-beta reply, code sign-in, and an
-// expired magic link. The contact address is playwright.config.ts's stand-in.
+// Signed-out paths (plan §4.2): the private-beta reply, code sign-in, an expired magic link
+// (P5), and the public surface (P8): the demo, the access gate's way into it, language and
+// theme. The contact address is playwright.config.ts's stand-in.
 const CONTACT = 'privacy@example.test'
 
 test('an address without an account hears about the private beta, never the raw reply', async ({ page }) => {
@@ -75,6 +76,8 @@ test('an expired magic link says so, focuses the email field and leaves a clean 
   await mockSupabase(page)
   await page.goto('./#error_code=otp_expired&error=access_denied&error_description=Email+link+is+invalid+or+has+expired')
 
+  // On the landing, which stays signed out (no app, no supabase-js until the card is used).
+  await expect(page.getByRole('heading', { level: 1, name: 'QA jobs, scored for you.' })).toBeVisible()
   await expect(page.getByText('This sign-in link has expired or was already used. Send a new one.')).toBeVisible()
   await expect(page.getByLabel('Email')).toBeFocused()
   await expect(page).toHaveURL(new URL('./', page.url()).href)
@@ -186,8 +189,70 @@ test('signing out from the account menu is not mistaken for an expired session',
 
   await page.getByRole('button', { name: 'Account' }).click()
   await page.getByRole('menuitem', { name: 'Sign out' }).click()
-  await expect(page.getByRole('heading', { level: 1, name: 'Sign in' })).toBeVisible()
+  await expect(page.getByRole('heading', { level: 1, name: 'QA jobs, scored for you.' })).toBeVisible()
+  await expect(page.getByRole('heading', { level: 2, name: 'Beta members: sign in' })).toBeVisible()
   await expect(page.getByText('Your session expired')).toHaveCount(0)
+})
+
+test('the demo makes no request to Supabase, even while used', async ({ page }) => {
+  await mockSupabase(page)
+  const supabaseRequests: string[] = []
+  page.on('request', (sent) => {
+    if (sent.url().startsWith('http://supabase.test/')) supabaseRequests.push(sent.url())
+  })
+  await page.goto('./')
+  await page.getByRole('link', { name: 'Try the live demo' }).click()
+  await expect(page).toHaveURL(/\/demo$/)
+  await expect(page.getByText('Demo with sample data')).toBeVisible()
+  await expect(page.getByText('3 new · fetched 2 h ago')).toBeVisible()
+
+  // No account to sign out of: a way to sign in instead.
+  await expect(page.getByRole('button', { name: 'Account' })).toHaveCount(0)
+  await expect(page.getByRole('link', { name: 'Sign in' })).toBeVisible()
+
+  // Open the best new offer, change its status, and Undo: all of it in memory.
+  await page.locator('.offer').first().click()
+  const details = page.getByRole('complementary', { name: 'Offer details' })
+  await expect(details.getByRole('heading', { level: 2, name: 'Senior QA Engineer' })).toBeVisible()
+  await expect(details.getByText('Total 92 / 100')).toBeAttached()
+  await details.getByLabel('Status').selectOption('APPLIED')
+  await expect(page.locator('.ui-toast')).toContainText('Status: Applied')
+  await page.locator('.ui-toast').getByRole('button', { name: 'Undo' }).click()
+  await expect(details.getByLabel('Status')).toHaveValue('REVIEW')
+  expect(supabaseRequests).toEqual([])
+})
+
+test('an account without access can try the demo from the access gate', async ({ page }) => {
+  await mockSupabase(page, { member: false })
+  await signIn(page)
+  await page.goto('./')
+  await expect(page.getByText('Explore the demo with sample data.')).toBeVisible()
+  await page.getByRole('link', { name: 'Try the demo' }).click()
+  await expect(page).toHaveURL(/\/demo$/)
+  await expect(page.getByText('Demo with sample data')).toBeVisible()
+  await expect(page.locator('.offer').first()).toBeVisible()
+})
+
+test.describe('in Polish', () => {
+  test.use({ locale: 'pl-PL' })
+
+  test('the landing follows the browser language', async ({ page }) => {
+    await mockSupabase(page)
+    await page.goto('./')
+    await expect(page.locator('html')).toHaveAttribute('lang', 'pl')
+    await expect(page.getByRole('heading', { level: 1, name: 'Oferty QA ocenione pod Ciebie.' })).toBeVisible()
+    await expect(page.getByLabel('E-mail')).toBeVisible()
+  })
+})
+
+test('Dark chosen on the landing survives a reload', async ({ page }) => {
+  await mockSupabase(page)
+  await page.goto('./')
+  await page.getByLabel('Theme').selectOption('dark')
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
+  await page.reload()
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
+  await expect(page.getByLabel('Theme')).toHaveValue('dark')
 })
 
 // Opt-in (npm run test:screens): the signed-out and edge screens as PNGs in web/screens/, for
@@ -263,6 +328,23 @@ for (const scheme of ['light', 'dark'] as const) {
       await page.goto('./nope')
       await page.getByRole('heading', { level: 1, name: 'Page not found' }).waitFor()
       await shot('notfound')
+    })
+
+    test('landing and demo', async ({ page }, testInfo) => {
+      const shot = shooter(page, testInfo.project.name)
+      await mockSupabase(page)
+      await page.goto('./')
+      await page.getByLabel('Email').waitFor()
+      await page.locator('.phone-mock__device').waitFor()
+      await shot('landing')
+      await shot('landing-full', true)
+
+      await page.getByRole('link', { name: 'Try the live demo' }).click()
+      await page.locator('.offer').first().waitFor()
+      await shot('demo')
+      await page.locator('.offer').first().click()
+      await page.getByRole('complementary', { name: 'Offer details' }).getByText('Total 92 / 100').waitFor({ state: 'attached' })
+      await shot('demo-details')
     })
   })
 }

@@ -16,6 +16,9 @@ interface Props {
   // Desktop only: the offer open in the pane beside the list.
   selected: boolean
   salaryCfg: SalaryConfig
+  // The landing's phone preview: the same card as plain, static markup. Not a link, and
+  // without the .offer / .offer-title hooks, so specs never take it for the list.
+  preview?: boolean
 }
 
 // A plain left click opens in place; with a modifier (or the middle button, which fires no
@@ -25,29 +28,18 @@ const plainClick = (event: MouseEvent) =>
 
 // One offer (§4.5): a real link to its ?offer= URL. The ring sits in column 1, but the title
 // comes first in the DOM, so the link's name starts with it.
-export function OfferCard({ offer, isNew, unread, selected, salaryCfg }: Props) {
+export function OfferCard({ offer, isNew, unread, selected, salaryCfg, preview = false }: Props) {
   const { t, lang } = useI18n()
   const status = offer.application_status ?? 'TO_REVIEW'
   const salary = formatSalary(offer, lang)
   const approx = salary ? formatApproxMonthly(offer, lang, salaryCfg) : null
   const meta = [offer.company, offer.location, offer.contract, offer.source].filter(Boolean).join(' · ')
 
-  return (
-    <a
-      className={cx('offer', unread && 'offer--unread', selected && 'offer--selected')}
-      href={withOffer(location.href, offer.external_id)}
-      // Closing the details finds the card again by this, to hand focus back (OffersPage).
-      data-offer={offer.external_id}
-      aria-current={selected ? 'true' : undefined}
-      onClick={(event) => {
-        if (!plainClick(event)) return
-        event.preventDefault()
-        openOffer(offer.external_id)
-      }}
-    >
+  const content = (
+    <>
       <span className="offer__head">
         {/* Unread shows as weight plus a dot drawn by ::before; the text itself never changes. */}
-        <span className="offer-title">{offer.title}</span>
+        <span className={preview ? 'offer-preview__title' : 'offer-title'}>{offer.title}</span>
         {timeOf(offer.published_at) != null && (
           <span className="offer__age">{formatAgeShort(offer.published_at, lang)}</span>
         )}
@@ -69,6 +61,24 @@ export function OfferCard({ offer, isNew, unread, selected, salaryCfg }: Props) 
           )
         )}
       </span>
+    </>
+  )
+
+  if (preview) return <div className={cx('offer-preview', unread && 'offer--unread')}>{content}</div>
+  return (
+    <a
+      className={cx('offer', unread && 'offer--unread', selected && 'offer--selected')}
+      href={withOffer(location.href, offer.external_id)}
+      // Closing the details finds the card again by this, to hand focus back (OffersPage).
+      data-offer={offer.external_id}
+      aria-current={selected ? 'true' : undefined}
+      onClick={(event) => {
+        if (!plainClick(event)) return
+        event.preventDefault()
+        openOffer(offer.external_id)
+      }}
+    >
+      {content}
     </a>
   )
 }

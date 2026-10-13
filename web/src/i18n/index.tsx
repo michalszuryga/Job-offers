@@ -4,6 +4,6 @@
 /* oxlint-disable react/only-export-components */
 export { useI18n, type I18n } from './context'
 export { applyLang, chooseLang, detectLang, LANG_KEY, pickLang, saveLang } from './detect'
-export { LANGS, type Lang } from './intl'
-export { MESSAGES, type Messages } from './messages'
+export { LANG_NAMES, LANGS, type Lang } from './intl'
+export { loadMessages, messagesFor, type Messages } from './messages'
 export { I18nProvider } from './provider'

@@ -1,7 +1,7 @@
 import { useCallback } from 'react'
 import { useToast } from '../../components/ui'
 import { useI18n } from '../../i18n'
-import { trackingQueue } from '../../lib/offers'
+import { trackingQueueOf, useDataSource } from '../../lib/dataSource'
 import type { Offer, Status } from '../../lib/types'
 import type { Tracking } from '../../lib/writeQueue'
 
@@ -24,12 +24,13 @@ const trackingOf = (offer: Offer): Tracking => ({
   notice: offer.notice_period ?? '',
 })
 
-// Every tracking write the details make, through the one queue (lib/offers trackingQueue).
+// Every tracking write the details make, through the source's one queue (lib/dataSource.ts).
 // Each touches only its own fields in the list, so a Save landing after a status change
 // can't put the old status back (and the other way round).
 export function useTracking(getOffer: GetOffer, updateOffer: UpdateOffer) {
   const { t } = useI18n()
   const toast = useToast()
+  const queue = trackingQueueOf(useDataSource())
 
   // §4.9: optimistic, queued, then "Status: Applied · Undo" for 6 s. Undo writes the previous
   // status back (applied_at stays: it records the first time). A failure rolls back, unless a
@@ -49,7 +50,7 @@ export function useTracking(getOffer: GetOffer, updateOffer: UpdateOffer) {
           message: t.toast.status(t.status[to]),
           ...(undoable ? { actionLabel: t.common.undo, onAction: () => change(previous, false) } : {}),
         })
-        trackingQueue.enqueue(id, { status: to }, confirmed).catch(() => {
+        queue.enqueue(id, { status: to }, confirmed).catch(() => {
           if (requested.get(id) !== to) return
           requested.set(id, previous)
           updateOffer(id, (o) => (o.application_status === to ? { ...o, application_status: previous } : o))
@@ -58,7 +59,7 @@ export function useTracking(getOffer: GetOffer, updateOffer: UpdateOffer) {
       }
       change(next, true)
     },
-    [getOffer, updateOffer, toast, t],
+    [getOffer, updateOffer, toast, t, queue],
   )
 
   // The tracking form's Save: only the fields it changed, merged by the queue onto whatever
@@ -67,10 +68,10 @@ export function useTracking(getOffer: GetOffer, updateOffer: UpdateOffer) {
     async (id: string, notes: Notes) => {
       const offer = getOffer(id)
       if (!offer) throw new Error('offer not loaded')
-      const saved = await trackingQueue.enqueue(id, notes, trackingOf(offer))
+      const saved = await queue.enqueue(id, notes, trackingOf(offer))
       updateOffer(id, (o) => ({ ...o, applied_rate: saved.rate, notice_period: saved.notice }))
     },
-    [getOffer, updateOffer],
+    [getOffer, updateOffer, queue],
   )
 
   return { changeStatus, saveNotes }

@@ -1,6 +1,8 @@
-/* OfferCard (§4.5). .offer and .offer-title are e2e hooks: keep them.
+/* OfferCard (§4.5). .offer and .offer-title are e2e hooks: keep them. The landing's phone
+   preview draws the same card as .offer-preview / .offer-preview__title.
    Ring in column 1; title + age, meta, then salary + status in column 2. */
-.offer {
+.offer,
+.offer-preview {
   /* The edge is a shadow, so no border here (a transparent one would show the selected tint
      outside its inset ring). Forced colours, which drop shadows, set one at the end. */
   --card-border: 0px;
@@ -60,7 +62,8 @@
   min-width: 0;
 }
 
-.offer-title {
+.offer-title,
+.offer-preview__title {
   flex: 1;
   min-width: 0;
   display: -webkit-box;
@@ -75,11 +78,11 @@
 }
 
 /* Unread (§4.5): heavier, plus a dot. Drawn, so the title's text stays exactly the title. */
-.offer--unread .offer-title {
+.offer--unread :is(.offer-title, .offer-preview__title) {
   font-weight: var(--fw-title-unread);
 }
 
-.offer--unread .offer-title::before {
+.offer--unread :is(.offer-title, .offer-preview__title)::before {
   content: '';
   display: inline-block;
   inline-size: 8px;
@@ -157,7 +160,8 @@
 /* Windows contrast themes drop box-shadows and author backgrounds, which carry the card
    edges, the selected card and the unread dot here. System colours bring those back. */
 @media (forced-colors: active) {
-  .offer {
+  .offer,
+  .offer-preview {
     --card-border: 1px;
     border-color: CanvasText;
   }
@@ -167,7 +171,7 @@
     border-color: Highlight;
   }
 
-  .offer--unread .offer-title::before {
+  .offer--unread :is(.offer-title, .offer-preview__title)::before {
     forced-color-adjust: none;
     background: CanvasText;
   }

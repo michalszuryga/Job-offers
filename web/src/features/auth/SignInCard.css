@@ -1,4 +1,30 @@
-/* Sign-in card (plan §4.2); the card itself is authScreen.css. */
+/* The landing's sign-in card for beta members (plan §4.2). Its status region and actions
+   reuse authScreen.css. */
+.sign-in {
+  display: grid;
+  gap: var(--space-5);
+  padding: var(--space-6);
+  border-radius: var(--radius-xl);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+}
+
+/* Focused only when the nav's "Sign in" brings the card into view. */
+.sign-in:focus {
+  outline: none;
+}
+
+.sign-in:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.sign-in__title {
+  font-size: var(--fs-h3);
+  line-height: var(--lh-h3);
+  font-weight: var(--fw-h3);
+}
+
 .sign-in__form {
   display: grid;
   gap: var(--space-4);

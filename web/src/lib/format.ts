@@ -1,5 +1,5 @@
 import { formatNumber, type Lang } from '../i18n/intl'
-import { MESSAGES } from '../i18n/messages'
+import { messagesFor } from '../i18n/messages'
 import type { Filters, PublishedWindow, SortKey } from './prefs'
 import { isPlnPerMonth, monthlySalaryPln, salaryPeriod, type SalaryConfig, type SalaryFields } from './salary'
 import type { Offer } from './types'
@@ -41,7 +41,7 @@ export function formatSalary(offer: SalaryFields, lang: Lang): string {
   if (values.length === 0) return ''
   const amounts = [...new Set(values.map((v) => formatNumber(v, lang)))].join('–')
   const period = salaryPeriod(offer.salary_period)
-  const suffix = `${offer.salary_currency ?? ''}${period ? MESSAGES[lang].salary.periods[period] : ''}`
+  const suffix = `${offer.salary_currency ?? ''}${period ? messagesFor(lang).salary.periods[period] : ''}`
   return suffix ? `${amounts} ${suffix}` : amounts
 }
 
@@ -49,7 +49,7 @@ export function formatSalary(offer: SalaryFields, lang: Lang): string {
 export function formatApproxMonthly(offer: SalaryFields, lang: Lang, salaryCfg: SalaryConfig = {}): string | null {
   if (isPlnPerMonth(offer)) return null
   const monthly = monthlySalaryPln(offer, salaryCfg)
-  return monthly == null ? null : MESSAGES[lang].salary.approxMonthly(formatNumber(monthly, lang))
+  return monthly == null ? null : messagesFor(lang).salary.approxMonthly(formatNumber(monthly, lang))
 }
 
 // Breakdown points with their sign: "+20", "−15" (a real minus), "0". Halves survive rounding.
@@ -79,7 +79,7 @@ function age(iso: string | null, now: number): Age | null {
 
 // "3 h ago" / "3 godz. temu".
 export function formatAgo(iso: string | null, lang: Lang, now = Date.now()): string {
-  const time = MESSAGES[lang].time
+  const time = messagesFor(lang).time
   const value = age(iso, now)
   if (!value) return time.unknown
   switch (value.unit) {
@@ -92,7 +92,7 @@ export function formatAgo(iso: string | null, lang: Lang, now = Date.now()): str
 
 // "3 h" / "3 godz.", for tight spots like the card's age.
 export function formatAgeShort(iso: string | null, lang: Lang, now = Date.now()): string {
-  const time = MESSAGES[lang].time
+  const time = messagesFor(lang).time
   const value = age(iso, now)
   if (!value) return time.unknown
   switch (value.unit) {

@@ -51,10 +51,25 @@ function siteUrl(url: string): Plugin {
   }
 }
 
-export default defineConfig(({ mode }) => {
+// The public deploy names the data controller and a contact on /privacy, in the landing
+// footer and in "Request access" (plan §8 Q1). REQUIRE_PUBLIC_CONFIG=1 (web-pages.yml) makes
+// a build without them fail instead of shipping a page that names no one.
+function requirePublicConfig(env: Record<string, string>): void {
+  if (process.env.REQUIRE_PUBLIC_CONFIG !== '1') return
+  const missing = ['VITE_CONTROLLER_NAME', 'VITE_CONTACT_EMAIL'].filter((name) => !env[name]?.trim())
+  if (missing.length) {
+    throw new Error(
+      `REQUIRE_PUBLIC_CONFIG=1 but ${missing.join(' and ')} ${missing.length > 1 ? 'are' : 'is'} empty. ` +
+        'Set the repository variables CONTROLLER_NAME / CONTACT_EMAIL (or the env vars) before a public deploy.',
+    )
+  }
+}
+
+export default defineConfig(({ command, mode }) => {
   // GitHub Pages serves the app from /<repo-name>/.
   const base = process.env.BASE_PATH ?? '/'
-  const { SITE_URL } = loadEnv(mode, process.cwd(), 'SITE_URL')
+  const { SITE_URL, ...publicEnv } = loadEnv(mode, process.cwd(), ['SITE_URL', 'VITE_'])
+  if (command === 'build') requirePublicConfig(publicEnv)
   return {
     plugins: [react(), preloadInterLatin(), siteUrl(SITE_URL || `https://michalszuryga.github.io${base}`)],
     base,
@@ -70,6 +85,8 @@ export default defineConfig(({ mode }) => {
     test: {
       include: ['src/**/*.test.ts'],
       environment: 'node',
+      // Polish is a lazy chunk in the app; tests render it synchronously.
+      setupFiles: ['src/i18n/testSetup.ts'],
       // Vitest blanks every CSS import, even ?raw, unless opted in; contrast.test.ts reads CSS as ?raw.
       css: { include: [/\.css\?raw$/] },
     },

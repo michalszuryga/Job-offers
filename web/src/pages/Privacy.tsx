@@ -4,24 +4,16 @@ import { Link, useLocation } from 'wouter'
 import { Button, Callout, Icon, Logo } from '../components/ui'
 import { CONTACT_EMAIL, CONTROLLER_NAME } from '../features/auth/contact'
 import { useI18n } from '../i18n'
+import { hasStoredSession as hasSession } from '../lib/session'
 import './Privacy.css'
 
-// Plan §4.11. Reached at ./privacy; linked from the landing footer and the account menu in P8.
+// Plan §4.11. Reached at ./privacy; linked from the landing footer, the account menu and the
+// access gate. Prerendered (scripts/postbuild.mjs), signed out.
 // No supabase-js here: Sign out loads it on click.
 
 // Bump with any change to what the page says.
 const UPDATED = '2026-10-11'
-const AUTH_KEY = 'joffers-auth'
 const PUODO_URL = 'https://uodo.gov.pl/'
-
-// Signed in on this device = supabase-js has a stored session. Storage can throw (blocked).
-function hasSession(): boolean {
-  try {
-    return localStorage.getItem(AUTH_KEY) != null
-  } catch {
-    return false
-  }
-}
 
 // Another tab signing in or out changes the answer.
 function subscribe(onChange: () => void) {
@@ -37,7 +29,7 @@ export function Privacy() {
   const { t, lang } = useI18n()
   const copy = t.privacy
   const [, navigate] = useLocation()
-  // Server snapshot false: P8 prerenders this page signed out.
+  // Server snapshot false: the prerendered page is signed out.
   const signedIn = useSyncExternalStore(subscribe, hasSession, () => false)
   const [signingOut, setSigningOut] = useState(false)
   const [signOutFailed, setSignOutFailed] = useState(false)

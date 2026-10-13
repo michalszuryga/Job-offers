@@ -30,6 +30,8 @@ jobs:
       # Repository variables CONTROLLER_NAME / CONTACT_EMAIL override the owner's defaults.
       VITE_CONTROLLER_NAME: ${{ vars.CONTROLLER_NAME || 'Michał Szuryga' }}
       VITE_CONTACT_EMAIL: ${{ vars.CONTACT_EMAIL || 'msklin6@gmail.com' }}
+      # A public deploy must name both: the build fails if either is empty (vite.config.ts).
+      REQUIRE_PUBLIC_CONFIG: "1"
       BASE_PATH: /${{ github.event.repository.name }}/
     steps:
       - name: Check configuration

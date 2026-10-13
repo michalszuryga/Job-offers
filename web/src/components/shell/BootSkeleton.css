@@ -20,3 +20,19 @@
     grid-column: 1;
   }
 }
+
+/* The prerendered index.html (scripts/postbuild.mjs) holds the landing for visitors and this
+   skeleton, as static markup, for members. The head script sets html[data-boot=app] when a
+   session (or a magic link) is there, so a member sees the skeleton from the first paint,
+   never the landing; App.tsx drops both the attribute and the static copy once React runs. */
+.boot-static {
+  display: none;
+}
+
+html[data-boot='app'] .boot-static {
+  display: block;
+}
+
+html[data-boot='app'] .landing-static {
+  display: none;
+}

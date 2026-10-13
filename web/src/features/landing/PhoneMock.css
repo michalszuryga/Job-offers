@@ -1,0 +1,98 @@
+/* The landing's phone preview (§4.2): a device frame around the list as the app draws it.
+   Decoration only (inert, aria-hidden); the cards are OfferCard's own preview variant. */
+.phone-mock {
+  display: flex;
+  justify-content: center;
+  inline-size: 100%;
+}
+
+/* Holds the space while the chunk loads after a client-side render (no layout jump). */
+.phone-mock--pending {
+  min-block-size: 560px;
+}
+
+.phone-mock__device {
+  inline-size: min(100%, 420px);
+  padding: 9px;
+  border-radius: 46px;
+  background: var(--surface-raised);
+  box-shadow:
+    var(--shadow-lg),
+    0 0 0 1px var(--line);
+}
+
+.phone-mock__screen {
+  overflow: hidden;
+  padding-block-end: var(--space-4);
+  border-radius: 37px;
+  background: var(--canvas);
+}
+
+/* The speaker slot over the app bar. */
+.phone-mock__screen::before {
+  content: '';
+  display: block;
+  inline-size: 72px;
+  block-size: 6px;
+  margin: 12px auto 0;
+  border-radius: var(--radius-full);
+  background: var(--line);
+}
+
+.phone-mock__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  block-size: 48px;
+  margin-block-start: 6px;
+  padding-inline: var(--space-4);
+  border-block-end: 1px solid var(--line);
+  background: var(--canvas);
+}
+
+.phone-mock__avatar {
+  display: grid;
+  place-items: center;
+  inline-size: 30px;
+  block-size: 30px;
+  border-radius: var(--radius-full);
+  background: var(--brand-tint);
+  color: var(--brand-ink);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-bold);
+}
+
+.phone-mock__batch {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4) var(--space-3);
+}
+
+.phone-mock__summary {
+  font-size: var(--fs-sm);
+  line-height: var(--lh-sm);
+  font-weight: var(--fw-semibold);
+}
+
+.phone-mock__progress {
+  display: block;
+  block-size: 4px;
+  overflow: hidden;
+  border-radius: var(--radius-full);
+  background: var(--surface-2);
+}
+
+.phone-mock__progress-fill {
+  display: block;
+  inline-size: 33%;
+  block-size: 100%;
+  border-radius: inherit;
+  background: var(--brand);
+}
+
+.phone-mock__list {
+  display: grid;
+  gap: var(--card-gap);
+  padding: 0 var(--space-3);
+  list-style: none;
+}

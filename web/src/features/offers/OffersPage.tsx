@@ -3,8 +3,9 @@ import { ListSkeleton } from '../../components/shell/BootSkeleton'
 import { cx } from '../../components/ui'
 import { useI18n } from '../../i18n'
 import { newOffers, reviewedCount } from '../../lib/batch'
+import { useDataSource } from '../../lib/dataSource'
 import { applyFilters, sortOffers } from '../../lib/format'
-import { loadFilters, saveFilters, type Filters } from '../../lib/prefs'
+import { DEFAULT_FILTERS, loadFilters, saveFilters, type Filters } from '../../lib/prefs'
 import { clearView, closeOffer, useEscapeToClose, useOfferParam, viewFrom } from '../../lib/router'
 import { scoringFrom } from '../../lib/score'
 import { sourceHealth } from '../../lib/sources'
@@ -38,8 +39,9 @@ function cardOf(id: string): HTMLElement | null {
   return [...document.querySelectorAll<HTMLElement>('.offer[data-offer]')].find((card) => card.dataset.offer === id) ?? null
 }
 
-function initialFilters(): Filters {
-  const saved = loadFilters()
+// The demo starts from the defaults and remembers nothing (DataSource.persistent).
+function initialFilters(persistent: boolean): Filters {
+  const saved = persistent ? loadFilters() : { ...DEFAULT_FILTERS }
   // ?view=new, the e-mail's link, opens the New view; the param is dropped once read.
   return viewFrom(location.search) === 'new' ? { ...saved, window: 'new' } : saved
 }
@@ -47,8 +49,9 @@ function initialFilters(): Filters {
 export function OffersPage() {
   const { t } = useI18n()
   const wide = useMediaQuery(WIDE)
+  const { persistent } = useDataSource()
   const { load, seen, retry, refresh, promote, updateOffer, getOffer } = useDashboard()
-  const [filters, setFilters] = useState<Filters>(initialFilters)
+  const [filters, setFilters] = useState<Filters>(() => initialFilters(persistent))
   const [sheet, setSheet] = useState<SheetName | null>(null)
   // A sheet's chunk loads on its first open; it then stays mounted, so closing can animate.
   const [sheetsUsed, setSheetsUsed] = useState<ReadonlySet<SheetName>>(() => new Set())
@@ -57,7 +60,9 @@ export function OffersPage() {
   useEscapeToClose(selectedId != null, closeOffer)
 
   useEffect(clearView, [])
-  useEffect(() => saveFilters(filters), [filters])
+  useEffect(() => {
+    if (persistent) saveFilters(filters)
+  }, [filters, persistent])
 
   const update = useCallback((patch: Partial<Filters>) => setFilters((current) => ({ ...current, ...patch })), [])
   const openSheet = (name: SheetName) => {

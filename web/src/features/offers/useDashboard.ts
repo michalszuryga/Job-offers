@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { loadDashboard, trackingQueue } from '../../lib/offers'
+import { trackingQueueOf, useDataSource } from '../../lib/dataSource'
 import { loadSeen, saveSeen } from '../../lib/seen'
 import type { Dashboard, Offer } from '../../lib/types'
 
@@ -21,8 +21,12 @@ const toReview = (offer: Offer) => (offer.application_status ?? 'TO_REVIEW') ===
 // silent promotion of an opened offer from To review to Reviewed. Details change offers
 // through updateOffer (optimistic, then confirmed or rolled back by the caller).
 export function useDashboard() {
+  const source = useDataSource()
+  const { loadDashboard, persistent } = source
+  // The demo keeps what it opened to itself (null storage: nothing read or written).
+  const storage = persistent ? undefined : null
   const [load, setLoad] = useState<Load>({ kind: 'loading' })
-  const [seen, setSeen] = useState<ReadonlySet<string>>(loadSeen)
+  const [seen, setSeen] = useState<ReadonlySet<string>>(() => loadSeen(storage))
   // Mirrors for callbacks that must read the latest value without being recreated.
   const seenRef = useRef(seen)
   const offersRef = useRef<readonly Offer[]>([])
@@ -50,9 +54,9 @@ export function useDashboard() {
     if (on) next.add(id)
     else next.delete(id)
     seenRef.current = next
-    saveSeen(next)
+    saveSeen(next, storage)
     setSeen(next)
-  }, [])
+  }, [storage])
 
   // Opening an offer that is still To review marks it Reviewed (§4.5): silently, optimistic,
   // through the queue every write uses. If it can't be saved (offline), it counts as reviewed
@@ -64,7 +68,7 @@ export function useDashboard() {
       promoting.current.add(id)
       patch(id, (o) => ({ ...o, application_status: 'REVIEW' }))
       const confirmed = { status: 'TO_REVIEW', rate: offer.applied_rate ?? '', notice: offer.notice_period ?? '' } as const
-      trackingQueue
+      trackingQueueOf(source)
         .enqueue(id, { status: 'REVIEW' }, confirmed)
         .then(
           () => markSeen(id, false),
@@ -76,7 +80,7 @@ export function useDashboard() {
         )
         .finally(() => promoting.current.delete(id))
     },
-    [patch, markSeen],
+    [patch, markSeen, source],
   )
 
   const fetchDashboard = useCallback(
@@ -113,7 +117,7 @@ export function useDashboard() {
           fetching.current = false
         })
     },
-    [promote, markSeen],
+    [promote, markSeen, loadDashboard],
   )
 
   useEffect(() => fetchDashboard(false), [fetchDashboard])

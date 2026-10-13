@@ -1,0 +1,488 @@
+/* The landing (plan §4.2): sticky nav, hero (2 columns from 1024 px), feature tiles, how the
+   score works, the privacy note and the footer. Tokens only; the gradient appears in the
+   mark and the hero glow, nowhere else (§2.1). */
+.landing {
+  display: flex;
+  flex-direction: column;
+  min-block-size: 100dvh;
+  /* The glow bleeds past the hero; it must never widen the page. */
+  overflow-x: clip;
+}
+
+/* ---------- Nav (64 px, sticky) ---------- */
+
+.landing-nav {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+  border-block-end: 1px solid var(--line);
+  background: color-mix(in srgb, var(--canvas) 86%, transparent);
+  -webkit-backdrop-filter: saturate(1.5) blur(14px);
+  backdrop-filter: saturate(1.5) blur(14px);
+}
+
+.landing-nav__inner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  block-size: 64px;
+  max-inline-size: var(--container-max);
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+}
+
+.landing-nav__home {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--target);
+  border-radius: var(--radius-sm);
+  color: var(--fg);
+  text-decoration: none;
+}
+
+.landing-nav__links {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-inline-start: var(--space-6);
+}
+
+.landing-nav__link,
+.landing-nav__lang {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-block-size: var(--target);
+  padding-inline: var(--space-3);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--fg-muted);
+  font-size: var(--fs-body);
+  font-weight: var(--fw-medium);
+  text-decoration: none;
+  transition:
+    background-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+}
+
+@media (hover: hover) {
+  .landing-nav__link:hover,
+  .landing-nav__lang:hover {
+    background: var(--surface-2);
+    color: var(--fg);
+  }
+}
+
+.landing-nav__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-inline-start: auto;
+}
+
+/* Phones: the logo, language and Sign in. The demo is the hero's first button, and How it
+   works and GitHub are a scroll away (the footer). */
+@media (max-width: 767px) {
+  .landing-nav__links {
+    display: none;
+  }
+}
+
+/* ---------- Hero ---------- */
+
+.hero {
+  position: relative;
+  /* The glow sits behind the hero's content and nothing else. */
+  isolation: isolate;
+  display: grid;
+  gap: var(--space-12);
+  inline-size: 100%;
+  max-inline-size: var(--container-max);
+  margin-inline: auto;
+  padding: var(--space-10) var(--gutter) var(--space-6);
+}
+
+.hero__glow {
+  position: absolute;
+  z-index: -1;
+  inset: -160px -20% auto;
+  block-size: 760px;
+  pointer-events: none;
+  background:
+    radial-gradient(42% 46% at 72% 38%, color-mix(in oklab, var(--mark-to) 20%, transparent), transparent 70%),
+    radial-gradient(38% 40% at 22% 18%, color-mix(in oklab, var(--mark-from) 14%, transparent), transparent 70%);
+}
+
+.hero__copy {
+  display: grid;
+  align-content: start;
+  gap: var(--space-5);
+  min-inline-size: 0;
+}
+
+.hero__badge {
+  justify-self: start;
+}
+
+.hero__title {
+  font-size: var(--fs-display);
+  line-height: var(--lh-display);
+  font-weight: var(--fw-display);
+  letter-spacing: var(--ls-display);
+}
+
+.hero__lead {
+  max-inline-size: 34em;
+  color: var(--fg-muted);
+  font-size: var(--fs-body-lg);
+  line-height: var(--lh-body-lg);
+}
+
+.hero__cta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  margin-block-start: var(--space-1);
+}
+
+/* The page's one big button. */
+.hero__demo {
+  min-block-size: 48px;
+  padding-inline: var(--space-6);
+  border-radius: var(--radius-lg);
+  font-size: var(--fs-title);
+}
+
+.hero__note {
+  color: var(--fg-muted);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-sm);
+  font-weight: var(--fw-sm);
+}
+
+.hero .sign-in {
+  max-inline-size: 460px;
+  margin-block-start: var(--space-6);
+}
+
+.hero__preview {
+  display: flex;
+  justify-content: center;
+  min-inline-size: 0;
+}
+
+@media (min-width: 1024px) {
+  .hero {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 420px);
+    align-items: center;
+    column-gap: var(--space-16);
+    padding-block: var(--space-16) var(--space-8);
+  }
+
+  .hero__preview {
+    justify-content: end;
+  }
+}
+
+/* ---------- Sections ---------- */
+
+.landing-section {
+  inline-size: 100%;
+  max-inline-size: var(--container-max);
+  margin-inline: auto;
+  padding: var(--space-10) var(--gutter);
+}
+
+.landing-section__head {
+  display: grid;
+  gap: var(--space-2);
+  max-inline-size: 640px;
+  margin-block-end: var(--space-6);
+}
+
+.landing-section__title {
+  font-size: var(--fs-h1);
+  line-height: var(--lh-h1);
+  font-weight: var(--fw-h1);
+  letter-spacing: var(--ls-h1);
+}
+
+.landing-section__lead {
+  color: var(--fg-muted);
+  font-size: var(--fs-body-lg);
+  line-height: var(--lh-body-lg);
+}
+
+/* Cards on the canvas, like the list's (§2.6). */
+.feature,
+.how__card,
+.privacy-note {
+  border-radius: var(--radius-xl);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+}
+
+/* ---------- Feature tiles ---------- */
+
+.features {
+  display: grid;
+  gap: var(--space-4);
+  padding: 0;
+  list-style: none;
+}
+
+@media (min-width: 768px) {
+  .features {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.feature {
+  display: grid;
+  align-content: start;
+  gap: var(--space-2);
+  padding: var(--space-6);
+}
+
+.feature__icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  inline-size: 40px;
+  block-size: 40px;
+  margin-block-end: var(--space-2);
+  border-radius: var(--radius-md);
+  background: var(--brand-tint);
+  color: var(--brand-ink);
+}
+
+.feature__title {
+  font-size: var(--fs-h3);
+  line-height: var(--lh-h3);
+  font-weight: var(--fw-h3);
+}
+
+.feature__body {
+  color: var(--fg-muted);
+}
+
+/* ---------- How the score works ---------- */
+
+.how__grid {
+  display: grid;
+  gap: var(--space-4);
+}
+
+@media (min-width: 900px) {
+  .how__grid {
+    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+    align-items: start;
+  }
+}
+
+.how__side {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.how__card {
+  display: grid;
+  align-content: start;
+  gap: var(--space-4);
+  padding: var(--space-6);
+}
+
+.how__card-title {
+  font-size: var(--fs-h4);
+  line-height: var(--lh-h4);
+  font-weight: var(--fw-h4);
+}
+
+.how__rows,
+.how__bands {
+  display: grid;
+  gap: var(--space-3);
+  padding: 0;
+  list-style: none;
+}
+
+.how__row {
+  display: grid;
+  grid-template-columns: minmax(7.5em, 10em) minmax(0, 1fr) 4.5em;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.how__row--penalty {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.how__label {
+  font-weight: var(--fw-medium);
+}
+
+.how__value {
+  color: var(--fg-muted);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-sm);
+  font-weight: var(--fw-sm);
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+  white-space: nowrap;
+}
+
+.how__value--penalty {
+  color: var(--danger);
+  font-weight: var(--fw-semibold);
+}
+
+.how__band {
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+/* The band's colour (§2.3); the band word next to it carries the meaning. */
+.how__swatch {
+  inline-size: 12px;
+  block-size: 12px;
+  border-radius: var(--radius-full);
+  background: var(--band);
+}
+
+.how__band--top {
+  --band: var(--success);
+}
+
+.how__band--strong {
+  --band: var(--info);
+}
+
+.how__band--fair {
+  --band: var(--warning);
+}
+
+.how__band--low {
+  --band: var(--fg-muted);
+}
+
+.how__filtered {
+  max-inline-size: 70ch;
+  margin-block-start: var(--space-6);
+  color: var(--fg-muted);
+}
+
+/* ---------- Privacy note ---------- */
+
+.privacy-note {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-4);
+  padding: var(--space-8) var(--space-6);
+}
+
+.privacy-note .feature__icon {
+  margin: 0;
+}
+
+.privacy-note__text {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.privacy-note__title {
+  font-size: var(--fs-h2);
+  line-height: var(--lh-h2);
+  font-weight: var(--fw-h2);
+  letter-spacing: var(--ls-h2);
+}
+
+.privacy-note__line {
+  font-size: var(--fs-h3);
+  line-height: var(--lh-h3);
+  font-weight: var(--fw-semibold);
+}
+
+.privacy-note__body {
+  max-inline-size: 60ch;
+  color: var(--fg-muted);
+}
+
+.privacy-note__link {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--target);
+  color: var(--brand-ink);
+  font-weight: var(--fw-semibold);
+}
+
+/* ---------- Footer ---------- */
+
+.landing-footer {
+  margin-block-start: auto;
+  padding-block-start: var(--space-12);
+}
+
+.landing-footer__inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-6) var(--space-12);
+  max-inline-size: var(--container-max);
+  margin-inline: auto;
+  padding: var(--space-8) var(--gutter) var(--space-10);
+  border-block-start: 1px solid var(--line);
+}
+
+.landing-footer__about {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-2);
+}
+
+.landing-footer__owner {
+  color: var(--fg-muted);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-sm);
+  font-weight: var(--fw-sm);
+}
+
+.landing-footer__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--space-5);
+  padding: 0;
+  list-style: none;
+}
+
+.landing-footer__links a {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--target);
+  color: var(--brand-ink);
+  font-weight: var(--fw-medium);
+}
+
+.landing-footer__prefs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+
+.landing-footer__prefs > * {
+  inline-size: 168px;
+}
+
+/* The sign-in card's place while its chunk loads after a client-side render. */
+.sign-in--pending {
+  min-block-size: 300px;
+}
+
+.how__pending {
+  min-block-size: 480px;
+}

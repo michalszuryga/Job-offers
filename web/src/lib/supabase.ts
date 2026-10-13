@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { AUTH_KEY } from './session'
 
 const url = import.meta.env.VITE_SUPABASE_URL
 const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
@@ -11,7 +12,7 @@ if (!url || !key) {
 // policies in db/web_access.sql.
 export const supabase = createClient(url, key, {
   auth: {
-    storageKey: 'joffers-auth',
+    storageKey: AUTH_KEY,
     // Implicit flow: the magic link carries the session itself, so it still
     // works when the email is opened in a different browser than the one that
     // requested it (e.g. phone mail app vs. laptop).

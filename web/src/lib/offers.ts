@@ -1,10 +1,12 @@
+import type { DataSource } from './dataSource'
 import { sortOffers } from './format'
 import { supabase } from './supabase'
-import type { Dashboard, FetchRun, Offer, OfferDetails, ScoringProfile, Status } from './types'
-import { createWriteQueue } from './writeQueue'
+import type { Dashboard, FetchRun, Offer, OfferDetails, ScoringProfile } from './types'
+import type { Tracking } from './writeQueue'
 
-// Pulls in supabase-js: import only from the AppRoot chunk, never from the entry or a public
-// page (features/auth/AppRoot.tsx, check-bundle).
+// Pulls in supabase-js: import only from the AppRoot chunk, never from the entry, a public
+// page or the demo (features/auth/AppRoot.tsx, check-bundle). The offers screens get these
+// through lib/dataSource.ts.
 
 // score_breakdown stays out: it is only needed in details, which load it per offer.
 const LIST_COLUMNS = [
@@ -37,7 +39,7 @@ export async function isMember(userId: string): Promise<boolean> {
   return (data ?? []).length > 0
 }
 
-export async function loadDashboard(): Promise<Dashboard> {
+async function loadDashboard(): Promise<Dashboard> {
   const [offers, meta, runs] = await Promise.all([
     supabase
       .from('jobs')
@@ -72,13 +74,14 @@ export async function loadDashboard(): Promise<Dashboard> {
   }
 }
 
-export async function loadOfferDetails(externalId: string): Promise<OfferDetails> {
+async function loadOfferDetails(externalId: string): Promise<OfferDetails> {
   const { data, error } = await supabase.from('jobs').select('*').eq('external_id', externalId).single()
   if (error) throw error
   return data as OfferDetails
 }
 
-export async function saveTracking(externalId: string, status: Status, rate: string, notice: string) {
+// The only write (plan header): rpc save_offer_tracking, which overwrites all three fields.
+async function saveTracking(externalId: string, { status, rate, notice }: Tracking) {
   const { error } = await supabase.rpc('save_offer_tracking', {
     p_external_id: externalId,
     p_status: status,
@@ -88,8 +91,5 @@ export async function saveTracking(externalId: string, status: Status, rate: str
   if (error) throw error
 }
 
-// Every tracking write goes through here: one RPC per change, serialised per offer, each
-// built on the last confirmed values because the RPC overwrites status, rate and notice together.
-export const trackingQueue = createWriteQueue((id, tracking) =>
-  saveTracking(id, tracking.status, tracking.rate, tracking.notice),
-)
+// The members' data, provided by AppRoot.
+export const supabaseSource: DataSource = { loadDashboard, loadOfferDetails, saveTracking, persistent: true }

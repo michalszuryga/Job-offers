@@ -2,6 +2,9 @@
 export const LANGS = ['en', 'pl'] as const
 export type Lang = (typeof LANGS)[number]
 
+// Each language in its own name, as language pickers show them; not translated.
+export const LANG_NAMES: Readonly<Record<Lang, string>> = { en: 'English', pl: 'Polski' }
+
 const PLURALS: Record<Lang, Intl.PluralRules> = { en: new Intl.PluralRules('en-US'), pl: new Intl.PluralRules('pl-PL') }
 
 export function enPlural(n: number, one: string, other: string): string {
