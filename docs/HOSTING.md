@@ -7,7 +7,7 @@ README's *Deployment* section.
 |---|---|---|
 | Web app (`web/`) | GitHub Pages, `https://michalszuryga.github.io/Job-offers/` | Deployed by `.github/workflows/web-pages.yml` on every push to `main` touching `web/`. Talks to Supabase with the publishable key; access is enforced by RLS (`db/web_access.sql`). |
 | Database + sign-in | Supabase (Postgres, EU region `eu-west-1`) | Magic-link e-mails go out through custom Gmail SMTP; the Magic Link template includes `{{ .Token }}` for code sign-in. Sign-ups are off; members are listed in `app_members`. |
-| Daily fetch + summary e-mail | GitHub Actions `.github/workflows/daily-fetch.yml` | Triggered at 17:45 Europe/Warsaw by cron-job.org (`workflow_dispatch`, `daily=true`); GitHub's cron at 17:41 is only a fallback. A daily run skips when today's evening fetch already happened. |
+| Daily fetch + summary e-mail | GitHub Actions `.github/workflows/daily-fetch.yml` | Triggered at 12:00 Europe/Warsaw by cron-job.org (`workflow_dispatch`, `daily=true`); GitHub's cron at 11:41 is only a fallback. A daily run skips when today's midday fetch already happened. |
 | External scheduler | cron-job.org (owner's free account) | Holds only the GitHub token `joffers-daily-fetch-trigger` (fine-grained, this repo, *Actions: Read and write*). No offer data or database credentials pass through it. |
 | Legacy dashboard | Streamlit Community Cloud, entrypoint `streamlit_app.py` | Being retired; uses `DATABASE_URL` from its secrets. SQLite is only a local-dev fallback when `DATABASE_URL` is unset. |
 

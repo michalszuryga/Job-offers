@@ -6,9 +6,9 @@ from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
 WARSAW = ZoneInfo("Europe/Warsaw")
-# A fetch from this hour on (Warsaw time) is today's daily fetch; an earlier
-# manual one doesn't stop the evening run.
-DAILY_FROM_HOUR = 17
+# A fetch from this hour on (Warsaw time) is today's daily fetch (scheduled for
+# 12:00); an earlier manual one doesn't stop the midday run.
+DAILY_FROM_HOUR = 11
 
 
 def daily_fetch_done(last_fetch_at, now=None, from_hour=DAILY_FROM_HOUR):

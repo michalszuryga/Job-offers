@@ -20,7 +20,7 @@ const TYPE = [
   { token: 'h3', sample: 'Why 75?' },
   { token: 'h4', sample: 'Requirements' },
   { token: 'title', sample: 'QA Automation Engineer' },
-  { token: 'body-lg', sample: 'Every evening at 18:00 JOffers checks the boards and scores each offer.' },
+  { token: 'body-lg', sample: 'Every day around 12:00 JOffers checks the boards and scores each offer.' },
   { token: 'body', sample: '2 new · fetched 2 h ago' },
   { token: 'sm', sample: 'Acme · Remote · B2B · Board A' },
   { token: 'xs', sample: 'Private beta' },

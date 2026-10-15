@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test'
 import { mockSupabase, NEW_IDS, offer, OFFERS, signIn } from './supabase-mock'
 
 // The list's states (plan §4.10) and the New view's edges (§4.5), on a fixed clock (§6):
-// 10:00 in Warsaw, so the next fetch is "today around 18:00" and every age is the same each run.
+// 10:00 in Warsaw, so the next fetch is "today around 12:00" and every age is the same each run.
 const FIXED_NOW = Date.parse('2026-10-08T10:00:00+02:00')
 
 test.beforeEach(async ({ page }) => {
@@ -35,7 +35,7 @@ test('an empty New view names the next fetch, and Show last 3 days widens it', a
   await page.goto('./')
 
   await expect(page.getByRole('heading', { name: 'No new offers from the last fetch' })).toBeVisible()
-  await expect(page.getByText('Next fetch today around 18:00')).toBeVisible()
+  await expect(page.getByText('Next fetch today around 12:00')).toBeVisible()
   await expect(page).toHaveTitle('JOffers')
   await page.getByRole('button', { name: 'Show last 3 days' }).click()
 
@@ -96,7 +96,7 @@ test('with nothing new and a failed board, the chip and Refresh are still there'
   const reloaded = page.waitForRequest((request) => request.url().includes('/rest/v1/jobs?'))
   await refresh.click()
   await reloaded
-  await expect(page.getByText('Next fetch today around 18:00')).toBeVisible()
+  await expect(page.getByText('Next fetch today around 12:00')).toBeVisible()
   await expect(page.locator('.list-skeleton')).toHaveCount(0)
 })
 

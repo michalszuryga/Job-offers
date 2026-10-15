@@ -55,7 +55,7 @@ const og = page(`
   <div class="copy">
     <span class="kicker">Private beta</span>
     <h1>QA jobs, scored<br>for you.</h1>
-    <p>Every evening around 18:00 — scored <span class="nb">0–100</span> against your&nbsp;profile.</p>
+    <p>Every day around 12:00 — scored <span class="nb">0–100</span> against your&nbsp;profile.</p>
   </div>
 </main>
 <figure>

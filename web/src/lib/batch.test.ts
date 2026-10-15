@@ -40,13 +40,13 @@ describe('the New batch', () => {
   })
 })
 
-describe('nextFetchToday (18:00 Europe/Warsaw)', () => {
+describe('nextFetchToday (12:00 Europe/Warsaw)', () => {
   test.each([
     // CEST (UTC+2) and CET (UTC+1): the cut-off follows Warsaw time, not UTC.
-    ['2026-10-08T15:59:00Z', true],
-    ['2026-10-08T16:00:00Z', false],
-    ['2026-12-08T16:59:00Z', true],
-    ['2026-12-08T17:00:00Z', false],
+    ['2026-10-08T09:59:00Z', true],
+    ['2026-10-08T10:00:00Z', false],
+    ['2026-12-08T10:59:00Z', true],
+    ['2026-12-08T11:00:00Z', false],
     ['2026-12-08T23:30:00Z', true],
   ])('%s → today %s', (iso, today) => {
     expect(nextFetchToday(Date.parse(iso))).toBe(today)

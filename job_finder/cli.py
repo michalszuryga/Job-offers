@@ -25,7 +25,7 @@ def main():
     summary_cmd = sub.add_parser("notify-summary", help="E-mail a summary of the offers new in the last fetch")
     summary_cmd.add_argument("--hours", type=int, default=24,
                              help="Fallback window when the last fetch's new ids aren't recorded")
-    sub.add_parser("daily-due", help="Print 'yes' unless today's evening fetch already ran")
+    sub.add_parser("daily-due", help="Print 'yes' unless today's midday fetch already ran")
     args = parser.parse_args()
 
     store = JobStore()

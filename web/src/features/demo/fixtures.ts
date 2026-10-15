@@ -4,7 +4,7 @@ import type { Dashboard, FetchRun, Offer, OfferDetails, ScoringProfile, Status }
 
 // The demo's sample data (§4.11) and the landing's phone preview. Every company, board and
 // person here is made up: no real board is named on public pages until the legal review
-// (§8 Q7). Times are relative to `now`, so the demo always looks like this evening's fetch,
+// (§8 Q7). Times are relative to `now`, so the demo always looks like today's fetch,
 // and the prerendered preview ages the same way it does in the browser.
 
 const HOUR = 3_600_000
@@ -309,7 +309,7 @@ const SCORING_PROFILE: ScoringProfile = {
   scoring_version: 2,
 }
 
-// 'YYYY-MM-DD' in Warsaw: the demo's scores were refreshed with this evening's fetch.
+// 'YYYY-MM-DD' in Warsaw: the demo's scores were refreshed with today's fetch.
 const warsawDay = (time: number) =>
   new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Warsaw', year: 'numeric', month: '2-digit', day: '2-digit' }).format(time)
 

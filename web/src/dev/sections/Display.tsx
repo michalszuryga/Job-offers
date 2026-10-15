@@ -150,7 +150,7 @@ export function DisplaySections() {
             title="No new offers from the last fetch"
             actions={<Button variant="secondary">Show last 3 days</Button>}
           >
-            Next fetch today at 18:00.
+            Next fetch today around 12:00.
           </EmptyState>
           <EmptyState
             className="kit-frame"

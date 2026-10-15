@@ -35,14 +35,14 @@ export function inProgress(offers: readonly Offer[]): { preparing: number; activ
   return count
 }
 
-// The daily fetch starts at 17:45 in Warsaw (cron-job.org → daily-fetch.yml) and is done
-// before 18:00, so "today" holds until 18:00.
-export const FETCH_HOUR = 18
+// The daily fetch starts at 12:00 in Warsaw (cron-job.org → daily-fetch.yml) and takes a
+// few minutes, so "today" holds until 12:00.
+export const FETCH_HOUR = 12
 export const FETCH_TIME_ZONE = 'Europe/Warsaw'
 
 const warsawHour = new Intl.DateTimeFormat('en-GB', { timeZone: FETCH_TIME_ZONE, hour: 'numeric', hourCycle: 'h23' })
 
-// Whether the next fetch is today in Warsaw ("Next fetch today around 18:00"), else tomorrow.
+// Whether the next fetch is today in Warsaw ("Next fetch today around 12:00"), else tomorrow.
 export function nextFetchToday(now: number = Date.now()): boolean {
   const hour = Number(warsawHour.formatToParts(now).find((part) => part.type === 'hour')?.value)
   return hour < FETCH_HOUR
