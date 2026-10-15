@@ -78,7 +78,7 @@ def summary_rows(store, fallback_hours=24, now=None):
     return store.visible_by_ids(new_ids), None
 
 
-def build_summary(new_rows, last_run, hours=None, top=10):
+def build_summary(new_rows, last_run, hours=None):
     """Returns (subject, plain_text, html). `hours` set means the rows come from
     the time-window fallback, which the subject then says."""
     count = len(new_rows)
@@ -87,8 +87,8 @@ def build_summary(new_rows, last_run, hours=None, top=10):
         subject = f"JOffers: {count} {_plural(count, 'nowa oferta', 'nowe oferty', 'nowych ofert')}{window}"
     else:
         subject = f"JOffers: brak nowych ofert{window}"
-    shown = new_rows[:top]
-    more = count - len(shown)
+    # Every new offer is listed: the owner reads them all, a "… and N more" line only hid some.
+    shown = new_rows
     failed = _failed_sources(last_run)
 
     lines = []
@@ -96,9 +96,6 @@ def build_summary(new_rows, last_run, hours=None, top=10):
         salary = _salary(row)
         lines.append(f"{row.get('score') or 0:.0f} · {row.get('title')} — {row.get('company') or '?'}"
                      + (f" · {salary}" if salary else "") + f"\n   {row.get('url')}")
-    more_line = f"… i jeszcze {more} {_plural(more, 'oferta', 'oferty', 'ofert')}"
-    if more > 0:
-        lines.append(more_line)
     if not shown:
         lines.append("Ostatni fetch nie dodał nowych ofert.")
     if failed:
@@ -115,9 +112,10 @@ def build_summary(new_rows, last_run, hours=None, top=10):
         for row in shown
     )
     html = '<div style="font-family:system-ui,sans-serif;font-size:15px;line-height:1.45;color:#0E1120">'
-    html += f"<ol style=\"padding-left:20px\">{items}</ol>" if shown else "<p>Ostatni fetch nie dodał nowych ofert.</p>"
-    if more > 0:
-        html += f"<p>{more_line}</p>"
+    # No list numbers: each line starts with its score, and Gmail clipped two-digit
+    # numbers ("10." showed as "0.").
+    html += (f'<ul style="list-style:none;padding-left:0;margin:0 0 12px">{items}</ul>' if shown
+             else "<p>Ostatni fetch nie dodał nowych ofert.</p>")
     if failed:
         html += "<p style=\"color:#9A5B00\">" + "<br>".join(f"⚠️ {escape(f)}" for f in failed) + "</p>"
     app_url = os.environ.get("APP_URL")
