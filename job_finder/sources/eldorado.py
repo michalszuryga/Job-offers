@@ -55,7 +55,11 @@ class EldoradoSource(JobSource):
         # Showed a 429 under default concurrency in testing (and a full 403 on
         # the listing page itself under sustained load) — same treatment as
         # Pracuj.pl and No Fluff Jobs: fully serial with a paced interval.
-        jobs, self.errors = parse_offer_batch(offers, self.name, max_workers=1, request_interval=0.75)
+        # Cards print monthly amounts without a unit ("21 840 – 23 520 zł";
+        # B2B hourly rates appear already converted, e.g. 110 × 168 = 18 480),
+        # so a figure found only in the text/card is monthly unless it says otherwise.
+        jobs, self.errors = parse_offer_batch(offers, self.name, max_workers=1, request_interval=0.75,
+                                             default_period="month")
         self.candidates = len(offers) + skipped_known
         self.skipped_known = skipped_known
         self.parsed = len(jobs)

@@ -23,7 +23,7 @@ def _salary(row):
         return ""
     values = [v for v in dict.fromkeys((low, high)) if v is not None]
     amounts = "–".join(f"{v:,.0f}".replace(",", " ") for v in values)
-    period = {"hour": "/h", "month": "/mies.", "year": "/rok"}.get((row.get("salary_period") or "").lower(), "")
+    period = {"hour": "/h", "day": "/dzień", "month": "/mies.", "year": "/rok"}.get((row.get("salary_period") or "").lower(), "")
     return f"{amounts} {row.get('salary_currency') or ''}{period}".strip()
 
 

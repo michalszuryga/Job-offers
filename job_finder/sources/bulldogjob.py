@@ -47,7 +47,10 @@ class BulldogJobSource(JobSource):
                     if getattr(card, "parent", None):
                         card = card.parent
                 offers.append((href, title, clean(card.get_text(" ", strip=True))))
-        jobs, self.errors = parse_offer_batch(offers, self.name)
+        # Bulldogjob's JSON-LD carries unitText "month" when a salary is shown;
+        # a figure only found in the text/card ("12 000 - 16 000 PLN") follows
+        # the board's monthly convention.
+        jobs, self.errors = parse_offer_batch(offers, self.name, default_period="month")
         self.candidates = len(offers) + skipped_known
         self.skipped_known = skipped_known
         self.parsed = len(jobs)

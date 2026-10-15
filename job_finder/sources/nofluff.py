@@ -1,5 +1,5 @@
 from .base import JobSource
-from .web_utils import get_soup, clean, absolute, parse_offer_batch
+from .web_utils import get_soup, clean, absolute, parse_offer_batch, embedded_json_value, _salary_period
 from ..models import canonical_job_url
 
 # No Fluff Jobs' ?page=N is cumulative (page=3 renders pages 1-3 worth of
@@ -14,6 +14,35 @@ from ..models import canonical_job_url
 # tried — fewer listing requests, and a smaller candidate pool to fetch detail
 # pages for, both reduce the total request volume that triggers rate limiting.
 MAX_PAGES = 5
+
+
+PREFERRED_EMPLOYMENT_TYPE = "b2b"
+
+
+def nofluff_salary(soup):
+    """Salary from the posting's own `originalSalary` in the page's
+    serverApp-state: {"currency": "PLN", "types": {"b2b": {"period": "Hour",
+    "range": [130, 145]}}}. The JSON-LD only carries the top of the range
+    (a single `value`), and the listing card prints "/ godz." / "/ dzień",
+    which the text fallback used to miss. A posting whose types have no
+    range hides the salary (disclosedAt AT_FIRST_INTERVIEW): store none."""
+    state = soup.find("script", id="serverApp-state")
+    salary = embedded_json_value(state.string or state.get_text() if state else "", "originalSalary")
+    if not salary:
+        return None
+    types = salary.get("types") or {}
+    priced = [(name, spec) for name, spec in types.items()
+              if isinstance(spec, dict) and isinstance(spec.get("range"), list) and spec["range"]]
+    if not priced:
+        return None, None, "", ""
+    name, spec = next((item for item in priced if item[0].lower() == PREFERRED_EMPLOYMENT_TYPE), priced[0])
+    try:
+        amounts = [float(v) for v in spec["range"] if v is not None]
+    except (TypeError, ValueError):
+        return None
+    if not amounts:
+        return None, None, "", ""
+    return min(amounts), max(amounts), (salary.get("currency") or "").upper(), _salary_period(spec.get("period") or "")
 
 
 def _with_page(url, page):
@@ -95,7 +124,8 @@ class NoFluffSource(JobSource):
         # outage (0/155 parsed) under sustained testing. Match Pracuj.pl's
         # proven-stable pattern — fully serial with a paced interval — trading
         # speed for actually getting results back instead of a wall of 429s.
-        jobs, self.errors = parse_offer_batch(offers, self.name, max_workers=1, request_interval=0.75)
+        jobs, self.errors = parse_offer_batch(offers, self.name, max_workers=1, request_interval=0.75,
+                                             salary_parser=nofluff_salary)
         self.candidates = len(offers) + skipped_known
         self.skipped_known = skipped_known
         self.parsed = len(jobs)

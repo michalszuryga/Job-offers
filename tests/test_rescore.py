@@ -119,3 +119,46 @@ def test_rescore_keeps_tracking_fields(tmp_path):
     row = store.list_all()[0]
     assert (row["application_status"], row["applied_rate"], row["notice_period"]) == ("APPLIED", "140 PLN/h", "1 month")
     assert row["recency_score"] == 3
+
+
+def test_rescore_rewrites_a_stored_impossible_salary_period(tmp_path):
+    # Production had JustJoin.IT rows stored as "85–90 PLN/month" (an hourly
+    # rate the employer filed as monthly). The daily fetch's forced rescore
+    # must fix them in place: the corrected period goes back to the DB and
+    # the estimate/bonus are computed from it.
+    import sqlite3
+
+    cfg = load_config()
+    wrong = _job(url="https://justjoin.it/job-offer/jellylabs-tech-senior-qa-engineer-warszawa-testing")
+    hourly_as_monthly = _job(url="https://justjoin.it/job-offer/b2b-rate-filed-as-month")
+    store = _store(tmp_path, score_job(wrong, cfg), score_job(hourly_as_monthly, cfg))
+    with sqlite3.connect(tmp_path / "jobs.db") as conn:  # simulate rows written before the fix
+        conn.execute("UPDATE jobs SET salary_min=85, salary_max=90, salary_currency='PLN', salary_period='month' "
+                     "WHERE url LIKE '%jellylabs%'")
+        conn.execute("UPDATE jobs SET salary_min=110, salary_max=140, salary_currency='PLN', salary_period='month' "
+                     "WHERE url LIKE '%filed-as-month%'")
+
+    assert rescore(store, cfg, store.get_all_meta(), store.list(0), today=TODAY, force=True) is True
+
+    rows = {row["url"].rsplit("/", 1)[-1]: row for row in store.list_all()}
+    jelly, b2b = rows["jellylabs-tech-senior-qa-engineer-warszawa-testing"], rows["b2b-rate-filed-as-month"]
+    assert (jelly["salary_min"], jelly["salary_max"], jelly["salary_period"]) == (85, 90, "hour")
+    assert b2b["salary_period"] == "hour"
+    jelly_breakdown, b2b_breakdown = json.loads(jelly["score_breakdown"]), json.loads(b2b["score_breakdown"])
+    assert jelly_breakdown["salary_assessment"]["estimated_monthly_pln"] == 85 * 160
+    assert jelly_breakdown["salary_bonus"] == 0  # 13 600 PLN/month is under the 15 000 threshold
+    assert b2b_breakdown["salary_assessment"]["estimated_monthly_pln"] == 110 * 160
+    assert b2b_breakdown["salary_bonus"] == cfg["scoring"]["salary_bonus"]["points"]
+
+
+def test_a_scoring_version_bump_rescores_hidden_rows_too():
+    # SCORING_VERSION is part of the signature, so the first fetch after the
+    # salary fix rewrites every stored row (rejected/hidden ones included),
+    # not only the visible ones.
+    cfg = load_config()
+    store = _CountingStore(all_rows=[{"title": "hidden"}, {"title": "visible"}])
+    old_signature = json.dumps({**scoring_inputs(cfg), "scoring_version": SCORING_VERSION - 1},
+                               sort_keys=True, ensure_ascii=False)
+    meta = {"score_config_signature": old_signature, "scores_refreshed_on": TODAY}
+    assert rescore(store, cfg, meta, [{"title": "visible"}], today=TODAY, force=True) is True
+    assert [job.title for job in store.written] == ["hidden", "visible"]

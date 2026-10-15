@@ -4,6 +4,8 @@ from datetime import datetime
 from typing import Optional
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
+from .salary import normalize_job_salary
+
 
 def canonical_job_url(url: str) -> str:
     """Normalize equivalent offer URLs into a stable storage key."""
@@ -60,6 +62,12 @@ class Job:
     matched_keywords: list[str] = field(default_factory=list)
     penalties: list[str] = field(default_factory=list)
     application_status: str = "TO_REVIEW"
+
+    def __post_init__(self):
+        # Every Job (fresh from a source, or rebuilt from a stored row by
+        # rescore.row_to_job) gets an impossible salary period corrected here,
+        # so scoring, display and the DB write-back all see the same values.
+        normalize_job_salary(self)
 
     @property
     def external_id(self):

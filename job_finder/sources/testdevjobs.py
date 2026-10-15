@@ -1,3 +1,4 @@
+import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import timezone
 
@@ -28,14 +29,19 @@ def _parse_detail(url, source_name):
         title = clean(soup.title.get_text()) if soup.title else ""
 
     lines = [clean(line) for line in soup.get_text("\n", strip=True).split("\n") if clean(line)]
+    # Only the offer's own header (everything before the first "Apply for
+    # this job") describes it; further down, the "Similar Jobs" cards repeat
+    # the same 📍/🌐/💵 layout for other offers. Reading the whole page leaked
+    # one gig's "💵 €100 - €200 / month" into every offer without a salary.
+    header = lines[:lines.index("Apply for this job")] if "Apply for this job" in lines else lines
 
     location = ""
-    for i, line in enumerate(lines):
-        if line == "📍" and i + 1 < len(lines):
-            location = lines[i + 1]
+    for i, line in enumerate(header):
+        if line == "📍" and i + 1 < len(header):
+            location = header[i + 1]
             break
 
-    remote_line = next((line for line in lines if line.startswith("🌐")), "").lower()
+    remote_line = next((line for line in header if line.startswith("🌐")), "").lower()
     remote = None
     if "on-site" in remote_line:
         remote = False
@@ -66,8 +72,17 @@ def _parse_detail(url, source_name):
     if not title or len(description) < 80:
         return None
 
-    salary_line = next((line for line in lines if line.startswith("💵")), "")
+    salary_line = next((line for line in header if line.startswith("💵")), "")
     salary_min, salary_max, salary_currency, salary_period = extract_salary(salary_line)
+    if salary_min is None and salary_line:
+        # A single symbol-first figure ("💵 £37,000"); extract_salary only reads
+        # a lone amount with the currency after it.
+        salary_min, salary_max, salary_currency, salary_period = extract_salary(
+            re.sub(r"([€$£])\s*([\d.,\u00a0 ]*\d)", r"\2 \1", salary_line))
+    if salary_min is not None and not salary_period:
+        # The board prints an hourly or monthly figure with "/ hour" or
+        # "/ month"; a bare "€42,000 - €48,000" is its annual convention.
+        salary_period = "year"
 
     return Job(
         title=title, company=company, url=url, source=source_name,

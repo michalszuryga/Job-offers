@@ -1,9 +1,9 @@
 import re
 from datetime import datetime, timezone
-from .salary import monthly_salary_pln
+from .salary import monthly_salary_pln, normalize_job_salary
 
 # Bump when scoring logic changes so stored scores get recomputed on next load.
-SCORING_VERSION = 2
+SCORING_VERSION = 3
 
 
 def _text(job):
@@ -91,6 +91,10 @@ def recency_score(published_at):
 
 
 def score_job(job, cfg, now=None):
+    # Job.__post_init__ already normalizes; repeated here (idempotent) for
+    # salary fields assigned after construction, so the stored period always
+    # matches the one the salary bonus and junior override were computed with.
+    normalize_job_salary(job)
     text = _text(job)
     hard = cfg.get("hard_exclusions", {})
     tech_exclusions = hard.get("technologies", [])

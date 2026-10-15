@@ -35,6 +35,9 @@ def row_to_job(row):
                                              row.get("location") or "")))
     if inferred_remote is not None:
         remote = inferred_remote
+    # Job.__post_init__ runs salary.normalize_salary, so a stored row with an
+    # impossible period (85 PLN "month") comes back corrected, and rescore()'s
+    # upsert writes the corrected salary fields back to the DB.
     return Job(title=row.get("title") or "", company=row.get("company") or "", url=row.get("url") or "",
                source=row.get("source") or "", description=row.get("description") or "",
                location=row.get("location") or "", remote=remote, contract=row.get("contract") or "",

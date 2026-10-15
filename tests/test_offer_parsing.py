@@ -206,3 +206,146 @@ def test_structured_salary_recognizes_spelled_out_unit_text():
         {"currency": "PLN", "value": {"unitCode": "HUR", "minValue": 100, "maxValue": 140}}
     )
     assert coded[3] == "hour"
+
+
+# --- Board-native salary units ---------------------------------------------
+
+_LONG_DESCRIPTION = ("A detailed QA role covering manual and automated testing of a fintech platform, "
+                     "API checks with Postman and regression suites in Playwright.")
+
+
+def _justjoin_detail(employment_types, base_salary):
+    """Shape of a real JustJoin.IT offer page: a JSON-LD summary plus the
+    Next.js flight payload (escaped JSON) holding the offer's employmentTypes,
+    after same-named i18n labels."""
+    import json
+
+    payload = json.dumps({"employmentTypes": employment_types, "slug": "acme-qa-engineer-warszawa-testing"})
+    escaped = payload.replace('"', '\\"')
+    posting = {"@context": "https://schema.org", "@type": "JobPosting", "title": "QA Engineer",
+               "description": _LONG_DESCRIPTION, "hiringOrganization": {"@type": "Organization", "name": "Acme"},
+               "baseSalary": base_salary}
+    return (f'<script type="application/ld+json">{json.dumps(posting)}</script>'
+            '<script>self.__next_f.push([1,"{\\"filters\\":{\\"employmentTypes\\":\\"Employment type\\"}}"])</script>'
+            f'<script>self.__next_f.push([1,"{escaped}"])</script>')
+
+
+def _jj_type(type_, unit, low, high, currency="PLN", source="original"):
+    return {"currency": currency, "from": low, "fromChf": None, "fromEur": None, "fromGbp": None,
+            "fromPln": None, "fromUsd": None, "gross": type_ == "permanent", "to": high, "toChf": None,
+            "toEur": None, "toGbp": None, "toPln": None, "toUsd": None, "type": type_, "unit": unit,
+            "label": type_, "currencySource": source}
+
+
+def _parse_with(monkeypatch, html, **kwargs):
+    monkeypatch.setattr(web_utils, "get_soup", lambda _, timeout=10: BeautifulSoup(html, "html.parser"))
+    return web_utils.parse_offer("https://justjoin.it/job-offer/acme-qa-engineer-warszawa-testing", "test", **kwargs)
+
+
+def test_justjoin_salary_uses_the_offer_employment_type_unit(monkeypatch):
+    from job_finder.sources.justjoin import justjoin_salary
+
+    types = [_jj_type("b2b", "hour", 33.7, 36.3, "USD", "conversion"),
+             _jj_type("permanent", "month", 12000, 16000),
+             _jj_type("b2b", "hour", 130, 140)]
+    html = _justjoin_detail(types, {"@type": "MonetaryAmount", "currency": "PLN", "value": {
+        "@type": "QuantitativeValue", "unitText": "MONTH", "minValue": 130, "maxValue": 16000}})
+    job = _parse_with(monkeypatch, html, salary_parser=justjoin_salary)
+    # B2B preferred, the employer's own currency, and that type's own unit.
+    assert (job.salary_min, job.salary_max, job.salary_currency, job.salary_period) == (130, 140, "PLN", "hour")
+
+
+def test_justjoin_daily_and_weekly_units(monkeypatch):
+    from job_finder.sources.justjoin import justjoin_salary
+
+    day = _justjoin_detail([_jj_type("b2b", "day", 900, 1100)], None)
+    assert justjoin_salary(BeautifulSoup(day, "html.parser")) == (900, 1100, "PLN", "day")
+    week = _justjoin_detail([_jj_type("b2b", "week", 3000, 3000)], None)
+    assert justjoin_salary(BeautifulSoup(week, "html.parser")) == (13000, 13000, "PLN", "month")
+
+
+def test_justjoin_hourly_rate_filed_as_month_is_normalized(monkeypatch):
+    # The real JellyLabs Tech offer: the board itself says unit "month" for 85–90 PLN.
+    from job_finder.sources.justjoin import justjoin_salary
+
+    html = _justjoin_detail([_jj_type("b2b", "month", 85, 90)], {"@type": "MonetaryAmount", "currency": "PLN",
+                            "value": {"@type": "QuantitativeValue", "unitText": "MONTH", "minValue": 85, "maxValue": 90}})
+    job = _parse_with(monkeypatch, html, salary_parser=justjoin_salary)
+    assert (job.salary_min, job.salary_max, job.salary_period) == (85, 90, "hour")
+
+
+def test_justjoin_undisclosed_salary_is_not_guessed_from_the_text(monkeypatch):
+    from job_finder.sources.justjoin import justjoin_salary
+
+    html = _justjoin_detail([_jj_type("b2b", "month", None, None)], None).replace(
+        "Playwright.", "Playwright. Pracujemy 16 000 PLN, 8 godzin dziennie.")
+    job = _parse_with(monkeypatch, html, salary_parser=justjoin_salary, listing_text="Undisclosed salary")
+    assert (job.salary_min, job.salary_max, job.salary_currency, job.salary_period) == (None, None, "", "")
+
+
+def test_justjoin_source_passes_its_salary_parser(monkeypatch):
+    from job_finder.sources import justjoin
+
+    seen = {}
+
+    def fake_batch(offers, name, **kwargs):
+        seen.update(kwargs)
+        return [], []
+
+    monkeypatch.setattr(justjoin, "get_soup", lambda _: BeautifulSoup("", "html.parser"))
+    monkeypatch.setattr(justjoin, "parse_offer_batch", fake_batch)
+    JustJoinSource(queries=["https://justjoin.it/job-offers/all-locations/testing"]).fetch()
+    assert seen["salary_parser"] is justjoin.justjoin_salary
+
+
+def _nofluff_detail(original_salary, ld_value):
+    import json
+
+    posting = {"@context": "https://schema.org", "@type": "JobPosting", "title": "QA Engineer",
+               "description": _LONG_DESCRIPTION, "hiringOrganization": {"@type": "Organization", "name": "Acme"}}
+    if ld_value:
+        posting["baseSalary"] = {"@type": "MonetaryAmount", "currency": "PLN", "value": ld_value}
+    state = {"POSTING": {"id": "acme-qa-engineer-warszawa", "essentials": {"contract": {"start": "ASAP"},
+                                                                            "originalSalary": original_salary}},
+             "RECOMMENDED": [{"salary": {"from": 21000, "to": 22680, "type": "b2b", "currency": "PLN",
+                                         "period": "Month"}}]}
+    return (f'<script type="application/ld+json">{json.dumps(posting)}</script>'
+            f'<script id="serverApp-state" type="application/json">{json.dumps(state)}</script>')
+
+
+def test_nofluff_salary_reads_the_range_and_period_from_original_salary(monkeypatch):
+    from job_finder.sources.nofluff import nofluff_salary
+
+    # The JSON-LD only carries the top of the range; the state has both ends.
+    hourly = _nofluff_detail({"currency": "PLN", "types": {"b2b": {"period": "Hour", "range": [130, 145],
+                              "paidHoliday": False}}, "disclosedAt": "VISIBLE"},
+                             {"@type": "QuantitativeValue", "value": 145, "unitText": "Hour"})
+    job = _parse_with(monkeypatch, hourly, salary_parser=nofluff_salary)
+    assert (job.salary_min, job.salary_max, job.salary_currency, job.salary_period) == (130, 145, "PLN", "hour")
+
+    daily = _nofluff_detail({"currency": "PLN", "types": {"b2b": {"period": "Day", "range": [1300, 1520]}},
+                             "disclosedAt": "VISIBLE"}, None)
+    assert nofluff_salary(BeautifulSoup(daily, "html.parser")) == (1300, 1520, "PLN", "day")
+
+    both = _nofluff_detail({"currency": "PLN", "types": {
+        "permanent": {"period": "Month", "range": [12000, 15000]},
+        "b2b": {"period": "Month", "range": [16000, 19000]}}, "disclosedAt": "VISIBLE"}, None)
+    assert nofluff_salary(BeautifulSoup(both, "html.parser")) == (16000, 19000, "PLN", "month")
+
+
+def test_nofluff_hidden_salary_is_stored_as_none(monkeypatch):
+    from job_finder.sources.nofluff import nofluff_salary
+
+    hidden = _nofluff_detail({"currency": "PLN", "types": {"b2b": {"period": "Hour", "paidHoliday": False}},
+                              "disclosedAt": "AT_FIRST_INTERVIEW", "containsSalary": "SALARY_MATCH"}, None)
+    job = _parse_with(monkeypatch, hidden, salary_parser=nofluff_salary, listing_text="110 – 115 PLN / godz.")
+    assert (job.salary_min, job.salary_max, job.salary_period) == (None, None, "")
+
+
+def test_nofluff_listing_card_units_are_recognized_without_board_state(monkeypatch):
+    from job_finder.sources.nofluff import nofluff_salary
+
+    html = ('<h1>QA Engineer</h1><script type="application/ld+json">{"@type":"JobPosting","title":"QA Engineer",'
+            f'"description":"{_LONG_DESCRIPTION}"}}</script>')
+    job = _parse_with(monkeypatch, html, salary_parser=nofluff_salary, listing_text="QA Engineer 70 – 95 PLN / godz. SQL")
+    assert (job.salary_min, job.salary_max, job.salary_period) == (70, 95, "hour")

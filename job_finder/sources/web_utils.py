@@ -133,29 +133,70 @@ def _amount_number(raw):
     return float(value)
 
 
+_UNIT_WORDS = (
+    ("hour", r"h|hr|hrs|hour|hours|godz\.?|godzin[aęy]?|godzinę"),
+    ("day", r"d|day|days|md|dzie[nń]|dni|dzień\s+roboczy"),
+    ("month", r"mo|mon|month|months|mies\.?|miesiąc|miesiac|msc|m-c|mc"),
+    ("year", r"y|yr|year|years|annum|rok|roku"),
+)
+_UNIT_ADVERBS = (
+    ("hour", r"hourly|godzinowo|za\s+godzin[ęe]"),
+    ("day", r"daily|dziennie|za\s+dzie[nń]"),
+    ("month", r"monthly|miesięcznie|miesiecznie|za\s+miesiąc|za\s+miesiac"),
+    ("year", r"yearly|annually|rocznie|za\s+rok"),
+)
+# Words that may sit between an amount and its unit: "PLN netto / h",
+# "zł + VAT (B2B) / godz.", "EUR gross per year".
+_SALARY_FILLER = (r"(?:\s*(?:netto|brutto|net|gross|\+\s*vat|vat|\(\s*(?:b2b|uop)\s*\)|b2b|uop|"
+                  r"pln|zł|eur|usd|gbp|chf|[€$£]))*")
+_TRAILING_UNIT = [
+    (period, re.compile(rf"^{_SALARY_FILLER}\s*(?:/|per|za|a|an)\s*(?:{words})(?![a-ząćęłńóśźż])", re.I))
+    for period, words in _UNIT_WORDS
+] + [
+    (period, re.compile(rf"^{_SALARY_FILLER}\s*(?:{words})(?![a-ząćęłńóśźż])", re.I))
+    for period, words in _UNIT_ADVERBS
+]
+# The period stated just before the amount: "hourly rate: 100-130 PLN",
+# "Monthly gross salary of 17,500 PLN", "stawka godzinowa 120 zł".
+_LEADING_UNIT = (
+    ("hour", re.compile(r"(?:hourly|per hour|godzinow|stawka za godzin)[^.;:\n]{0,25}[:\s]*$", re.I)),
+    ("day", re.compile(r"(?:daily rate|day rate|per day|dzienn|stawka za dzie)[^.;:\n]{0,25}[:\s]*$", re.I)),
+    ("month", re.compile(r"(?:monthly|per month|miesięczn|miesieczn)[^.;:\n]{0,25}[:\s]*$", re.I)),
+    ("year", re.compile(r"(?:annual|yearly|per year|per annum|roczn)[^.;:\n]{0,25}[:\s]*$", re.I)),
+)
+
+
 def _salary_period(text):
-    value = (text or "").lower()
+    """Map a structured unit value (schema.org unitText/unitCode, a board's own
+    unit field) to hour/day/month/year."""
+    value = clean(text or "").lower()
     # "hur"/"yer" match schema.org's abbreviated unitCode ("HUR", UN/CEFACT).
-    # Sites commonly send the spelled-out unitText instead ("HOUR", "YEAR"),
-    # which these sets used to miss entirely — silently dropping the period
-    # (and with it the whole hourly-vs-monthly salary conversion) for any
-    # offer using that field.
-    if value in {"hur", "hour", "hours", "h"}:
+    # Sites commonly send the spelled-out unitText instead ("HOUR", "YEAR").
+    if value in {"hur", "hour", "hours", "h", "hourly"}:
         return "hour"
-    if value in {"day", "days", "d"}:
+    if value in {"day", "days", "d", "daily"}:
         return "day"
-    if value in {"mon", "month", "months"}:
+    if value in {"mon", "month", "months", "monthly"}:
         return "month"
-    if value in {"yer", "ann", "annum", "year", "years"}:
+    if value in {"yer", "ann", "annum", "year", "years", "yearly", "annual"}:
         return "year"
-    if re.search(r"(?:/\s*h\b|per hour|hourly|godzin|za godzin)", value):
-        return "hour"
-    if re.search(r"(?:/\s*(?:md|day)\b|per day|daily|dziennie|za dzień|za dzien)", value):
-        return "day"
-    if re.search(r"(?:/\s*(?:month|mo)\b|per month|monthly|miesięczn|miesieczn)", value):
-        return "month"
-    if re.search(r"(?:/\s*year\b|per year|yearly|annually|rocznie)", value):
-        return "year"
+    return _period_after(value)
+
+
+def _period_after(text):
+    """The unit written right after an amount ("PLN / godz.", "€ per hour",
+    "zł netto miesięcznie"). Anchored at the start, so an unrelated later word
+    ("16 000 PLN, 8 godzin dziennie") no longer turns a monthly figure hourly."""
+    for period, pattern in _TRAILING_UNIT:
+        if pattern.search(text or ""):
+            return period
+    return ""
+
+
+def _period_before(text):
+    for period, pattern in _LEADING_UNIT:
+        if pattern.search(text or ""):
+            return period
     return ""
 
 
@@ -166,7 +207,7 @@ def _salary_period(text):
 _NON_SALARY_CONTEXT = re.compile(
     r"(?:budget|budżet|certyfikat|certification|szkolen|training|kurs|course|"
     r"benefit|multisport|karta sportowa|ubezpieczen|insurance|"
-    r"reimburs|zwrot koszt|conference|konferencj|bonus|premia|nagrod|"
+    r"reimburs|zwrot koszt|conference|konferencj|bonus|premia|(?<!wy)nagrod|"
     r"sprz[eę]t|equipment|laptop|l\s*&\s*d\b)",
     re.I,
 )
@@ -210,13 +251,15 @@ def extract_salary(text: str):
         second = match.group("second") or match.group("second_before") or match.group("second_both")
         currency = match.group("currency_after") or match.group("currency_before") or match.group("currency_both1")
         currency = _currency_lookup(currency)
-        return min(_amount_number(first), _amount_number(second)), max(_amount_number(first), _amount_number(second)), currency, _salary_period(text[match.start():match.end() + 24])
+        period = _period_after(text[match.end():match.end() + 40]) or _period_before(text[max(0, match.start() - 40):match.start()])
+        return min(_amount_number(first), _amount_number(second)), max(_amount_number(first), _amount_number(second)), currency, period
     for match in single_pattern.finditer(text):
         if _has_disqualifying_context(text, match.start()):
             continue
         amount = _amount_number(match.group("amount"))
         currency = _currency_lookup(match.group("currency"))
-        return amount, amount, currency, _salary_period(text[match.start():match.end() + 24])
+        period = _period_after(text[match.end():match.end() + 40]) or _period_before(text[max(0, match.start() - 40):match.start()])
+        return amount, amount, currency, period
     return None, None, "", ""
 
 
@@ -318,9 +361,40 @@ def _meta(soup, *names):
     return ""
 
 
+def embedded_json_value(text, key, kind=dict):
+    """Decode the first value of type `kind` that follows `"key":` in a page's
+    embedded state (Next.js/Angular payloads, possibly with escaped quotes).
+    Pages also carry same-named i18n labels, hence the type check."""
+    if not text:
+        return None
+    decoder = json.JSONDecoder()
+    for source in (text, text.replace('\\"', '"')):
+        marker = f'"{key}":'
+        index = source.find(marker)
+        while index >= 0:
+            start = index + len(marker)
+            while start < len(source) and source[start].isspace():
+                start += 1
+            try:
+                value, _ = decoder.raw_decode(source, start)
+            except ValueError:
+                value = None
+            if isinstance(value, kind):
+                return value
+            index = source.find(marker, index + len(marker))
+    return None
+
+
 def parse_offer(url: str, source_name: str, listing_title: str = "", timeout: int = 10,
-                listing_text: str = "") -> Job | None:
-    """Fetch one offer page and normalize structured data or page-level metadata."""
+                listing_text: str = "", salary_parser=None, default_period: str = "") -> Job | None:
+    """Fetch one offer page and normalize structured data or page-level metadata.
+
+    salary_parser(soup) reads a board's own salary data (with its own unit):
+    a (min, max, currency, period) tuple wins outright — all None means the
+    board says the salary is undisclosed, so nothing is guessed from the text;
+    None means the board data wasn't found and the generic chain runs.
+    default_period is the board's display convention for a figure printed
+    without a unit (Bulldogjob and CzyJestEldorado list monthly amounts)."""
     soup = get_soup(url, timeout=timeout)
     posting = None
     for tag in soup.find_all("script", type="application/ld+json"):
@@ -369,21 +443,31 @@ def parse_offer(url: str, source_name: str, listing_title: str = "", timeout: in
     if re.search(r"(?<![a-z0-9])b2b(?![a-z0-9])", clean(description).lower()):
         contract = "B2B"
     published = parse_date((posting or {}).get("datePosted") or _meta(soup, "article:published_time", "datePublished", "job:published_time"))
-    salary_min, salary_max, salary_currency, salary_period = extract_structured_salary((posting or {}).get("baseSalary"))
-    if salary_min is None and salary_max is None:
-        salary_min, salary_max, salary_currency, salary_period = extract_salary(description)
-    if salary_min is None and salary_max is None:
-        salary_min, salary_max, salary_currency, salary_period = extract_salary(listing_text)
+    board_salary = salary_parser(soup) if salary_parser else None
+    if board_salary is not None:
+        salary_min, salary_max, salary_currency, salary_period = board_salary
+    else:
+        salary_min, salary_max, salary_currency, salary_period = extract_structured_salary(
+            (posting or {}).get("baseSalary"))
+        if salary_min is None and salary_max is None:
+            salary_min, salary_max, salary_currency, salary_period = extract_salary(description)
+        if salary_min is None and salary_max is None:
+            salary_min, salary_max, salary_currency, salary_period = extract_salary(listing_text)
+        if (salary_min is not None or salary_max is not None) and not salary_period:
+            salary_period = default_period
     return Job(title=title, company=company, url=url, source=source_name, description=description,
                location=location, remote=remote, contract=contract, salary_min=salary_min,
                salary_max=salary_max, salary_currency=salary_currency, salary_period=salary_period,
                published_at=published, seniority=infer_seniority(title + " " + description))
 
 
-def parse_offer_batch(offers, source_name: str, max_workers: int = 5, request_interval: float = 0):
+def parse_offer_batch(offers, source_name: str, max_workers: int = 5, request_interval: float = 0,
+                      salary_parser=None, default_period: str = ""):
     """Fetch detail pages concurrently while preserving partial successes and errors."""
     results = [None] * len(offers)
     errors = []
+    salary_kwargs = {key: value for key, value in (("salary_parser", salary_parser),
+                                                   ("default_period", default_period)) if value}
 
     def load_offer(offer):
         if request_interval:
@@ -391,8 +475,8 @@ def parse_offer_batch(offers, source_name: str, max_workers: int = 5, request_in
         url, title = offer[:2]
         listing_text = offer[2] if len(offer) > 2 else ""
         if listing_text:
-            return parse_offer(url, source_name, title, listing_text=listing_text)
-        return parse_offer(url, source_name, title)
+            return parse_offer(url, source_name, title, listing_text=listing_text, **salary_kwargs)
+        return parse_offer(url, source_name, title, **salary_kwargs)
 
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         pending = {executor.submit(load_offer, offer): (index, offer) for index, offer in enumerate(offers)}
