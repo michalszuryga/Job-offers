@@ -22,7 +22,7 @@ def test_summary_lists_top_offers_with_links_and_failed_sources(monkeypatch):
     ]}
     subject, text, html = notify.build_summary(rows, run)
     assert subject == "JOffers: 12 nowych ofert"
-    assert text.splitlines()[0] == "90 · QA 0 — Acme · 20 000–25 000 PLN/mies."
+    assert text.splitlines()[0] == "1. 90 pkt · QA 0 — Acme · 20 000–25 000 PLN/mies."
     # All 12 are listed, with no "… and N more" line.
     assert "https://board.test/90" in text and "QA 11" in text and "jeszcze" not in text
     assert "⚠️ Pracuj.pl: HTTPError" in text and "JustJoin" not in text
@@ -57,12 +57,12 @@ def test_subject_uses_polish_plurals(count, words):
     assert notify.build_summary(rows, None)[0] == f"JOffers: {count} {words}"
 
 
-def test_every_offer_is_listed_without_list_numbers():
+def test_every_offer_is_listed_and_numbered_in_the_text():
     rows = [_row(99 - i, f"QA {i}") for i in range(11)]
     text, html = notify.build_summary(rows, None)[1:]
-    assert html.count("<li") == 11 and "QA 10" in text
-    # Gmail clipped two-digit <ol> numbers, so the list is unnumbered.
-    assert "<ol" not in html and "list-style:none" in html
+    assert html.count("<li") == 11 and "11. 89 pkt · QA 10" in text
+    # Gmail clipped two-digit <ol> numbers, so each item carries its own number.
+    assert "<ol" not in html and '10.</span> <strong>90 pkt</strong>' in html
 
 
 def _store_with(tmp_path, *jobs, fetched_hours_ago=0.1):
@@ -182,3 +182,10 @@ def test_no_app_links_without_app_url(monkeypatch):
 def test_app_link_keeps_the_path_and_encodes_like_encode_uri_component():
     assert notify.app_link("https://x.test", view="new") == "https://x.test/?view=new"
     assert notify.app_link(" https://x.test/app ", offer="a b/c") == "https://x.test/app/?offer=a%20b%2Fc"
+
+
+def test_a_huge_fetch_is_capped_at_100_with_a_more_line():
+    rows = [_row(50, f"QA {i}") for i in range(102)]
+    text, html = notify.build_summary(rows, None)[1:]
+    assert html.count("<li") == 100 and "100. 50 pkt · QA 99" in text
+    assert "… i jeszcze 2 oferty" in text and "<p>… i jeszcze 2 oferty</p>" in html

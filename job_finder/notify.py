@@ -13,6 +13,8 @@ from urllib.parse import quote, urlencode, urlsplit, urlunsplit
 # means today's failed before recording anything, so its new ids and failed
 # sources are yesterday's. Well under a day, so a late cron can't hide that.
 CURRENT_FETCH_HOURS = 12
+# The most offers one e-mail lists.
+MAX_LISTED = 100
 
 
 def _salary(row):
@@ -87,15 +89,22 @@ def build_summary(new_rows, last_run, hours=None):
         subject = f"JOffers: {count} {_plural(count, 'nowa oferta', 'nowe oferty', 'nowych ofert')}{window}"
     else:
         subject = f"JOffers: brak nowych ofert{window}"
-    # Every new offer is listed: the owner reads them all, a "… and N more" line only hid some.
-    shown = new_rows
+    # Every new offer is listed — the owner reads them all — up to a safety cap for an
+    # unusually big fetch; only beyond it does a "… i jeszcze N" line appear.
+    shown = new_rows[:MAX_LISTED]
+    more = count - len(shown)
     failed = _failed_sources(last_run)
 
     lines = []
-    for row in shown:
+    # Numbered in the text itself ("1." … "12."), not with <ol>: Gmail clipped two-digit list
+    # numbers. The score follows as "70 pkt" so the two numbers can't be confused.
+    for number, row in enumerate(shown, 1):
         salary = _salary(row)
-        lines.append(f"{row.get('score') or 0:.0f} · {row.get('title')} — {row.get('company') or '?'}"
+        lines.append(f"{number}. {row.get('score') or 0:.0f} pkt · {row.get('title')} — {row.get('company') or '?'}"
                      + (f" · {salary}" if salary else "") + f"\n   {row.get('url')}")
+    more_line = f"… i jeszcze {more} {_plural(more, 'oferta', 'oferty', 'ofert')}"
+    if more > 0:
+        lines.append(more_line)
     if not shown:
         lines.append("Ostatni fetch nie dodał nowych ofert.")
     if failed:
@@ -104,18 +113,20 @@ def build_summary(new_rows, last_run, hours=None):
     text = "\n".join(lines)
 
     items = "".join(
-        f'<li style="margin:0 0 10px"><strong>{row.get("score") or 0:.0f}</strong> · '
+        f'<li style="margin:0 0 10px"><span style="color:#665C50">{number}.</span> '
+        f'<strong>{row.get("score") or 0:.0f} pkt</strong> · '
         f'<a href="{escape(row.get("url") or "", quote=True)}">{escape(row.get("title") or "")}</a>'
         f' — {escape(row.get("company") or "?")}'
         + (f' <span style="color:#586074">· {escape(_salary(row))}</span>' if _salary(row) else "")
         + "</li>"
-        for row in shown
+        for number, row in enumerate(shown, 1)
     )
     html = '<div style="font-family:system-ui,sans-serif;font-size:15px;line-height:1.45;color:#0E1120">'
-    # No list numbers: each line starts with its score, and Gmail clipped two-digit
-    # numbers ("10." showed as "0.").
+    # Unordered list with the numbers written in each item (see above).
     html += (f'<ul style="list-style:none;padding-left:0;margin:0 0 12px">{items}</ul>' if shown
              else "<p>Ostatni fetch nie dodał nowych ofert.</p>")
+    if more > 0:
+        html += f"<p>{more_line}</p>"
     if failed:
         html += "<p style=\"color:#9A5B00\">" + "<br>".join(f"⚠️ {escape(f)}" for f in failed) + "</p>"
     app_url = os.environ.get("APP_URL")
