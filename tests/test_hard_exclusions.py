@@ -138,3 +138,19 @@ def test_old_offer_gets_configured_penalty():
     old.published_at = datetime.now(timezone.utc) - timedelta(days=11)
     scored = score_job(old, config)
     assert scored.score_breakdown["stale_offer_penalty"] == -15
+
+
+def test_java_only_listed_among_tools_is_not_a_hard_reject():
+    # Pracuj.pl offer 1005167912: Java in "Expected" technologies and "Tools", with a
+    # "requirements" heading right after it, but never asked for as a skill.
+    scored = score_job(job("QA Engineer", "Technologies we use Expected Selenium Cucumber.js Java BDD "
+                                          "Azure DevOps Tools: Java Selenium Cucumber Our requirements "
+                                          "Experience: Minimum 6 years of professional experience in "
+                                          "Quality Assurance. Playwright TypeScript"), cfg())
+    assert scored.reject_reason != "Java"
+
+
+def test_java_asked_as_a_skill_in_polish_is_a_hard_reject():
+    scored = score_job(job("Tester automatyzujący", "Wymagania: bardzo dobra znajomość Javy i Selenium. "
+                                                   "Playwright TypeScript"), cfg())
+    assert scored.reject_reason == "Java"

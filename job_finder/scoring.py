@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from .salary import monthly_salary_pln, normalize_job_salary
 
 # Bump when scoring logic changes so stored scores get recomputed on next load.
-SCORING_VERSION = 3
+SCORING_VERSION = 4
 
 
 def _text(job):
@@ -29,21 +29,22 @@ def _java_is_role_requirement(job):
                   "java automation", "java/sdet", "java selenium")
     if any(_phrase(title, term) for term in role_terms):
         return True
-    # Keep evidence local: Java listed in a stack paragraph alone is not a skill gate.
-    java = re.finditer(r"(?<![a-z0-9])java(?![a-z0-9])", description)
-    requirement_markers = re.compile(
-        r"(?:required|requirement|must have|must-have|mandatory|essential|"
-        r"experience (?:with|in)|proficien(?:t|cy) (?:in|with)|knowledge of|"
-        r"wymagamy|wymagane|wymagana|wymagany|doswiadczenie (?:z|w)|"
-        r"znajomosc|bieg(?:la|ly|losc))", re.I
+    # Only Java stated as a skill the candidate must have counts. Java in a list of
+    # project technologies or tools ("Tools: Java, Selenium") is not enough: a
+    # "requirements" heading nearby used to reject offers the owner wanted to see.
+    java = r"jav(?:a|y|ie|ą|ę)(?![a-z0-9])"
+    skill_gates = (
+        rf"(?:experience|expertise|background)\s+(?:with|in|using)\s+(?:[a-z0-9/+.#-]+\s+){{0,2}}{java}",
+        rf"(?:proficien(?:t|cy)|fluen(?:t|cy)|skilled|strong|solid|good|hands-on)\s+"
+        rf"(?:knowledge\s+of\s+|skills?\s+in\s+|in\s+|with\s+)?{java}",
+        rf"(?:knowledge|command|understanding)\s+of\s+{java}",
+        rf"{java}\s+(?:developer|engineer|programmer|programming|coding|skills?|experience|knowledge|expertise)",
+        rf"{java}\s+(?:is|are)\s+(?:required|a\s+must|mandatory|essential)",
+        rf"(?:programming|coding|writing\s+tests?|automat\w*\s+tests?)\s+in\s+{java}",
+        rf"(?:do[sś]wiadczeni\w*|znajomo[sś][cć]|umiej[eę]tno[sś][cć])\s+(?:\w+\s+){{0,2}}{java}",
+        rf"(?:programowani\w*|pisani\w*\s+test\w*)\s+w\s+(?:j[eę]zyku\s+)?{java}",
     )
-    product_markers = re.compile(r"(?:application|product|platform|system|backend|codebase|"
-                                 r"aplikacj[ai]|produkt|platforma|system|backend)", re.I)
-    for match in java:
-        context = description[max(0, match.start() - 100):match.end() + 100]
-        if requirement_markers.search(context) and not product_markers.search(context):
-            return True
-    return False
+    return any(re.search(rf"(?<![a-z0-9]){gate}", description) for gate in skill_gates)
 
 
 def _junior_is_role_only(job):
