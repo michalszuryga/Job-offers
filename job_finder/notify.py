@@ -3,6 +3,7 @@ same one Supabase Auth uses for sign-in links)."""
 
 import json
 import os
+import re
 import smtplib
 from datetime import datetime, timedelta, timezone
 from email.message import EmailMessage
@@ -15,6 +16,21 @@ from urllib.parse import quote, urlencode, urlsplit, urlunsplit
 CURRENT_FETCH_HOURS = 12
 # The most offers one e-mail lists.
 MAX_LISTED = 100
+# Offers on EU-institution projects go first in the e-mail and get a flag.
+EU_PATTERN = re.compile(
+    r"\b(?:EU|European)\s+(?:institutions?|agenc(?:y|ies)|public\s+(?:sector|organisations?|institutions?))\b"
+    r"|\bEuropean\s+(?:Commission|Parliament|Investment\s+Bank|Central\s+Bank)\b|\beu-LISA\b|\bEuropol\b",
+    re.I,
+)
+EU_FLAG = "🇪🇺"
+
+
+def is_eu_institution(row):
+    return bool(EU_PATTERN.search(" ".join(str(row.get(k) or "") for k in ("title", "company", "description"))))
+
+
+def _title(row):
+    return (f"{EU_FLAG} " if is_eu_institution(row) else "") + (row.get("title") or "")
 
 
 def _salary(row):
@@ -83,10 +99,15 @@ def summary_rows(store, fallback_hours=24, now=None):
 def build_summary(new_rows, last_run, hours=None):
     """Returns (subject, plain_text, html). `hours` set means the rows come from
     the time-window fallback, which the subject then says."""
+    # Stable sort: EU-institution offers first, the store's order kept within each group.
+    new_rows = sorted(new_rows, key=lambda row: not is_eu_institution(row))
     count = len(new_rows)
+    eu_count = sum(is_eu_institution(row) for row in new_rows)
     window = f" ({hours} h)" if hours else ""
     if count:
         subject = f"JOffers: {count} {_plural(count, 'nowa oferta', 'nowe oferty', 'nowych ofert')}{window}"
+        if eu_count:
+            subject += f" · {EU_FLAG} {eu_count} UE"
     else:
         subject = f"JOffers: brak nowych ofert{window}"
     # Every new offer is listed — the owner reads them all — up to a safety cap for an
@@ -100,7 +121,7 @@ def build_summary(new_rows, last_run, hours=None):
     # numbers. The score follows as "70 pkt" so the two numbers can't be confused.
     for number, row in enumerate(shown, 1):
         salary = _salary(row)
-        lines.append(f"{number}. {row.get('score') or 0:.0f} pkt · {row.get('title')} — {row.get('company') or '?'}"
+        lines.append(f"{number}. {row.get('score') or 0:.0f} pkt · {_title(row)} — {row.get('company') or '?'}"
                      + (f" · {salary}" if salary else "") + f"\n   {row.get('url')}")
     more_line = f"… i jeszcze {more} {_plural(more, 'oferta', 'oferty', 'ofert')}"
     if more > 0:
@@ -115,7 +136,7 @@ def build_summary(new_rows, last_run, hours=None):
     items = "".join(
         f'<li style="margin:0 0 10px"><span style="color:#665C50">{number}.</span> '
         f'<strong>{row.get("score") or 0:.0f} pkt</strong> · '
-        f'<a href="{escape(row.get("url") or "", quote=True)}">{escape(row.get("title") or "")}</a>'
+        f'<a href="{escape(row.get("url") or "", quote=True)}">{escape(_title(row))}</a>'
         f' — {escape(row.get("company") or "?")}'
         + (f' <span style="color:#586074">· {escape(_salary(row))}</span>' if _salary(row) else "")
         + "</li>"

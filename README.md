@@ -8,8 +8,10 @@ every day at midday and e-mails a summary of new offers.
 
 ## What it does
 
-- **8 sources:** No Fluff Jobs, Pracuj.pl, JustJoin.IT, Bulldogjob, TestDevJobs,
-  CzyJestEldorado (aggregator), RemoteOK, We Work Remotely.
+- **11 sources:** No Fluff Jobs, Pracuj.pl, JustJoin.IT, Bulldogjob, TestDevJobs,
+  CzyJestEldorado (aggregator), RemoteOK, We Work Remotely, plus companies' own
+  ATS job boards (Workable, SmartRecruiters, TalentClue) listed in
+  `config/companies.yaml` — mainly IT contractors staffing EU institutions.
 - **Scoring:** deterministic, explainable 0–100 match score from the profile in
   `config/profile.yaml` (roles, technologies, domains, contract, seniority,
   salary, freshness) plus hard exclusions (e.g. Java-as-a-requirement, junior-only).

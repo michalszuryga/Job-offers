@@ -1,0 +1,20 @@
+# Companies whose own applicant-tracking system (ATS) is read directly, mainly
+# IT contractors staffing EU institutions and agencies. Adding a company needs
+# no code change: put it under its ATS with the identifier its job board uses.
+#
+#   workable:        slug from apply.workable.com/<slug>
+#   smartrecruiters: company id from jobs.smartrecruiters.com/<id>
+#   talentclue:      data-client-id of the jobs widget on <company>.talentclue.com
+#
+# Only QA/test titles are kept; remote comes from the ATS's own remote field
+# and phrases like "far site" / "remotely from Europe" in the title.
+workable:
+  - {name: European Dynamics, slug: european-dynamics}
+  - {name: Sword Group, slug: sword-group}
+
+smartrecruiters:
+  - {name: ARHS Group, slug: ARHS}
+  - {name: Sopra Steria, slug: SopraSteria1}
+
+talentclue:
+  - {name: SEIDOR, client_id: 0dd7d2a37394fe074e5a4ac26c42ab4f}

@@ -1,5 +1,7 @@
 import json
 
+import pytest
+
 from job_finder import collector as collector_mod
 from job_finder.models import Job
 from job_finder.storage import JobStore
@@ -16,6 +18,17 @@ def _fake_source(name, jobs, sensitive=False):
     return fake
 
 
+ATS_SOURCES = {"WorkableSource": "Workable", "SmartRecruitersSource": "SmartRecruiters",
+               "TalentClueSource": "TalentClue"}
+
+
+@pytest.fixture(autouse=True)
+def _no_ats_network(monkeypatch):
+    # The ATS sources read config/companies.yaml and would hit the network.
+    for attr, name in ATS_SOURCES.items():
+        monkeypatch.setattr(collector_mod, attr, lambda name=name: _fake_source(name, []))
+
+
 def test_skip_sensitive_excludes_only_flagged_sources(monkeypatch, tmp_path):
     monkeypatch.setattr(collector_mod, "NoFluffSource", lambda: _fake_source("No Fluff Jobs", [], sensitive=True))
     monkeypatch.setattr(collector_mod, "PracujSource", lambda: _fake_source("Pracuj.pl", [], sensitive=True))
@@ -29,10 +42,11 @@ def test_skip_sensitive_excludes_only_flagged_sources(monkeypatch, tmp_path):
 
     results, _ = collector_mod.collect_live_jobs(skip_sensitive=True)
     names = {r.name for r in results}
-    assert names == {"JustJoin.IT", "RemoteOK", "We Work Remotely", "Bulldogjob", "TestDevJobs"}
+    assert names == {"JustJoin.IT", "RemoteOK", "We Work Remotely", "Bulldogjob", "TestDevJobs",
+                     *ATS_SOURCES.values()}
 
     results_all, _ = collector_mod.collect_live_jobs(skip_sensitive=False)
-    assert len(results_all) == 8
+    assert len(results_all) == collector_mod.SOURCE_COUNT == 11
 
 
 def test_collect_live_jobs_dedups_cross_source_by_title_and_company(monkeypatch, tmp_path):
@@ -261,4 +275,4 @@ def test_collect_live_jobs_can_leave_out_a_source_by_name(monkeypatch, tmp_path)
         monkeypatch.setattr(collector_mod, attr, lambda attr=attr: _fake_source(attr, []))
     results, _ = collector_mod.collect_live_jobs(store=store, skip_names=["eldoradosource"])
     assert "EldoradoSource" not in {r.name for r in results}
-    assert len(results) == 7
+    assert len(results) == 10

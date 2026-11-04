@@ -5,7 +5,10 @@ candidate:
   technologies:
     strong: [API testing, REST API, Postman, SQL, Playwright, TypeScript, Cypress, JavaScript, Git, GitHub, CI/CD, Chrome DevTools]
     additional: [MariaDB, MS SQL, DBeaver, Elastic, AppSignal, CloudWatch, Claude Code, Claude CLI, GitHub Copilot]
-  domains: [healthcare, digital health, telehealth, medical diagnostics, fintech, payments, SaaS, enterprise software, e-government]
+  # The EU terms give EU-institution projects (contractors' far-site roles) domain points.
+  domains: [healthcare, digital health, telehealth, medical diagnostics, fintech, payments, SaaS, enterprise software, e-government,
+            EU institutions, EU institution, European institutions, European Commission, European Parliament, EU agency, EU agencies,
+            European agency, European Investment Bank, eu-LISA, Europol, public sector]
   ai: [AI, AI-assisted, Claude, Claude Code, Claude CLI, GitHub Copilot, AI testing, AI-assisted testing]
 scoring:
   max_score: 100
