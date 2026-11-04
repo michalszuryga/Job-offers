@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { bestOffer, inProgress, isReviewed, newOffers, nextFetchToday, reviewedCount } from './batch'
+import { bestOffer, inProgress, isReviewed, newOffers, nextFetch, reviewedCount } from './batch'
 import type { Offer, Status } from './types'
 
 function offer(id: string, score: number | null, status: Status | null = 'TO_REVIEW'): Offer {
@@ -40,15 +40,17 @@ describe('the New batch', () => {
   })
 })
 
-describe('nextFetchToday (12:00 Europe/Warsaw)', () => {
+describe('nextFetch (11:00 and 17:00 Europe/Warsaw)', () => {
   test.each([
-    // CEST (UTC+2) and CET (UTC+1): the cut-off follows Warsaw time, not UTC.
-    ['2026-10-08T09:59:00Z', true],
-    ['2026-10-08T10:00:00Z', false],
-    ['2026-12-08T10:59:00Z', true],
-    ['2026-12-08T11:00:00Z', false],
-    ['2026-12-08T23:30:00Z', true],
-  ])('%s → today %s', (iso, today) => {
-    expect(nextFetchToday(Date.parse(iso))).toBe(today)
+    // CEST (UTC+2) and CET (UTC+1): the cut-offs follow Warsaw time, not UTC.
+    ['2026-10-08T08:59:00Z', true, '11:00'],
+    ['2026-10-08T09:00:00Z', true, '17:00'],
+    ['2026-10-08T14:59:00Z', true, '17:00'],
+    ['2026-10-08T15:00:00Z', false, '11:00'],
+    ['2026-12-08T15:59:00Z', true, '17:00'],
+    ['2026-12-08T16:00:00Z', false, '11:00'],
+    ['2026-12-08T23:30:00Z', true, '11:00'],
+  ])('%s → today %s at %s', (iso, today, time) => {
+    expect(nextFetch(Date.parse(iso))).toEqual({ today, time })
   })
 })

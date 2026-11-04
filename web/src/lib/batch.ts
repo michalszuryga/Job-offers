@@ -35,15 +35,21 @@ export function inProgress(offers: readonly Offer[]): { preparing: number; activ
   return count
 }
 
-// The daily fetch starts at 12:00 in Warsaw (cron-job.org → daily-fetch.yml) and takes a
-// few minutes, so "today" holds until 12:00.
-export const FETCH_HOUR = 12
+// Fetches start at 11:00 and 17:00 in Warsaw (cron-job.org → daily-fetch.yml, job_finder/schedule.py
+// SLOT_HOURS) and take a few minutes, so a slot's fetch counts as "next" until its hour.
+export const FETCH_HOURS = [11, 17] as const
 export const FETCH_TIME_ZONE = 'Europe/Warsaw'
 
 const warsawHour = new Intl.DateTimeFormat('en-GB', { timeZone: FETCH_TIME_ZONE, hour: 'numeric', hourCycle: 'h23' })
 
-// Whether the next fetch is today in Warsaw ("Next fetch today around 12:00"), else tomorrow.
-export function nextFetchToday(now: number = Date.now()): boolean {
+export interface NextFetch {
+  today: boolean
+  time: string
+}
+
+// The next fetch in Warsaw time ("Next fetch today around 17:00"); after the last one, tomorrow's first.
+export function nextFetch(now: number = Date.now()): NextFetch {
   const hour = Number(warsawHour.formatToParts(now).find((part) => part.type === 'hour')?.value)
-  return hour < FETCH_HOUR
+  const next = FETCH_HOURS.find((slot) => hour < slot)
+  return { today: next !== undefined, time: `${next ?? FETCH_HOURS[0]}:00` }
 }

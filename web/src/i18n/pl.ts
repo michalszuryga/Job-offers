@@ -79,7 +79,7 @@ export const pl: Messages = {
     signIn: 'Zaloguj się',
     badge: 'Zamknięta beta',
     title: 'Oferty QA ocenione pod Ciebie.',
-    lead: 'Codziennie około 12:00 JOffers przegląda polskie i zagraniczne serwisy z ofertami pracy, ocenia każdą ofertę w skali 0–100 pod kątem Twojego profilu i pokazuje, dlaczego.',
+    lead: 'Dwa razy dziennie, około 11:00 i 17:00, JOffers przegląda polskie i zagraniczne serwisy z ofertami pracy, ocenia każdą ofertę w skali 0–100 pod kątem Twojego profilu i pokazuje, dlaczego.',
     tryDemo: 'Wypróbuj demo na żywo',
     demoNote: 'Przykładowe dane, bez rejestracji.',
     preview: 'Podgląd listy ofert JOffers',
@@ -90,8 +90,8 @@ export const pl: Messages = {
         body: 'Każda oferta dostaje od 0 do 100 punktów względem Twojego profilu, z rozbiciem na to, skąd wziął się każdy punkt.',
       },
       daily: {
-        title: 'Nowe oferty około 12:00',
-        body: 'Jedno pobranie dziennie, w południe. Otwierasz JOffers i zaczynasz od tego, co nowe od wczoraj.',
+        title: 'Nowe oferty o 11:00 i 17:00',
+        body: 'Dwa pobrania dziennie, przed południem i po południu. Otwierasz JOffers i zaczynasz od tego, co nowe od ostatniego.',
       },
       track: {
         title: 'Każda aplikacja pod kontrolą',
@@ -206,7 +206,7 @@ export const pl: Messages = {
     clearFilters: 'Wyczyść filtry',
     showAll: 'Pokaż wszystkie oferty',
     emptyNew: 'Brak nowych ofert z ostatniego pobrania',
-    nextFetch: (today) => (today ? 'Następne pobranie dziś około 12:00' : 'Następne pobranie jutro około 12:00'),
+    nextFetch: (today, time) => `Następne pobranie ${today ? 'dziś' : 'jutro'} około ${time}`,
     showRecent: 'Pokaż ostatnie 3 dni',
     newBadge: 'Nowa',
   },

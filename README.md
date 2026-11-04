@@ -4,7 +4,7 @@
 
 Collects QA job offers from Polish and international job boards, scores them
 against a candidate profile, and tracks applications. Runs a scheduled fetch
-every day at midday and e-mails a summary of new offers.
+twice a day (11:00 and 17:00 Europe/Warsaw) and e-mails a summary of new offers.
 
 ## What it does
 
@@ -27,7 +27,7 @@ every day at midday and e-mails a summary of new offers.
   back, or undoing the change, keeps the original date. **Not for me**
   (`DISMISSED`, button or `x` in the web app's details) sets the status and
   moves straight on to the next offer; Undo puts the status back.
-- **Daily summary e-mail** at about 12:00 Europe/Warsaw (fetch triggered by
+- **Summary e-mail** after each fetch, at about 11:00 and 17:00 Europe/Warsaw (fetch triggered by
   cron-job.org, GitHub's cron as a fallback; sent with Gmail SMTP), listing the
   offers that fetch added; every fetch also rescores stored offers, so freshness
   and the stale-offer penalty stay current. If the fetch fails before it records
@@ -58,8 +58,8 @@ every day at midday and e-mails a summary of new offers.
 ## Architecture
 
 ```
-cron-job.org 12:00 ─► GitHub Actions ─┐                                  ┌── Web app (GitHub Pages, Supabase Auth + RLS)
-  (GitHub cron 11:41 = fallback)      ├──► scrapers + scoring ──► Supabase Postgres
+cron-job.org 11/17 ─► GitHub Actions ─┐                                  ┌── Web app (GitHub Pages, Supabase Auth + RLS)
+  (GitHub cron :41 = fallback)       ├──► scrapers + scoring ──► Supabase Postgres
 Dashboard "Fetch live jobs" ──────────┘     (Python)              ├── Streamlit dashboard (legacy)
                                                                   └──► e-mail summary (Gmail SMTP)
 ```
@@ -69,7 +69,7 @@ Dashboard "Fetch live jobs" ──────────┘     (Python)      
 - `job_finder/scoring.py` — the match score.
 - `job_finder/storage.py` — Postgres when `DATABASE_URL` is set, SQLite otherwise (local dev, tests).
 - `job_finder/app.py` — Streamlit dashboard.
-- `job_finder/cli.py` — `fetch`, `notify-summary` and `daily-due` (has today's midday fetch run?) for the scheduled run.
+- `job_finder/cli.py` — `fetch`, `notify-summary` and `daily-due` (has this slot's fetch run?) for the scheduled run.
 - `web/` — the web app; talks to Supabase directly with the publishable key.
 - `db/web_access.sql` — row-level security and the one write function the web app may call.
 
@@ -150,8 +150,8 @@ Run it once by hand from *Actions → Daily fetch → Run workflow*.
 **Daily trigger (cron-job.org)** — GitHub's own cron proved unreliable (in
 October 2026 it ran ~4 h late twice and skipped two days), so the punctual
 trigger is external. The owner's [cron-job.org](https://cron-job.org) account
-(free, no payment details) has a job that runs every day at 12:00
-Europe/Warsaw:
+(free, no payment details) has two identical jobs, every day at 11:00 and at
+17:00 Europe/Warsaw:
 
 - URL: `https://api.github.com/repos/michalszuryga/Job-offers/actions/workflows/daily-fetch.yml/dispatches`
 - Method `POST`, body `{"ref":"main","inputs":{"daily":"true"}}`
@@ -164,9 +164,10 @@ Europe/Warsaw:
   when it does, the daily fetch silently falls back to GitHub's cron — create a
   new token and paste it into the cron-job.org job's `Authorization` header.
 - Check it works: cron-job.org's job history should show HTTP 204, and
-  *Actions → Daily fetch* gets a `workflow_dispatch` run at 12:00.
+  *Actions → Daily fetch* gets a `workflow_dispatch` run at 11:00 and 17:00.
 
-Daily runs (external or cron) skip when today's midday fetch (from 11:00 on) already happened
+Scheduled runs (external or cron) skip when the current slot's fetch already happened — a slot runs
+from 11:00 or 17:00 to the next one
 (`python -m job_finder.cli daily-due`); a manual *Run workflow* always fetches.
 GitHub pauses scheduled workflows after 60 days without repository activity;
 the external trigger is not affected.

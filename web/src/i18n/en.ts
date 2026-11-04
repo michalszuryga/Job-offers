@@ -163,7 +163,7 @@ export const en = {
     signIn: 'Sign in',
     badge: 'Private beta',
     title: 'QA jobs, scored for you.',
-    lead: 'Every day around 12:00 JOffers checks Polish and international job boards, scores each offer 0–100 against your profile and shows why.',
+    lead: 'Twice a day, around 11:00 and 17:00, JOffers checks Polish and international job boards, scores each offer 0–100 against your profile and shows why.',
     tryDemo: 'Try the live demo',
     demoNote: 'Sample data, no sign-up.',
     preview: 'Preview of the JOffers offer list',
@@ -174,8 +174,8 @@ export const en = {
         body: 'Every offer gets 0–100 against your profile, with a breakdown of where each point came from.',
       },
       daily: {
-        title: 'New offers around 12:00',
-        body: 'One fetch every day at midday. Open JOffers and start with what’s new since yesterday.',
+        title: 'New offers at 11:00 and 17:00',
+        body: 'Two fetches a day, late morning and late afternoon. Open JOffers and start with what’s new since the last one.',
       },
       track: {
         title: 'Track every application',
@@ -295,7 +295,7 @@ export const en = {
     showAll: 'Show all offers',
     emptyNew: 'No new offers from the last fetch',
     // Warsaw time, when the scheduled fetch runs.
-    nextFetch: (today: boolean) => (today ? 'Next fetch today around 12:00' : 'Next fetch tomorrow around 12:00'),
+    nextFetch: (today: boolean, time: string) => `Next fetch ${today ? 'today' : 'tomorrow'} around ${time}`,
     showRecent: 'Show last 3 days',
     // Sentence case; the badge draws it in capitals (§2.4).
     newBadge: 'New',

@@ -1,7 +1,7 @@
 import { Inbox, RotateCw, SearchX } from 'lucide-react'
 import { Button, Callout, EmptyState } from '../../components/ui'
 import { useI18n } from '../../i18n'
-import { nextFetchToday } from '../../lib/batch'
+import { nextFetch } from '../../lib/batch'
 import { activeFilters, clearFilters, type Filters } from '../../lib/prefs'
 import type { FilterChange } from './FilterPanel'
 import './ListStates.css'
@@ -18,6 +18,7 @@ interface EmptyProps {
 export function EmptyList({ filters, batchSize, onChange }: EmptyProps) {
   const { t } = useI18n()
   if (filters.window === 'new' && batchSize === 0) {
+    const next = nextFetch()
     return (
       <EmptyState
         icon={Inbox}
@@ -28,7 +29,7 @@ export function EmptyList({ filters, batchSize, onChange }: EmptyProps) {
           </Button>
         }
       >
-        {t.offers.nextFetch(nextFetchToday())}
+        {t.offers.nextFetch(next.today, next.time)}
       </EmptyState>
     )
   }
