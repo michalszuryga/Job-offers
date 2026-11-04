@@ -112,6 +112,22 @@ container, so they match CI (macOS and Windows ones are gitignored). To refresh 
 Once baselines are committed, the workflow's `visual` job compares them on every push
 (allowed to fail while it settles; diffs are uploaded as `visual-diffs`).
 
+### Tailor the CV to an offer
+
+```bash
+python -m job_finder.cli tailor-cv "<offer URL>"
+```
+
+Runs locally through the Claude Code CLI (`claude -p`, your subscription — no API
+key, no tools). The base CV is `cv.html` in a folder outside this repo (`../CV`,
+or `JOFFERS_CV_DIR`); the tailored `.html` + `.pdf` (headless Chrome) and a `.md`
+with the changes and the offer's requirements the CV doesn't cover land in
+`<cv dir>/tailored/`. Claude may only re-word and re-order: employers, dates,
+roles, education, certificates and languages must match the base CV and skills
+must come from it, otherwise nothing is rendered. The offer is read from the
+database (`DATABASE_URL`, or `.streamlit/secrets.toml`), or from its page when it
+isn't stored; a stored offer moves to *CV generated* unless `--keep-status`.
+
 ## Deployment
 
 **Web app** — `.github/workflows/web-pages.yml` deploys `web/` to GitHub Pages.

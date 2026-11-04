@@ -9,6 +9,19 @@ from .storage import JobStore
 from .sources.sample import SampleSource
 
 
+def _local_database_url():
+    """Local runs use the same database as the dashboard: DATABASE_URL from the
+    environment, else from .streamlit/secrets.toml (gitignored)."""
+    import os
+    import tomllib
+    from pathlib import Path
+    secrets = Path(".streamlit/secrets.toml")
+    if not os.environ.get("DATABASE_URL") and secrets.exists():
+        url = tomllib.loads(secrets.read_text(encoding="utf-8")).get("DATABASE_URL")
+        if url:
+            os.environ["DATABASE_URL"] = url
+
+
 def main():
     parser = argparse.ArgumentParser()
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -25,9 +38,15 @@ def main():
     summary_cmd = sub.add_parser("notify-summary", help="E-mail a summary of the offers new in the last fetch")
     summary_cmd.add_argument("--hours", type=int, default=24,
                              help="Fallback window when the last fetch's new ids aren't recorded")
+    tailor_cmd = sub.add_parser("tailor-cv", help="Tailor ../CV/cv.html to one offer with the Claude Code CLI")
+    tailor_cmd.add_argument("offer", help="The offer's URL (as stored in JOffers, or any offer page)")
+    tailor_cmd.add_argument("--model", default=None, help="Claude model for `claude -p` (default: the CLI's)")
+    tailor_cmd.add_argument("--keep-status", action="store_true", help="Don't set the offer's status to CV generated")
     sub.add_parser("daily-due", help="Print 'yes' unless this slot's (11:00 / 18:00) fetch already ran")
     args = parser.parse_args()
 
+    if args.cmd == "tailor-cv":
+        _local_database_url()
     store = JobStore()
 
     if args.cmd == "init-db":
@@ -47,6 +66,21 @@ def main():
             status = f"{r.error_type}: {r.error}" if r.error else "ok"
             print(f"{r.name:<18} candidates={r.candidates:<4} inserted={r.inserted:<4} "
                   f"rejected={r.rejected:<4} expired={r.expired:<4} {r.seconds:6.1f}s  {status}")
+    elif args.cmd == "tailor-cv":
+        from .tailor_cv import TailorError, find_offer, mark_cv_generated, offer_from_page, tailor
+        offer = find_offer(store, args.offer)
+        if offer is None:
+            print("Offer not in JOffers - reading its page instead.")
+            offer = offer_from_page(args.offer)
+        print(f"Tailoring the CV to: {offer.get('title')} - {offer.get('company')} (takes a minute or two)")
+        try:
+            result = tailor(offer, model=args.model)
+        except TailorError as exc:
+            raise SystemExit(f"Not saved: {exc}")
+        print(f"HTML:  {result.html_path}\nPDF:   {result.pdf_path or '(Chrome not found - open the HTML and print)'}"
+              f"\nNotes: {result.notes_path}\n\n{result.notes}")
+        if offer.get("external_id") and not args.keep_status and mark_cv_generated(store, offer, result.pdf_path or result.html_path):
+            print("\nStatus set to CV generated.")
     elif args.cmd == "notify-summary":
         rows, hours = summary_rows(store, args.hours)
         # A fetch that never finished records no run; yesterday's failed sources would mislead.

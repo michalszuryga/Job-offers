@@ -317,6 +317,11 @@ class JobStore:
         with self._connect() as conn:
             return self._query_dicts(conn, "SELECT * FROM jobs")
 
+    def get(self, external_id):
+        with self._connect() as conn:
+            rows = self._query_dicts(conn, "SELECT * FROM jobs WHERE external_id=?", (external_id,))
+        return rows[0] if rows else None
+
     def contains(self, url: str) -> bool:
         with self._connect() as conn:
             return self._exec(conn, "SELECT 1 FROM jobs WHERE external_id=?", (canonical_job_url(url),)).fetchone() is not None
