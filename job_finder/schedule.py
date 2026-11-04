@@ -6,10 +6,10 @@ from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 WARSAW = ZoneInfo("Europe/Warsaw")
-# Scheduled fetches, as Warsaw hours (cron-job.org triggers at 11:00 and 17:00).
+# Scheduled fetches, as Warsaw hours (cron-job.org triggers at 11:00 and 18:00).
 # A slot runs from its hour until the next slot's; a fetch inside it, scheduled
 # or manual, makes later triggers of that slot skip.
-SLOT_HOURS = (11, 17)
+SLOT_HOURS = (11, 18)
 
 
 def current_slot_start(now=None, slots=SLOT_HOURS):

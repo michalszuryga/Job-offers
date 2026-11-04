@@ -79,7 +79,7 @@ export const pl: Messages = {
     signIn: 'Zaloguj się',
     badge: 'Zamknięta beta',
     title: 'Oferty QA ocenione pod Ciebie.',
-    lead: 'Dwa razy dziennie, około 11:00 i 17:00, JOffers przegląda polskie i zagraniczne serwisy z ofertami pracy, ocenia każdą ofertę w skali 0–100 pod kątem Twojego profilu i pokazuje, dlaczego.',
+    lead: 'Dwa razy dziennie, około 11:00 i 18:00, JOffers przegląda polskie i zagraniczne serwisy z ofertami pracy, ocenia każdą ofertę w skali 0–100 pod kątem Twojego profilu i pokazuje, dlaczego.',
     tryDemo: 'Wypróbuj demo na żywo',
     demoNote: 'Przykładowe dane, bez rejestracji.',
     preview: 'Podgląd listy ofert JOffers',
@@ -90,7 +90,7 @@ export const pl: Messages = {
         body: 'Każda oferta dostaje od 0 do 100 punktów względem Twojego profilu, z rozbiciem na to, skąd wziął się każdy punkt.',
       },
       daily: {
-        title: 'Nowe oferty o 11:00 i 17:00',
+        title: 'Nowe oferty o 11:00 i 18:00',
         body: 'Dwa pobrania dziennie, przed południem i po południu. Otwierasz JOffers i zaczynasz od tego, co nowe od ostatniego.',
       },
       track: {

@@ -12,7 +12,7 @@ the way the author does today.
 - [x] Stale offers expire after 14 days off their board
 
 ## Stage 2 — fetch in the background ✅
-- [x] Scheduled fetch in GitHub Actions, triggered at 11:00 and 17:00 Europe/Warsaw by cron-job.org
+- [x] Scheduled fetch in GitHub Actions, triggered at 11:00 and 18:00 Europe/Warsaw by cron-job.org
   (GitHub's own crons at :41 is only a fallback: it ran hours late or not at all)
 - [x] Fetch history stored in the database (diagnostics survive reloads)
 - [x] Daily summary e-mail (Gmail SMTP)

@@ -68,7 +68,7 @@ describe('English copy the current e2e relies on', () => {
 
   test('states (§4.10)', () => {
     expect(en.offers.emptyNew).toBe('No new offers from the last fetch')
-    expect(en.offers.nextFetch(true, '17:00')).toBe('Next fetch today around 17:00')
+    expect(en.offers.nextFetch(true, '18:00')).toBe('Next fetch today around 18:00')
     expect(en.offers.nextFetch(false, '11:00')).toBe('Next fetch tomorrow around 11:00')
     expect(en.offers.showRecent).toBe('Show last 3 days')
     expect(en.offers.empty).toBe('No offers match these filters')

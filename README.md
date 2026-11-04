@@ -4,7 +4,7 @@
 
 Collects QA job offers from Polish and international job boards, scores them
 against a candidate profile, and tracks applications. Runs a scheduled fetch
-twice a day (11:00 and 17:00 Europe/Warsaw) and e-mails a summary of new offers.
+twice a day (11:00 and 18:00 Europe/Warsaw) and e-mails a summary of new offers.
 
 ## What it does
 
@@ -27,7 +27,7 @@ twice a day (11:00 and 17:00 Europe/Warsaw) and e-mails a summary of new offers.
   back, or undoing the change, keeps the original date. **Not for me**
   (`DISMISSED`, button or `x` in the web app's details) sets the status and
   moves straight on to the next offer; Undo puts the status back.
-- **Summary e-mail** after each fetch, at about 11:00 and 17:00 Europe/Warsaw (fetch triggered by
+- **Summary e-mail** after each fetch, at about 11:00 and 18:00 Europe/Warsaw (fetch triggered by
   cron-job.org, GitHub's cron as a fallback; sent with Gmail SMTP), listing the
   offers that fetch added; every fetch also rescores stored offers, so freshness
   and the stale-offer penalty stay current. If the fetch fails before it records
@@ -151,7 +151,7 @@ Run it once by hand from *Actions → Daily fetch → Run workflow*.
 October 2026 it ran ~4 h late twice and skipped two days), so the punctual
 trigger is external. The owner's [cron-job.org](https://cron-job.org) account
 (free, no payment details) has two identical jobs, every day at 11:00 and at
-17:00 Europe/Warsaw:
+18:00 Europe/Warsaw:
 
 - URL: `https://api.github.com/repos/michalszuryga/Job-offers/actions/workflows/daily-fetch.yml/dispatches`
 - Method `POST`, body `{"ref":"main","inputs":{"daily":"true"}}`
@@ -164,10 +164,10 @@ trigger is external. The owner's [cron-job.org](https://cron-job.org) account
   when it does, the daily fetch silently falls back to GitHub's cron — create a
   new token and paste it into the cron-job.org job's `Authorization` header.
 - Check it works: cron-job.org's job history should show HTTP 204, and
-  *Actions → Daily fetch* gets a `workflow_dispatch` run at 11:00 and 17:00.
+  *Actions → Daily fetch* gets a `workflow_dispatch` run at 11:00 and 18:00.
 
 Scheduled runs (external or cron) skip when the current slot's fetch already happened — a slot runs
-from 11:00 or 17:00 to the next one
+from 11:00 or 18:00 to the next one
 (`python -m job_finder.cli daily-due`); a manual *Run workflow* always fetches.
 GitHub pauses scheduled workflows after 60 days without repository activity;
 the external trigger is not affected.
