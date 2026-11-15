@@ -1,6 +1,6 @@
 import type { ChoiceOption, SelectItem } from '../../components/ui'
 import type { Messages } from '../../i18n'
-import { MIN_SCORES, PUBLISHED_WINDOWS, SORT_KEYS, type MinScore, type PublishedWindow } from '../../lib/prefs'
+import { MIN_SCORES, PUBLISHED_WINDOWS, SORT_KEYS, WORK_MODES, type MinScore, type PublishedWindow } from '../../lib/prefs'
 import { STATUS_GROUPS } from '../../lib/status'
 
 // Option lists for the filter controls, from the i18n copy. Shared by the toolbar, the
@@ -36,4 +36,8 @@ export function sourceOptions(t: Messages, sources: readonly string[], current: 
 
 export function sortOptions(t: Messages): SelectItem[] {
   return SORT_KEYS.map((key) => ({ value: key, label: t.filters.sort[key] }))
+}
+
+export function workOptions(t: Messages): SelectItem[] {
+  return WORK_MODES.map((mode) => ({ value: mode, label: t.filters.works[mode] }))
 }

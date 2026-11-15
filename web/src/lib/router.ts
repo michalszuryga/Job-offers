@@ -43,6 +43,18 @@ export function clearView() {
   if (viewFrom(location.search) != null) navigate(withoutView(location.href), { replace: true, state: history.state })
 }
 
+// ?mark=applied, the e-mail's per-offer "Applied" link: opens ?offer= and sets its status to
+// Applied once (OffersPage), then the param is dropped like ?view=.
+const MARK = 'mark'
+
+export function markFrom(search: string): string | null {
+  return new URLSearchParams(search).get(MARK)
+}
+
+export function clearMark() {
+  if (markFrom(location.search) != null) navigate(withParam(location.href, MARK, null), { replace: true, state: history.state })
+}
+
 export function isPushedOffer(state: unknown): boolean {
   return typeof state === 'object' && state !== null && (state as Record<string, unknown>)[FLAG] === true
 }

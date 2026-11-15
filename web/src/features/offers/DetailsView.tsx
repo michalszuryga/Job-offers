@@ -1,4 +1,4 @@
-import { Building2, Clock, FileText, Globe, MapPin, type LucideIcon } from 'lucide-react'
+import { Building2, Clock, FileText, Globe, House, MapPin, type LucideIcon } from 'lucide-react'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { useCoverPage } from '../../components/shell/pageCover'
@@ -168,6 +168,13 @@ export function DetailsView({
             {offer.location && (
               <Fact icon={MapPin} label={t.details.location}>
                 {offer.location}
+              </Fact>
+            )}
+            {offer.remote_hint && (
+              <Fact icon={House} label={t.details.remoteHint}>
+                <span className="details__remote-hint">
+                  <strong>{t.offers.maybeBadge}:</strong> „{offer.remote_hint}”
+                </span>
               </Fact>
             )}
             {offer.contract && (

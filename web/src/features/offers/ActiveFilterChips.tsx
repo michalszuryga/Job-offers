@@ -11,6 +11,7 @@ function chipLabel(field: FilterField, filters: Filters, t: Messages): string {
     case 'status': return filters.status === 'ALL' ? '' : t.status[filters.status]
     case 'source': return filters.source
     case 'query': return t.filters.queryChip(filters.query.trim())
+    case 'work': return t.filters.works[filters.work]
   }
 }
 

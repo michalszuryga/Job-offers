@@ -22,7 +22,7 @@ describe('parseFilters', () => {
   })
 
   test('keeps valid v2 values', () => {
-    const stored = { window: '24h', minScore: 65, status: 'APPLIED', source: 'No Fluff Jobs', query: 'gamma', sort: 'salary' }
+    const stored = { window: '24h', minScore: 65, status: 'APPLIED', source: 'No Fluff Jobs', query: 'gamma', sort: 'salary', work: 'maybe' }
     expect(parseFilters(v2(stored))).toEqual(stored)
   })
 
@@ -33,7 +33,7 @@ describe('parseFilters', () => {
   })
 
   test('the P6 defaults: the New view, best match first', () => {
-    expect(DEFAULT_FILTERS).toEqual({ window: 'new', minScore: 0, status: 'ALL', source: 'ALL', query: '', sort: 'score' })
+    expect(DEFAULT_FILTERS).toEqual({ window: 'new', minScore: 0, status: 'ALL', source: 'ALL', query: '', sort: 'score', work: 'remote' })
   })
 })
 
@@ -75,10 +75,17 @@ describe('active filters', () => {
     expect(activeFilters({ ...DEFAULT_FILTERS, window: 'any', sort: 'newest' })).toEqual([])
     const busy: Filters = { ...DEFAULT_FILTERS, minScore: 65, status: 'REVIEW', source: 'Board', query: 'qa' }
     expect(activeFilters(busy)).toEqual(['minScore', 'status', 'source', 'query'])
+    expect(activeFilters({ ...DEFAULT_FILTERS, work: 'maybe' })).toEqual(['work'])
+  })
+
+  test('the work mode defaults to remote, also for filters saved before it existed', () => {
+    expect(DEFAULT_FILTERS.work).toBe('remote')
+    expect(parseFilters(JSON.stringify({ v: 2, window: '24h' })).work).toBe('remote')
+    expect(parseFilters(JSON.stringify({ v: 2, work: 'nonsense' })).work).toBe('remote')
   })
 
   test('clearing keeps the window and the sort', () => {
-    const busy: Filters = { window: '7d', minScore: 80, status: 'APPLIED', source: 'Board', query: 'qa', sort: 'salary' }
+    const busy: Filters = { window: '7d', minScore: 80, status: 'APPLIED', source: 'Board', query: 'qa', sort: 'salary', work: 'maybe' }
     expect(clearFilters(busy)).toEqual({ ...DEFAULT_FILTERS, window: '7d', sort: 'salary' })
   })
 })
@@ -86,7 +93,7 @@ describe('active filters', () => {
 describe('loadFilters / saveFilters', () => {
   test('round-trip through joffers-filters, versioned', () => {
     const storage = memoryStorage()
-    const filters = { window: '7d', minScore: 50, status: 'REVIEW', source: 'ALL', query: 'qa', sort: 'newest' } as const
+    const filters = { window: '7d', minScore: 50, status: 'REVIEW', source: 'ALL', query: 'qa', sort: 'newest', work: 'all' } as const
     saveFilters({ ...filters }, storage)
     expect(JSON.parse(storage.data.get(FILTERS_KEY)!)).toEqual({ v: 2, ...filters })
     expect(loadFilters(storage)).toEqual(filters)

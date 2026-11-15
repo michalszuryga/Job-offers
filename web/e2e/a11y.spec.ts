@@ -117,7 +117,7 @@ test.describe('signed in', () => {
       test('the empty New view', async ({ page }) => {
         await mockSupabase(page, { newIds: [] })
         await page.goto('./')
-        await expect(page.getByRole('heading', { name: 'No new offers from the last fetch' })).toBeVisible()
+        await expect(page.getByRole('heading', { name: 'No new offers in the last 24 hours' })).toBeVisible()
         await expectAccessible(page, 'empty New view')
       })
     })

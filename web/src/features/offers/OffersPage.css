@@ -69,3 +69,15 @@
 .offers-page--wide .offers-count {
   margin-block: 0 var(--space-3);
 }
+
+/* "+3 potentially remote": switches the work mode to show them too. */
+.offers-count__maybe {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--fg);
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}

@@ -293,12 +293,16 @@ export const en = {
     clearFilters: 'Clear filters',
     // When only the time window hides everything.
     showAll: 'Show all offers',
-    emptyNew: 'No new offers from the last fetch',
+    emptyNew: 'No new offers in the last 24 hours',
     // Warsaw time, when the scheduled fetch runs.
     nextFetch: (today: boolean, time: string) => `Next fetch ${today ? 'today' : 'tomorrow'} around ${time}`,
     showRecent: 'Show last 3 days',
     // Sentence case; the badge draws it in capitals (§2.4).
     newBadge: 'New',
+    // Hybrid or office, but the offer says full remote is possible (Offer.remote_hint).
+    maybeBadge: 'Potentially remote',
+    // Under the count while the list shows remote offers only.
+    showMaybe: (n: number) => `+${formatNumber(n, 'en')} potentially remote`,
   },
   // The last fetch's batch, above the list (§4.5).
   batch: {
@@ -334,11 +338,13 @@ export const en = {
     remove: (label: string) => `Remove filter: ${label}`,
     scoreChip: (min: number) => `Score ${min}+`,
     queryChip: (query: string) => `“${query}”`,
+    work: 'Work mode',
+    works: { remote: 'Remote', maybe: 'Potentially remote', all: 'Remote + potentially remote' },
   },
   // Desktop, while no offer is open (§4.7).
   summary: {
     heading: 'Summary',
-    newTitle: 'New since the last fetch',
+    newTitle: 'New in the last 24 hours',
     toReview: (n: number) => `${formatNumber(n, 'en')} still to review`,
     allReviewed: 'All reviewed',
     bestTitle: 'Best new match',
@@ -389,6 +395,7 @@ export const en = {
     // The icon row under the title; screen readers hear each label before its value.
     company: 'Company',
     location: 'Location',
+    remoteHint: 'Why potentially remote',
     contract: 'Contract',
     source: 'Source',
     published: (ago: string) => `Published ${ago}`,

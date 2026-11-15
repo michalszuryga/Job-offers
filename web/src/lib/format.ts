@@ -25,6 +25,7 @@ export function applyFilters(offers: readonly Offer[], filters: Filters, { now =
     if (filters.status !== 'ALL' && (offer.application_status ?? 'TO_REVIEW') !== filters.status) return false
     if (filters.source !== 'ALL' && offer.source !== filters.source) return false
     if (query && !`${offer.title ?? ''} ${offer.company ?? ''}`.toLowerCase().includes(query)) return false
+    if (filters.work !== 'all' && Boolean(offer.remote_hint) !== (filters.work === 'maybe')) return false
     if (filters.window === 'new') return newIds.has(offer.external_id)
     if (filters.window !== 'any') {
       // No reliable date means we can't say it's recent, so it's hidden here.

@@ -18,6 +18,12 @@ export type MinScore = (typeof MIN_SCORES)[number]
 export const SORT_KEYS = ['score', 'newest', 'salary'] as const
 export type SortKey = (typeof SORT_KEYS)[number]
 
+// Work mode: plainly remote offers, the "potentially remote" ones (hybrid or office, but the
+// text says full remote is possible — Offer.remote_hint), or both. Remote by default, so the
+// potentially remote ones don't crowd the main list.
+export const WORK_MODES = ['remote', 'maybe', 'all'] as const
+export type WorkMode = (typeof WORK_MODES)[number]
+
 export interface Filters {
   window: PublishedWindow
   minScore: MinScore
@@ -25,6 +31,7 @@ export interface Filters {
   source: string
   query: string
   sort: SortKey
+  work: WorkMode
 }
 
 export const DEFAULT_FILTERS: Readonly<Filters> = {
@@ -34,10 +41,11 @@ export const DEFAULT_FILTERS: Readonly<Filters> = {
   source: 'ALL',
   query: '',
   sort: 'score',
+  work: 'remote',
 }
 
 // What narrows the list beyond the time window: the chips, the Filters badge and "Clear all".
-export const FILTER_FIELDS = ['minScore', 'status', 'source', 'query'] as const
+export const FILTER_FIELDS = ['minScore', 'status', 'source', 'query', 'work'] as const
 export type FilterField = (typeof FILTER_FIELDS)[number]
 
 export function activeFilters(filters: Filters): FilterField[] {
@@ -46,7 +54,7 @@ export function activeFilters(filters: Filters): FilterField[] {
 
 // The window and the sort stay: neither is a filter you clear.
 export function clearFilters(filters: Filters): Filters {
-  return { ...filters, minScore: 0, status: 'ALL', source: 'ALL', query: '' }
+  return { ...filters, minScore: 0, status: 'ALL', source: 'ALL', query: '', work: 'remote' }
 }
 
 // The highest preset at or below `score`: a v1 free-typed 70 becomes 65, never 80.
@@ -82,7 +90,7 @@ export function parseFilters(raw: string | null): Filters {
     // Corrupt JSON: same as nothing stored.
   }
   if (!isRecord(stored)) return { ...DEFAULT_FILTERS }
-  const { window, minScore, status, source, query, sort } = stored
+  const { window, minScore, status, source, query, sort, work } = stored
   const legacy = !('v' in stored)
   const published = legacy && window === '24h' ? 'new' : window
   return {
@@ -92,6 +100,7 @@ export function parseFilters(raw: string | null): Filters {
     source: typeof source === 'string' ? source : DEFAULT_FILTERS.source,
     query: typeof query === 'string' ? query : DEFAULT_FILTERS.query,
     sort: oneOf(SORT_KEYS, sort) ? sort : DEFAULT_FILTERS.sort,
+    work: oneOf(WORK_MODES, work) ? work : DEFAULT_FILTERS.work,
   }
 }
 
@@ -104,9 +113,9 @@ export function loadFilters(storage: Store | null = browserStorage()): Filters {
 }
 
 export function saveFilters(filters: Filters, storage: Store | null = browserStorage()): void {
-  const { window, minScore, status, source, query, sort } = filters
+  const { window, minScore, status, source, query, sort, work } = filters
   try {
-    storage?.setItem(FILTERS_KEY, JSON.stringify({ v: VERSION, window, minScore, status, source, query, sort }))
+    storage?.setItem(FILTERS_KEY, JSON.stringify({ v: VERSION, window, minScore, status, source, query, sort, work }))
   } catch {
     // Private mode, quota or blocked storage: filters just won't be remembered.
   }

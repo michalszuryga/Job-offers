@@ -2,9 +2,9 @@ import { Search } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { RadioChips, Select, TextField } from '../../components/ui'
 import { useI18n } from '../../i18n'
-import type { Filters, SortKey } from '../../lib/prefs'
+import { WORK_MODES, type Filters, type SortKey, type WorkMode } from '../../lib/prefs'
 import { isStatus } from '../../lib/status'
-import { minScoreOptions, sortOptions, sourceOptions, statusOptions } from './filterOptions'
+import { minScoreOptions, sortOptions, sourceOptions, statusOptions, workOptions } from './filterOptions'
 import './FilterPanel.css'
 
 export type FilterChange = (patch: Partial<Filters>) => void
@@ -75,6 +75,19 @@ export function FilterPanel({ filters, onChange, sources, layout, lead, trail }:
       className="filter-panel__select"
     />
   )
+  const work = (
+    <Select
+      label={t.filters.work}
+      hideLabel={bar}
+      options={workOptions(t)}
+      value={filters.work}
+      onChange={(event) => {
+        const value = event.target.value as WorkMode
+        onChange({ work: WORK_MODES.includes(value) ? value : 'remote' })
+      }}
+      className="filter-panel__select"
+    />
+  )
   const sort = (
     <Select
       label={t.filters.sortLabel}
@@ -98,6 +111,7 @@ export function FilterPanel({ filters, onChange, sources, layout, lead, trail }:
           {minScore}
           {status}
           {source}
+          {work}
           {trail}
         </div>
       </>
@@ -109,6 +123,7 @@ export function FilterPanel({ filters, onChange, sources, layout, lead, trail }:
       {minScore}
       {status}
       {source}
+      {work}
       {sort}
     </div>
   )

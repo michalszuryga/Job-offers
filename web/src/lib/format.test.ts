@@ -168,6 +168,13 @@ describe('applyFilters', () => {
     expect(ids(applyFilters(offers, { ...DEFAULT_FILTERS, minScore: 50 }, { now: NOW, newIds }))).toEqual(['old'])
   })
 
+  test('the work mode keeps potentially remote offers apart', () => {
+    const mixed = [...offers, offer('maybe', { score: 60, remote_hint: 'Hybrid in Gdańsk, fully remote work also possible' })]
+    expect(ids(applyFilters(mixed, any, { now: NOW }))).toEqual(['fresh', 'old', 'undated'])
+    expect(ids(applyFilters(mixed, { ...any, work: 'maybe' }, { now: NOW }))).toEqual(['maybe'])
+    expect(ids(applyFilters(mixed, { ...any, work: 'all' }, { now: NOW }))).toEqual(['fresh', 'old', 'undated', 'maybe'])
+  })
+
   test('the date windows hide old and undated offers', () => {
     expect(ids(applyFilters(offers, { ...any, window: '24h' }, { now: NOW }))).toEqual(['fresh'])
     expect(ids(applyFilters(offers, { ...any, window: '7d' }, { now: NOW }))).toEqual(['fresh', 'old'])

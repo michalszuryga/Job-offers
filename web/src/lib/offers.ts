@@ -12,7 +12,7 @@ import type { Tracking } from './writeQueue'
 const LIST_COLUMNS = [
   'external_id', 'title', 'company', 'url', 'source', 'location', 'contract',
   'salary_min', 'salary_max', 'salary_currency', 'salary_period', 'published_at',
-  'score', 'application_status', 'applied_rate', 'notice_period', 'applied_at',
+  'score', 'application_status', 'applied_rate', 'notice_period', 'applied_at', 'remote_hint',
 ].join(',')
 
 // One request, best scores first; the page says so when there are more (plan §3).

@@ -51,15 +51,22 @@ export function OfferCard({ offer, isNew, unread, selected, salaryCfg, preview =
           {salary ? <span className="offer__amount">{salary}</span> : <span className="offer__none">{t.salary.notListed}</span>}
           {approx && <span className="offer__approx">{approx}</span>}
         </span>
-        {status !== 'TO_REVIEW' ? (
-          <StatusPill status={status} className="offer__status" />
-        ) : (
-          isNew && (
-            <Badge tone="new" className="offer__status">
-              {t.offers.newBadge}
+        <span className="offer__badges">
+          {offer.remote_hint && (
+            <Badge tone="warning" className="offer__status">
+              {t.offers.maybeBadge}
             </Badge>
-          )
-        )}
+          )}
+          {status !== 'TO_REVIEW' ? (
+            <StatusPill status={status} className="offer__status" />
+          ) : (
+            isNew && (
+              <Badge tone="new" className="offer__status">
+                {t.offers.newBadge}
+              </Badge>
+            )
+          )}
+        </span>
       </span>
     </>
   )

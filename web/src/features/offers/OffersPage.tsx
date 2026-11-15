@@ -6,7 +6,17 @@ import { newOffers, reviewedCount } from '../../lib/batch'
 import { useDataSource } from '../../lib/dataSource'
 import { applyFilters, sortOffers } from '../../lib/format'
 import { DEFAULT_FILTERS, loadFilters, saveFilters, type Filters } from '../../lib/prefs'
-import { clearView, closeOffer, openOffer, useEscapeToClose, useKeyShortcut, useOfferParam, viewFrom } from '../../lib/router'
+import {
+  clearMark,
+  clearView,
+  closeOffer,
+  markFrom,
+  openOffer,
+  useEscapeToClose,
+  useKeyShortcut,
+  useOfferParam,
+  viewFrom,
+} from '../../lib/router'
 import { scoringFrom } from '../../lib/score'
 import { setShortcutsHelp, useShortcutsHelp } from '../../lib/shortcuts'
 import { sourceHealth } from '../../lib/sources'
@@ -19,6 +29,7 @@ import { listPosition } from './position'
 import { TodaySummary } from './TodaySummary'
 import { Toolbar } from './Toolbar'
 import { useDashboard } from './useDashboard'
+import { useTracking } from './useTracking'
 import './OffersPage.css'
 
 // From here up the toolbar is inline and details open beside the list (§4.7). Layouts that
@@ -63,6 +74,9 @@ export function OffersPage() {
   const wide = useMediaQuery(WIDE)
   const { persistent } = useDataSource()
   const { load, seen, retry, refresh, promote, updateOffer, getOffer } = useDashboard()
+  const { changeStatus } = useTracking(getOffer, updateOffer)
+  // ?mark=applied from the e-mail: the offer in ?offer= is marked Applied once it has loaded.
+  const markApplied = useRef(markFrom(location.search) === 'applied')
   const [filters, setFilters] = useState<Filters>(() => initialFilters(persistent))
   const [sheet, setSheet] = useState<SheetName | null>(null)
   // A sheet's chunk loads on its first open; it then stays mounted, so closing can animate.
@@ -105,6 +119,14 @@ export function OffersPage() {
     [dashboard],
   )
   const selected = dashboard?.offers.find((o) => o.external_id === selectedId) ?? null
+  // How many potentially remote offers the Remote work mode is hiding right now.
+  const hiddenMaybe = useMemo(
+    () =>
+      dashboard && filters.work === 'remote'
+        ? applyFilters(dashboard.offers, { ...filters, work: 'maybe' }, { newIds: dashboard.newIds }).length
+        : 0,
+    [dashboard, filters],
+  )
 
   // "3 / 12", previous/next and "Not for me" walk the list as filtered and sorted now.
   const position = useMemo(
@@ -166,8 +188,15 @@ export function OffersPage() {
     }
     if (!selected || promotedFor.current === selectedId) return
     promotedFor.current = selectedId
+    if (markApplied.current) {
+      markApplied.current = false
+      clearMark()
+      // Optimistic with "Status: Applied · Undo", like choosing it in the details.
+      changeStatus(selected.external_id, 'APPLIED')
+      return
+    }
     if ((selected.application_status ?? 'TO_REVIEW') === 'TO_REVIEW') promote(selected)
-  }, [selectedId, selected, promote])
+  }, [selectedId, selected, promote, changeStatus])
 
   const ready = dashboard != null
   useEffect(() => {
@@ -213,6 +242,14 @@ export function OffersPage() {
       {load.refreshError && <LoadError detail={load.refreshError} onRetry={refresh} />}
       <p className="offers-count" aria-live="polite">
         {t.offers.count(visible.length, dashboard.offers.length)}
+        {hiddenMaybe > 0 && (
+          <>
+            {' · '}
+            <button type="button" className="offers-count__maybe" onClick={() => update({ work: 'all' })}>
+              {t.offers.showMaybe(hiddenMaybe)}
+            </button>
+          </>
+        )}
       </p>
       {dashboard.total > dashboard.offers.length && (
         <p className="offers-limit">{t.offers.showingFirst(dashboard.offers.length)}</p>

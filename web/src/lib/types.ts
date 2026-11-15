@@ -35,6 +35,9 @@ export interface Offer {
   applied_rate: string | null
   notice_period: string | null
   applied_at: string | null
+  // "Potentially remote": the phrase that kept a hybrid/office offer (job_finder remote_hint).
+  // Empty for plainly remote offers; missing on rows and demo data from before it existed.
+  remote_hint?: string | null
 }
 
 export interface OfferDetails extends Offer {

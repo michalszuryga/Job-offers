@@ -147,7 +147,7 @@ export function DisplaySections() {
             className="kit-frame"
             icon={Inbox}
             headingLevel={3}
-            title="No new offers from the last fetch"
+            title="No new offers in the last 24 hours"
             actions={<Button variant="secondary">Show last 3 days</Button>}
           >
             Next fetch today around 18:00.

@@ -34,7 +34,7 @@ test('an empty New view names the next fetch, and Show last 3 days widens it', a
   await mockSupabase(page, { now: FIXED_NOW, newIds: [] })
   await page.goto('./')
 
-  await expect(page.getByRole('heading', { name: 'No new offers from the last fetch' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'No new offers in the last 24 hours' })).toBeVisible()
   await expect(page.getByText('Next fetch today around 11:00')).toBeVisible()
   await expect(page).toHaveTitle('JOffers')
   await page.getByRole('button', { name: 'Show last 3 days' }).click()
@@ -140,4 +140,31 @@ test('an offer opened while saving fails counts as reviewed here, and is saved o
   ])
   await expect(acme.locator('.ui-status-pill')).toHaveText('Reviewed')
   await expect.poll(() => page.evaluate(() => localStorage.getItem('joffers-seen'))).toBe('[]')
+})
+
+test('potentially remote offers stay out of the list until asked for, with their reason', async ({ page }) => {
+  const hint = 'Hybrid in Gdańsk, fully remote work also possible'
+  const maybe = offer('maybe', 'Test Analyst', 'Hybrid Co', 90, 1, { location: 'Gdańsk', remote_hint: hint })
+  await mockSupabase(page, { now: FIXED_NOW, offers: [...OFFERS, maybe], newIds: [...NEW_IDS, maybe.external_id] })
+  await page.goto('./')
+
+  await expect(page.locator('.offer-title')).toHaveText(['Senior QA Engineer', 'QA Analyst'])
+  await page.getByRole('button', { name: '+1 potentially remote' }).click()
+  await expect(page.locator('.offer-title')).toHaveText(['Test Analyst', 'Senior QA Engineer', 'QA Analyst'])
+  await expect(page.locator('.offer').first()).toContainText('Potentially remote')
+  await page.locator('.offer').first().click()
+  await expect(page.getByText(`“${hint}”`.replace('“', '„'))).toBeVisible()
+})
+
+test("the e-mail's Applied link marks the offer Applied, with Undo", async ({ page }) => {
+  const supabase = await mockSupabase(page, { now: FIXED_NOW })
+  const target = OFFERS[1]
+  await page.goto(`./?offer=${encodeURIComponent(target.external_id)}&mark=applied`)
+
+  await expect(page.locator('.ui-toast__message')).toHaveText('Status: Applied')
+  await expect(page.getByRole('button', { name: 'Undo' })).toBeVisible()
+  await expect.poll(() => supabase.rpcCalls.at(-1)).toEqual(
+    expect.objectContaining({ p_external_id: target.external_id, p_status: 'APPLIED' }),
+  )
+  await expect(page).not.toHaveURL(/mark=/)
 })

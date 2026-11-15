@@ -147,6 +147,17 @@
   flex: none;
 }
 
+.offer__badges {
+  display: flex;
+  flex: none;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.offer__badges:empty {
+  display: none;
+}
+
 /* Windows contrast themes drop box-shadows and author backgrounds, which carry the
    selected row and the unread dot here. System colours bring those back. */
 @media (forced-colors: active) {
