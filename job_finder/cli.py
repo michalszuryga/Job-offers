@@ -2,7 +2,7 @@ import argparse
 
 from .collector import run_fetch
 from .config import load_config, overrides_from_meta
-from .notify import build_summary, fetch_is_current, send_email, summary_rows
+from .notify import build_summary, fetch_is_current, send_email, source_alarms, summary_rows
 from .schedule import daily_fetch_done
 from .scoring import score_job
 from .storage import JobStore
@@ -77,8 +77,9 @@ def main():
     elif args.cmd == "notify-weekly":
         import os
         from .notify import build_weekly, weekly_stats
-        stats = weekly_stats(store.list_all())
-        subject, text, html = build_weekly(stats, store.ats_companies("pending")[:40], os.environ.get("APP_URL", ""))
+        rows = store.list_all()
+        subject, text, html = build_weekly(weekly_stats(rows), store.ats_companies("pending")[:40],
+                                           os.environ.get("APP_URL", ""), source_alarms(store.fetch_runs(days=2), rows))
         print(f"Sent: {subject}" if send_email(subject, text, html) else f"Not sent (no SMTP):\n{subject}\n{text}")
     elif args.cmd == "cv-variants":
         from .cv_variants import build_variants
@@ -134,7 +135,9 @@ def main():
             return
         # A fetch that never finished records no run; yesterday's failed sources would mislead.
         last_run = store.last_fetch_run() if fetch_is_current(store) else None
-        subject, text, html = build_summary(rows, last_run, hours=hours)
+        # The 11:00 / 18:00 e-mail (not the fast runs') also names sources gone quiet.
+        alarms = [] if args.only_if_new else source_alarms(store.fetch_runs(days=2), store.list_all())
+        subject, text, html = build_summary(rows, last_run, hours=hours, alarms=alarms)
         if send_email(subject, text, html):
             print(f"Sent: {subject}")
         else:

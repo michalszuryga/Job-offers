@@ -1,6 +1,7 @@
 import json
 import os
 import sqlite3
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from .models import Job, canonical_job_url
@@ -190,6 +191,16 @@ class JobStore:
                 "INSERT INTO fetch_runs (started_at, finished_at, trigger, results) VALUES (?, ?, ?, ?)",
                 (started_at, finished_at, trigger, json.dumps(results, ensure_ascii=False)),
             )
+
+    def fetch_runs(self, days=2):
+        """Fetch runs started in the last N days, newest first, results parsed."""
+        since = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat(timespec="seconds")
+        with self._connect() as conn:
+            runs = self._query_dicts(conn, "SELECT * FROM fetch_runs WHERE started_at > ? ORDER BY started_at DESC",
+                                     (since,))
+        for run in runs:
+            run["results"] = json.loads(run["results"] or "[]")
+        return runs
 
     def last_fetch_run(self):
         with self._connect() as conn:

@@ -99,11 +99,12 @@ def _offer_id(row):
     return row.get("external_id") or row.get("url") or ""
 
 
-def build_summary(new_rows, last_run, hours=None):
+def build_summary(new_rows, last_run, hours=None, alarms=()):
     """Returns (subject, plain_text, html). `hours` set means the rows come from
     the time-window fallback, which the subject then says. Offers that are only
     potentially remote (remote_hint, see web_utils.remote_hint) get a section of
-    their own below the rest, each with the phrase that put it there."""
+    their own below the rest, each with the phrase that put it there. `alarms` are the
+    sources to check (source_alarms), listed at the end."""
     # Stable sort: plainly remote first, then EU-institution offers first, the store's order kept.
     new_rows = sorted(new_rows, key=lambda row: (bool(row.get("remote_hint")), not is_eu_institution(row)))
     count = len(new_rows)
@@ -165,6 +166,8 @@ def build_summary(new_rows, last_run, hours=None):
     if failed:
         lines.append("")
         lines.extend(f"⚠️ {f}" for f in failed)
+    if alarms:
+        lines.extend(["", "Źródła do sprawdzenia:"] + [f"🔕 {a}" for a in alarms])
     text = "\n".join(lines)
 
     def item(number, row):
@@ -202,6 +205,9 @@ def build_summary(new_rows, last_run, hours=None):
         html += f"<p>{more_line}</p>"
     if failed:
         html += "<p style=\"color:#9A5B00\">" + "<br>".join(f"⚠️ {escape(f)}" for f in failed) + "</p>"
+    if alarms:
+        html += ('<p style="color:#9A5B00"><strong>Źródła do sprawdzenia</strong><br>'
+                 + "<br>".join(f"🔕 {escape(a)}" for a in alarms) + "</p>")
     if app_url:
         # The app opens on the New view: the same offers this e-mail lists (web ?view=new).
         links = [("Otwórz JOffers", app_link(app_url, view="new"))]
@@ -312,13 +318,49 @@ def weekly_stats(rows, now=None, days=7, good_score=60):
     }
 
 
+def source_alarms(runs, rows, now=None, broken_hours=48, quiet_days=4, history_days=30, min_days=3):
+    """Sources worth a look, as e-mail lines. Two kinds:
+    - broken: every run in the last `broken_hours` (at least two) failed or listed nothing;
+    - quiet: it loads, yet stored no new offer for `quiet_days`, though before that it
+      brought new offers on at least `min_days` different days (a board's first, one-off
+      backfill doesn't count — single-company boards are quiet by nature).
+    Only sources that still run are checked: one left out on purpose (--skip-source) isn't news."""
+    now = now or datetime.now(timezone.utc)
+    recent = {}
+    for run in sorted(runs, key=lambda r: r.get("started_at") or "", reverse=True):
+        started = _parse_time(run.get("started_at"))
+        if started and now - timedelta(hours=broken_hours) < started <= now:
+            for result in run.get("results") or []:
+                recent.setdefault(result["name"], []).append(result)
+    alarms, broken = [], set()
+    for name, results in sorted(recent.items()):
+        failed = [r for r in results
+                  if not r.get("candidates") or r.get("error_type") not in ("", None, "OfferParseError")]
+        if len(results) >= 2 and len(failed) == len(results):
+            broken.add(name)
+            why = results[0].get("error_type") or "pusta lista ogłoszeń"
+            alarms.append(f"{name}: nie działa od {broken_hours} h ({len(results)} "
+                          f"{_plural(len(results), 'próba', 'próby', 'prób')}, ostatnio: {why})")
+    quiet_since, history_since = now - timedelta(days=quiet_days), now - timedelta(days=history_days)
+    for name in sorted(set(recent) - broken):
+        seen = sorted(t for t in (_parse_time(r.get("first_seen_at")) for r in rows if r.get("source") == name) if t)
+        if not seen or seen[-1] > quiet_since:
+            continue
+        days = {t.date() for t in seen if history_since < t <= quiet_since} - {seen[0].date()}
+        if len(days) >= min_days:
+            idle = (now - seen[-1]).days
+            alarms.append(f"{name}: od {idle} {_plural(idle, 'dnia', 'dni', 'dni')} ani jednej nowej oferty "
+                          f"(wcześniej nowe w {len(days)} {_plural(len(days), 'dzień', 'dni', 'dni')} z {history_days})")
+    return alarms
+
+
 def _hours(value):
     if value is None:
         return "—"
     return f"{value * 60:.0f} min" if value < 1 else f"{value:.1f} h" if value < 48 else f"{value / 24:.1f} dni"
 
 
-def build_weekly(stats, candidates, app_url=""):
+def build_weekly(stats, candidates, app_url="", alarms=()):
     """Returns (subject, text, html): the Monday report, then the companies to approve."""
     subject = f"JOffers: tydzień — {stats['visible']} ofert, {stats['applied']} aplikacji"
     if candidates:
@@ -350,6 +392,10 @@ def build_weekly(stats, candidates, app_url=""):
             f'<li><a href="{escape(app_link(app_url, offer=_offer_id(r)) if app_url else r.get("url") or "", quote=True)}">'
             f'{escape(r.get("title") or "")}</a> — {escape(r.get("company") or "")} · {r.get("score") or 0:.0f} pkt</li>'
             for r in stats["untouched_good"][:10]) + "</ul>"
+    if alarms:
+        text += "\n\nŹródła do sprawdzenia:\n" + "\n".join(f"🔕 {a}" for a in alarms)
+        html += ('<h3 style="font-size:15px">Źródła do sprawdzenia</h3><ul>'
+                 + "".join(f"<li>{escape(a)}</li>" for a in alarms) + "</ul>")
     if candidates:
         _, ctext, chtml = build_ats_candidates(candidates, app_url)
         text += "\n\n— Firmy do akceptacji —\n" + ctext
