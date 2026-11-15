@@ -21,7 +21,6 @@ workable:
   - {name: Sword Group, slug: sword-group}
   - {name: Netguru, slug: netguru}
   - {name: Monterail, slug: monterail}
-  - {name: HICX, slug: hicx-solutions}
 
 smartrecruiters:
   - {name: ARHS Group, slug: ARHS}
