@@ -130,6 +130,13 @@ def build_summary(new_rows, last_run, hours=None):
     sections = [(None, [(n, r) for n, r in numbered if not r.get("remote_hint")]),
                 ("Potencjalnie zdalne", [(n, r) for n, r in numbered if r.get("remote_hint")])]
 
+    from .cv_variants import load_variants, suggest_variant
+    variants = load_variants()
+
+    def cv_line(row):
+        key = suggest_variant(row, variants)
+        return f"CV: {variants[key].get('label') or key}" if key else ""
+
     def applied_link(row):
         # Opens the offer in the app and marks it Applied (web ?mark=applied), one tap.
         return app_link(app_url, offer=_offer_id(row), mark="applied") if app_url else ""
@@ -146,6 +153,8 @@ def build_summary(new_rows, last_run, hours=None):
                          + (f" · {salary}" if salary else "") + f"\n   {row.get('url')}")
             if row.get("remote_hint"):
                 lines.append(f"   „{row['remote_hint']}”")
+            if cv_line(row):
+                lines.append(f"   {cv_line(row)}")
             if app_url:
                 lines.append(f"   Aplikowałem: {applied_link(row)}")
     more_line = f"… i jeszcze {more} {_plural(more, 'oferta', 'oferty', 'ofert')}"
@@ -162,9 +171,14 @@ def build_summary(new_rows, last_run, hours=None):
         extra = ""
         if row.get("remote_hint"):
             extra += f'<br><span style="color:#586074;font-style:italic">„{escape(row["remote_hint"])}”</span>'
-        if app_url:
-            extra += (f'<br><a href="{escape(applied_link(row), quote=True)}" '
-                      f'style="font-size:13px;color:#2F5D50">✓ Aplikowałem</a>')
+        if cv_line(row) or app_url:
+            extra += '<br><span style="font-size:13px">'
+            if cv_line(row):
+                extra += f'<span style="color:#586074">{escape(cv_line(row))}</span>'
+            if app_url:
+                extra += (" · " if cv_line(row) else "") + (
+                    f'<a href="{escape(applied_link(row), quote=True)}" style="color:#2F5D50">✓ Aplikowałem</a>')
+            extra += "</span>"
         return (f'<li style="margin:0 0 10px"><span style="color:#665C50">{number}.</span> '
                 f'<strong>{row.get("score") or 0:.0f} pkt</strong> · '
                 f'<a href="{escape(row.get("url") or "", quote=True)}">{escape(_title(row))}</a>'
@@ -247,3 +261,97 @@ def build_ats_candidates(candidates, app_url=""):
     html = ('<div style="font-family:system-ui,sans-serif;font-size:15px;line-height:1.45;color:#0E1120">'
             f'<p>{intro}</p><ul style="list-style:none;padding-left:0">{"".join(items)}</ul></div>')
     return subject, text, html
+
+
+def _parse_time(value):
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+
+
+def _median(values):
+    values = sorted(values)
+    if not values:
+        return None
+    middle = len(values) // 2
+    return values[middle] if len(values) % 2 else (values[middle - 1] + values[middle]) / 2
+
+
+def weekly_stats(rows, now=None, days=7, good_score=60):
+    """The week in numbers, from stored rows: how fast offers reach JOffers after they
+    are published (boards that give only a date are left out: their time is midnight),
+    how fast you apply after JOffers shows one, and the good offers nobody acted on."""
+    now = now or datetime.now(timezone.utc)
+    since = now - timedelta(days=days)
+    new = [r for r in rows if (_parse_time(r.get("first_seen_at")) or since) > since]
+    visible = [r for r in new if not r.get("rejected")]
+    lags = {}
+    for row in visible:
+        published, seen = _parse_time(row.get("published_at")), _parse_time(row.get("first_seen_at"))
+        # Published this week too: a new source's first fetch brings months-old offers.
+        if published and seen and published > since and (published.hour, published.minute, published.second) != (0, 0, 0):
+            lags.setdefault(row.get("source") or "?", []).append(max(0.0, (seen - published).total_seconds() / 3600))
+    applied = [r for r in rows if (_parse_time(r.get("applied_at")) or since) > since]
+    to_apply = [((_parse_time(r["applied_at"]) - _parse_time(r["first_seen_at"])).total_seconds() / 3600)
+                for r in applied if _parse_time(r.get("first_seen_at"))]
+    untouched = [r for r in visible if (r.get("score") or 0) >= good_score
+                 and (r.get("application_status") or "TO_REVIEW") in ("TO_REVIEW", "REVIEW")]
+    all_lags = [h for values in lags.values() for h in values]
+    return {
+        "new": len(new), "visible": len(visible),
+        "maybe": sum(1 for r in visible if r.get("remote_hint")),
+        "good": sum(1 for r in visible if (r.get("score") or 0) >= good_score),
+        "lag_hours": _median(all_lags),
+        "lag_by_source": sorted(((source, _median(v), len(v)) for source, v in lags.items()), key=lambda x: x[1]),
+        "applied": len(applied), "apply_hours": _median(to_apply),
+        "untouched_good": sorted(untouched, key=lambda r: -(r.get("score") or 0)),
+    }
+
+
+def _hours(value):
+    if value is None:
+        return "—"
+    return f"{value * 60:.0f} min" if value < 1 else f"{value:.1f} h" if value < 48 else f"{value / 24:.1f} dni"
+
+
+def build_weekly(stats, candidates, app_url=""):
+    """Returns (subject, text, html): the Monday report, then the companies to approve."""
+    subject = f"JOffers: tydzień — {stats['visible']} ofert, {stats['applied']} aplikacji"
+    if candidates:
+        subject += f" · {len(candidates)} {_plural(len(candidates), 'firma', 'firmy', 'firm')} do akceptacji"
+    facts = [
+        f"Nowe oferty: {stats['visible']} widocznych (z {stats['new']} pobranych), w tym ≥60 pkt: {stats['good']}, "
+        f"potencjalnie zdalnych: {stats['maybe']}",
+        f"Od publikacji do JOffers (mediana): {_hours(stats['lag_hours'])}",
+        f"Oznaczonych jako „Aplikowałem”: {stats['applied']}"
+        + (f", od pojawienia się w JOffers do aplikacji (mediana): {_hours(stats['apply_hours'])}"
+           if stats["apply_hours"] is not None else ""),
+        f"Dobre oferty (≥60 pkt) bez reakcji: {len(stats['untouched_good'])}",
+    ]
+    by_source = [f"{source}: {_hours(h)} ({n})" for source, h, n in stats["lag_by_source"]]
+    waiting = [f"{r.get('score') or 0:.0f} pkt · {r.get('title')} — {r.get('company')}"
+               + (f"\n   {app_link(app_url, offer=_offer_id(r))}" if app_url else f"\n   {r.get('url')}")
+               for r in stats["untouched_good"][:10]]
+    text = "\n".join(facts)
+    if by_source:
+        text += "\n\nCzas do JOffers wg źródła: " + "; ".join(by_source)
+    if waiting:
+        text += "\n\nCzekają na decyzję:\n" + "\n".join(waiting)
+    html = ('<div style="font-family:system-ui,sans-serif;font-size:15px;line-height:1.45;color:#0E1120">'
+            + "<ul>" + "".join(f"<li>{escape(f)}</li>" for f in facts) + "</ul>")
+    if by_source:
+        html += f'<p style="color:#586074;font-size:13px">Czas do JOffers wg źródła: {escape("; ".join(by_source))}</p>'
+    if waiting:
+        html += "<h3 style=\"font-size:15px\">Czekają na decyzję</h3><ul>" + "".join(
+            f'<li><a href="{escape(app_link(app_url, offer=_offer_id(r)) if app_url else r.get("url") or "", quote=True)}">'
+            f'{escape(r.get("title") or "")}</a> — {escape(r.get("company") or "")} · {r.get("score") or 0:.0f} pkt</li>'
+            for r in stats["untouched_good"][:10]) + "</ul>"
+    if candidates:
+        _, ctext, chtml = build_ats_candidates(candidates, app_url)
+        text += "\n\n— Firmy do akceptacji —\n" + ctext
+        html += '<h3 style="font-size:15px">Firmy do akceptacji</h3>' + chtml
+    return subject, text, html + "</div>"

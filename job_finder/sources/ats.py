@@ -509,3 +509,55 @@ class RecruiteeSource(_ATSSource):
                 seniority=infer_seniority(title + " " + description),
             ))
         return jobs
+
+
+class WorkdaySource(_ATSSource):
+    """Large companies' Workday career sites (the JSON their pages load). No list of all
+    openings is cheap here, so each site is searched for QA roles in Poland and the detail
+    (description, remoteType) is read only for new matches. Full fetches only."""
+    name = "Workday"
+    ats = "workday"
+    tier = "full"
+    queries = ("QA Poland", "tester Poland", "test engineer Poland", "QA remote Europe")
+    _MODES = {"remote": "remote", "fully remote": "remote", "hybrid": "hybrid", "flexible": "hybrid",
+              "on-site": "office", "on site": "office", "onsite": "office"}
+
+    def fetch_company(self, company, known_urls):
+        base = f"https://{company['host']}.myworkdayjobs.com/wday/cxs/{company['tenant']}/{company['site']}"
+        postings = {}
+        for query in self.queries:
+            response = requests.post(f"{base}/jobs", headers=JSON_HEADERS, timeout=30,
+                                     json={"appliedFacets": {}, "limit": 20, "offset": 0, "searchText": query})
+            response.raise_for_status()
+            for entry in response.json().get("jobPostings") or []:
+                postings.setdefault(entry.get("externalPath"), entry)
+        self.candidates += len(postings)
+        jobs = []
+        for path, entry in postings.items():
+            title = clean(entry.get("title") or "")
+            where = (entry.get("locationsText") or "").lower()
+            if not path or not software_qa_title(title) or not re.search(r"poland|polska|remote|europe|emea|locations", where):
+                continue
+            public_url = f"https://{company['host']}.myworkdayjobs.com/{company['site']}{path}"
+            if canonical_job_url(public_url) in known_urls:
+                self.skipped_known += 1
+                continue
+            detail = requests.get(f"{base}{path}", headers=JSON_HEADERS, timeout=30)
+            detail.raise_for_status()
+            info = detail.json().get("jobPostingInfo") or {}
+            country = (info.get("country") or {}).get("descriptor") or ""
+            location = clean(info.get("location") or entry.get("locationsText") or "")
+            same_country = country.lower() in location.lower() or (
+                country.lower() == "polska" and "poland" in location.lower())
+            if country and not same_country:
+                location = f"{location}, {country}" if location else country
+            mode = self._MODES.get((info.get("remoteType") or "").strip().lower()) or _mode_from_location(location)
+            description = _html_text(info.get("jobDescription"))
+            jobs.append(Job(
+                title=title, company=company["name"], url=public_url, source=self.name, description=description,
+                location=with_work_mode(location, mode), remote=mode == "remote",
+                contract=_contract(info.get("timeType")),
+                published_at=_when(info.get("startDate")),
+                seniority=infer_seniority(title + " " + description),
+            ))
+        return jobs

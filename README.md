@@ -9,17 +9,25 @@ new offers after each fetch that found some.
 
 ## What it does
 
-- **18 sources:** No Fluff Jobs, Pracuj.pl, JustJoin.IT, Bulldogjob, TestDevJobs,
+- **19 sources:** No Fluff Jobs, Pracuj.pl, JustJoin.IT, Bulldogjob, TestDevJobs,
   CzyJestEldorado (aggregator), RemoteOK, We Work Remotely, Workable's public job
   search (every company on Workable), Himalayas and Solid.jobs (public APIs; full
   fetches only; Himalayas offers link back to Himalayas, as its terms ask), plus companies' own
-  ATS job boards (Greenhouse, Lever, Ashby, Recruitee, Workable, SmartRecruiters,
+  ATS job boards (Greenhouse, Lever, Ashby, Recruitee, Workday, Workable, SmartRecruiters,
   TalentClue) listed in `config/companies.yaml` — product companies hiring remote QA
   in Europe and IT contractors staffing EU institutions.
+- **CV variants:** `python -m job_finder.cli cv-variants` builds ready-made CVs from
+  `../CV/cv.html` for the profiles in `config/cv_variants.yaml` (manual + API,
+  automation, EU / public sector) with tailor-cv's no-invention check, into
+  `../CV/variants/<key>.pdf`. Each offer in the e-mail says which one to send.
+- **Weekly report** (Mondays at 11:00, `notify-weekly`): new and good offers, median time
+  from publication to JOffers (per source; date-only boards and a new source's backlog
+  left out), how many you marked Applied and how fast, the good offers still waiting,
+  then the companies to approve.
 - **Company discovery:** after each full fetch `discover-ats` looks up the companies
   of recent offers on Greenhouse, Lever, Ashby and Recruitee (80 names a run, each
-  once). Boards it finds wait as *pending* in `ats_companies`; on Monday at 11:00
-  an e-mail lists them with *Dodaj / Pomiń* links (web app `?company=ats/slug&decision=…`,
+  once). Boards it finds wait as *pending* in `ats_companies`; the Monday report
+  lists them with *Dodaj / Pomiń* links (web app `?company=ats/slug&decision=…`,
   rpc `decide_ats_company`). Approved boards are read like the configured ones.
   Locally: `python -m job_finder.cli decide-ats greenhouse/fluxon approve`.
 - **Potentially remote:** a hybrid or office offer whose text says full remote is

@@ -108,3 +108,25 @@ def test_candidates_email_has_board_and_one_tap_decisions():
     assert "https://jobs.ashbyhq.com/kyotu" in text
     assert "Dodaj: https://app.test/?company=ashby%2Fkyotu&decision=approve" in text
     assert "decision=skip" in html and "✓ Dodaj" in html
+
+
+def test_workday_reads_qa_offers_in_poland_with_remote_type(monkeypatch):
+    path = "/job/Krakow-Poland/Senior-QA-Engineer_R1"
+    detail = {"jobPostingInfo": {"location": "Krakow, Poland", "country": {"descriptor": "Polska"},
+                                 "remoteType": "Remote", "timeType": "Full time", "startDate": "2026-11-12",
+                                 "jobDescription": "<p>Playwright</p>"}}
+
+    def post(url, **kwargs):
+        return _Response({"jobPostings": [
+            {"title": "Senior QA Engineer", "externalPath": path, "locationsText": "Krakow, Poland"},
+            {"title": "QA Engineer", "externalPath": "/job/Austin/QA_R2", "locationsText": "Austin, Texas"},
+            {"title": "Product Owner", "externalPath": "/job/Krakow/PO_R3", "locationsText": "Krakow, Poland"},
+        ]})
+
+    monkeypatch.setattr(requests, "post", post)
+    _serve(monkeypatch, {path: detail})
+    company = [{"name": "Acme", "host": "acme.wd5", "tenant": "acme", "site": "Careers"}]
+    job, = ats.WorkdaySource(companies=company).fetch()
+    assert job.url == f"https://acme.wd5.myworkdayjobs.com/Careers{path}"
+    assert (job.location, job.remote) == ("Krakow, Poland · Remote", True)
+    assert job.published_at.date().isoformat() == "2026-11-12" and "Playwright" in job.description

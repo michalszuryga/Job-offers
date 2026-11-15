@@ -1,0 +1,31 @@
+# Ready-made CV variants (week 4 of the plan): built once by
+#   python -m job_finder.cli cv-variants
+# from ../CV/cv.html with the same no-invention check as tailor-cv, saved as
+# ../CV/variants/<key>.pdf. Each summary e-mail names the variant to send with every
+# offer: the one whose tags the offer matched most (title words count double).
+# Tags use profile.yaml's vocabulary. The first variant is the default.
+variants:
+  manual-api:
+    label: Manual + API
+    focus: >-
+      Senior QA Engineer for web products: manual, exploratory and regression testing, REST API
+      testing with Postman, SQL data validation, close work with developers and product, regulated
+      domains such as healthcare and payments.
+    tags: [postman, rest api, api testing, sql, ms sql, mariadb, dbeaver, healthcare, digital health,
+           telehealth, medical diagnostics, fintech, payments, saas, manual, exploratory, regression]
+  automation:
+    label: Automation (Playwright/TS)
+    focus: >-
+      QA Automation Engineer: end-to-end test automation with Playwright and TypeScript (also
+      Cypress/JavaScript), API test automation, CI/CD pipelines on GitHub, AI-assisted testing.
+    tags: [playwright, typescript, cypress, javascript, ci/cd, github, git, automation, sdet,
+           test automation, claude code, claude cli, github copilot, ai-assisted testing]
+  public-sector:
+    label: EU / public sector
+    focus: >-
+      Test Engineer for public-sector and EU-institution IT projects: functional and regression
+      testing, document management and e-government systems, requirements traceability, working in
+      English with international teams, remote/far-site delivery.
+    tags: [e-government, eu institutions, eu institution, european institutions, european commission,
+           european parliament, eu agency, eu agencies, european agency, eu-lisa, europol, public sector,
+           enterprise software]

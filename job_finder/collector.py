@@ -20,7 +20,7 @@ from .sources.eldorado import EldoradoSource
 from .sources.himalayas import HimalayasSource
 from .sources.solidjobs import SolidJobsSource
 from .sources.ats import (AshbySource, GreenhouseSource, LeverSource, RecruiteeSource, SmartRecruitersSource,
-                          TalentClueSource, WorkableSearchSource, WorkableSource)
+                          TalentClueSource, WorkableSearchSource, WorkableSource, WorkdaySource)
 
 
 @dataclass
@@ -92,7 +92,7 @@ def _fetch_and_score(source, cfg, known_urls):
 # which is what lets tests monkeypatch e.g. `collector.JustJoinSource` and have
 # it take effect. A list captured once at import time would freeze in the
 # original classes and silently ignore any later monkeypatching.
-SOURCE_COUNT = 18
+SOURCE_COUNT = 19
 SENSITIVE_SOURCE_COUNT = 3  # Pracuj.pl, No Fluff Jobs, CzyJestEldorado
 
 
@@ -110,7 +110,7 @@ def collect_live_jobs(config_path="config/profile.yaml", on_source_fetched=None,
         # Companies' own ATS job boards (EU-institution contractors), from config/companies.yaml.
         WorkableSource(), SmartRecruitersSource(), TalentClueSource(),
         # Product companies' public ATS boards (companies.yaml + approved discoveries).
-        GreenhouseSource(), LeverSource(), AshbySource(), RecruiteeSource(),
+        GreenhouseSource(), LeverSource(), AshbySource(), RecruiteeSource(), WorkdaySource(),
         # Workable's own search across every company on it.
         WorkableSearchSource(),
         # Remote board (Himalayas) and a Polish board's aggregator API (Solid.jobs).

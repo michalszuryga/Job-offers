@@ -49,7 +49,11 @@ def main():
     sub.add_parser("daily-due", help="Print 'yes' unless this slot's (11:00 / 18:00) fetch already ran")
     discover_cmd = sub.add_parser("discover-ats", help="Look up recent offers' companies on Greenhouse/Lever/Ashby/Recruitee")
     discover_cmd.add_argument("--limit", type=int, default=40, help="Company names to look up in this run")
+    variants_cmd = sub.add_parser("cv-variants", help="Build ../CV/variants/<key>.pdf from config/cv_variants.yaml")
+    variants_cmd.add_argument("keys", nargs="*", help="Only these variants (default: all)")
+    variants_cmd.add_argument("--model", default=None)
     sub.add_parser("notify-ats-candidates", help="E-mail the pending companies with approve / skip links")
+    sub.add_parser("notify-weekly", help="E-mail the week in numbers and the companies to approve (Mondays)")
     decide_cmd = sub.add_parser("decide-ats", help="Approve or skip a pending company, e.g. greenhouse/fluxon")
     decide_cmd.add_argument("company", help="ats/slug")
     decide_cmd.add_argument("decision", choices=("approve", "skip"))
@@ -70,6 +74,16 @@ def main():
         print(f"{len(found)} new candidate(s)")
         for c in found:
             print(f"  {c['ats']}/{c['slug']:<24} {c['name']}  jobs={c['jobs']} qa={c['qa_jobs']}")
+    elif args.cmd == "notify-weekly":
+        import os
+        from .notify import build_weekly, weekly_stats
+        stats = weekly_stats(store.list_all())
+        subject, text, html = build_weekly(stats, store.ats_companies("pending")[:40], os.environ.get("APP_URL", ""))
+        print(f"Sent: {subject}" if send_email(subject, text, html) else f"Not sent (no SMTP):\n{subject}\n{text}")
+    elif args.cmd == "cv-variants":
+        from .cv_variants import build_variants
+        for key, result in build_variants(args.keys or None, model=args.model).items():
+            print(f"{key}: {result if isinstance(result, str) else (result.pdf_path or result.html_path)}")
     elif args.cmd == "notify-ats-candidates":
         import os
         from .notify import build_ats_candidates

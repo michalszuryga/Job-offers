@@ -9,6 +9,7 @@
 #   lever:           site name from jobs.lever.co/<slug>
 #   ashby:           organisation from jobs.ashbyhq.com/<slug>
 #   recruitee:       subdomain from <slug>.recruitee.com
+#   workday:         <host>.myworkdayjobs.com/<site>, plus the tenant from its /wday/cxs/<tenant>/ API path
 #
 # Companies found by `python -m job_finder.cli discover-ats` are added after you approve
 # them (the Monday e-mail's links); those live in the database (ats_companies), not here.
@@ -81,3 +82,15 @@ recruitee:
   - {name: Espeo Software, slug: espeo}
   - {name: Softgames, slug: softgames}
   - {name: Ten Square Games, slug: tensquaregames}
+
+# Large companies with QA hubs in Poland (mostly hybrid; remote ones get through). Full fetches only.
+workday:
+  - {name: State Street, host: statestreet.wd1, tenant: statestreet, site: Global}
+  - {name: Hitachi, host: hitachi.wd1, tenant: hitachi, site: hitachi}
+  - {name: Sabre, host: sabre.wd1, tenant: sabre, site: SabreJobs}
+  - {name: Motorola Solutions, host: motorolasolutions.wd5, tenant: motorolasolutions, site: Careers}
+  - {name: Intel, host: intel.wd1, tenant: intel, site: External}
+  - {name: Citi, host: citi.wd5, tenant: citi, site: "2"}
+  - {name: NVIDIA, host: nvidia.wd5, tenant: nvidia, site: NVIDIAExternalCareerSite}
+  - {name: Workday, host: workday.wd5, tenant: workday, site: Workday}
+  - {name: Thomson Reuters, host: thomsonreuters.wd5, tenant: thomsonreuters, site: External_Career_Site}

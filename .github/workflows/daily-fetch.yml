@@ -114,7 +114,7 @@ jobs:
           if [ "$TIER" = "fast" ]; then extra="--only-if-new"; else extra=""; fi
           python -m job_finder.cli notify-summary --hours 24 $extra
 
-      - name: Companies to approve (Mondays at 11:00)
+      - name: Weekly report and companies to approve (Mondays at 11:00)
         if: always() && steps.due.outputs.run == 'true' && (inputs.tier || 'full') == 'full'
         continue-on-error: true
         env:
@@ -124,7 +124,7 @@ jobs:
           APP_URL: ${{ vars.APP_URL }}
         run: |
           if [ "$(TZ=Europe/Warsaw date +%u)" = "1" ] && [ "$(TZ=Europe/Warsaw date +%H)" -lt 15 ]; then
-            python -m job_finder.cli notify-ats-candidates
+            python -m job_finder.cli notify-weekly
           else
             echo "Not Monday morning - the list waits."
           fi
