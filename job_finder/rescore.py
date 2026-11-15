@@ -3,9 +3,10 @@ fetch (daily, so freshness and the stale penalty move without anyone opening
 the dashboard) and the Streamlit dashboard (on a config change)."""
 
 import json
+from collections import defaultdict
 from datetime import datetime, timezone
 
-from .models import Job
+from .models import Job, dedup_key
 from .scoring import SCORING_VERSION, score_job
 from .sources.web_utils import infer_remote
 
@@ -46,6 +47,35 @@ def row_to_job(row):
                seniority=row.get("seniority") or "", published_at=published_at)
 
 
+# Re-hosts of postings that also exist on a direct board: the copy to drop first.
+AGGREGATORS = {"CzyJestEldorado"}
+UNTOUCHED = ("TO_REVIEW", "REVIEW")
+
+
+def hide_duplicates(jobs, rows):
+    """One visible offer per title + company. A fetch stores rejected offers without
+    deduplicating them (only their URL matters there), so a rule change that un-rejects
+    them — e.g. the potentially remote ones — brought back one copy per city. Keeps the
+    copy you acted on, then a direct board's, then the best score, then the oldest; only
+    untouched copies are hidden (rejected as "Duplicate")."""
+    by_id = {job.external_id: row for job, row in zip(jobs, rows)}
+    status = lambda job: by_id.get(job.external_id, {}).get("application_status") or "TO_REVIEW"
+    groups = defaultdict(list)
+    for job in jobs:
+        if not job.rejected:
+            groups[dedup_key(job.title, job.company)].append(job)
+    for group in groups.values():
+        if len(group) < 2:
+            continue
+        group.sort(key=lambda job: (status(job) == "TO_REVIEW", status(job) == "REVIEW", job.source in AGGREGATORS,
+                                    -(job.score or 0), by_id.get(job.external_id, {}).get("first_seen_at") or ""))
+        for job in group[1:]:
+            if status(job) in UNTOUCHED:
+                job.rejected, job.reject_reason, job.score = True, "Duplicate", 0
+                job.score_breakdown = {"hard_reject": "Duplicate"}
+    return jobs
+
+
 def rescore(store, cfg, meta, visible_rows, today=None, force=False):
     """Rescore on a config change, once a day, or when forced. Returns whether
     anything was rewritten. State lives in the DB, so a new browser session or
@@ -61,7 +91,8 @@ def rescore(store, cfg, meta, visible_rows, today=None, force=False):
     # visible offers — known offers skipped by a fetch are never re-scored
     # otherwise, so their freshness would stay frozen.
     rows = store.list_all() if config_changed else visible_rows
-    store.upsert_many([score_job(row_to_job(row), cfg) for row in rows], touch_last_seen=False)
+    jobs = hide_duplicates([score_job(row_to_job(row), cfg) for row in rows], rows)
+    store.upsert_many(jobs, touch_last_seen=False)
     store.set_meta("score_config_signature", signature)
     # Written with every rescore, so the web app's maxima and penalty thresholds
     # always describe the config the stored scores came from.

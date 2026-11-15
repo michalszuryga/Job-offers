@@ -130,7 +130,8 @@ def test_rescore_rewrites_a_stored_impossible_salary_period(tmp_path):
 
     cfg = load_config()
     wrong = _job(url="https://justjoin.it/job-offer/jellylabs-tech-senior-qa-engineer-warszawa-testing")
-    hourly_as_monthly = _job(url="https://justjoin.it/job-offer/b2b-rate-filed-as-month")
+    # A different title: two identical title + company rows would be one offer (hide_duplicates).
+    hourly_as_monthly = _job(title="QA Engineer B2B", url="https://justjoin.it/job-offer/b2b-rate-filed-as-month")
     store = _store(tmp_path, score_job(wrong, cfg), score_job(hourly_as_monthly, cfg))
     with sqlite3.connect(tmp_path / "jobs.db") as conn:  # simulate rows written before the fix
         conn.execute("UPDATE jobs SET salary_min=85, salary_max=90, salary_currency='PLN', salary_period='month' "
@@ -162,3 +163,23 @@ def test_a_scoring_version_bump_rescores_hidden_rows_too():
     meta = {"score_config_signature": old_signature, "scores_refreshed_on": TODAY}
     assert rescore(store, cfg, meta, [{"title": "visible"}], today=TODAY, force=True) is True
     assert [job.title for job in store.written] == ["hidden", "visible"]
+
+
+def test_rescore_keeps_one_visible_copy_per_title_and_company():
+    from job_finder.rescore import hide_duplicates
+
+    def job(city, source="JustJoin.IT", score=40):
+        return Job("SDET", "EPAM Systems", f"https://board.test/{city}", source, score=score)
+
+    copies = [job("warszawa"), job("krakow", score=55), job("gdansk"), job("eldorado", "CzyJestEldorado", 90)]
+    rows = [{"external_id": c.external_id, "application_status": "TO_REVIEW", "first_seen_at": "2026-11-01"} for c in copies]
+    rows[2]["application_status"] = "APPLIED"
+    kept = [c for c in hide_duplicates(copies, rows) if not c.rejected]
+    # The copy you applied to stays, and so does nothing else; an acted-on copy is never hidden.
+    assert [c.url for c in kept] == ["https://board.test/gdansk"]
+    assert {c.reject_reason for c in copies if c.rejected} == {"Duplicate"}
+
+    fresh = [job("a", score=40), job("b", score=55), job("c", "CzyJestEldorado", 90)]
+    rows = [{"external_id": c.external_id, "application_status": "TO_REVIEW"} for c in fresh]
+    # Untouched only: a direct board beats the aggregator, then the best score.
+    assert [c.url for c in hide_duplicates(fresh, rows) if not c.rejected] == ["https://board.test/b"]
