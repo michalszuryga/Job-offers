@@ -51,7 +51,8 @@ def row_to_job(row):
 
 
 # Re-hosts of postings that also exist on a direct board: the copy to drop first.
-AGGREGATORS = {"CzyJestEldorado"}
+# Boards that re-post other sites' offers: their copy loses to a direct one.
+AGGREGATORS = {"CzyJestEldorado", "Himalayas"}
 UNTOUCHED = ("TO_REVIEW", "REVIEW")
 
 

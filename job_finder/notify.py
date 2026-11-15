@@ -10,6 +10,8 @@ from email.message import EmailMessage
 from html import escape
 from urllib.parse import quote, urlencode, urlsplit, urlunsplit
 
+from .rescore import AGGREGATORS
+
 # The summary step runs straight after the fetch. A last fetch older than this
 # means today's failed before recording anything, so its new ids and failed
 # sources are yesterday's. Well under a day, so a late cron can't hide that.
@@ -138,6 +140,12 @@ def build_summary(new_rows, last_run, hours=None, alarms=()):
         key = suggest_variant(row, variants)
         return f"CV: {variants[key].get('label') or key}" if key else ""
 
+    def middleman(row):
+        # Aggregators re-post companies' offers: applying there may never reach the company's ATS.
+        source = row.get("source") or ""
+        return (f"Pośrednik ({source}): znajdź ofertę na stronie kariery firmy i aplikuj tam"
+                if source in AGGREGATORS else "")
+
     def applied_link(row):
         # Opens the offer in the app and marks it Applied (web ?mark=applied), one tap.
         return app_link(app_url, offer=_offer_id(row), mark="applied") if app_url else ""
@@ -154,6 +162,8 @@ def build_summary(new_rows, last_run, hours=None, alarms=()):
                          + (f" · {salary}" if salary else "") + f"\n   {row.get('url')}")
             if row.get("remote_hint"):
                 lines.append(f"   „{row['remote_hint']}”")
+            if middleman(row):
+                lines.append(f"   ⚠️ {middleman(row)}")
             if cv_line(row):
                 lines.append(f"   {cv_line(row)}")
             if app_url:
@@ -174,6 +184,8 @@ def build_summary(new_rows, last_run, hours=None, alarms=()):
         extra = ""
         if row.get("remote_hint"):
             extra += f'<br><span style="color:#586074;font-style:italic">„{escape(row["remote_hint"])}”</span>'
+        if middleman(row):
+            extra += f'<br><span style="color:#9A5B00;font-size:13px">⚠️ {escape(middleman(row))}</span>'
         if cv_line(row) or app_url:
             extra += '<br><span style="font-size:13px">'
             if cv_line(row):

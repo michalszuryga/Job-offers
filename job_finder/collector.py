@@ -6,7 +6,7 @@ from time import perf_counter
 
 from .config import load_config, overrides_from_meta
 from .models import dedup_key
-from .rescore import rescore
+from .rescore import AGGREGATORS, hide_duplicates, rescore, row_to_job
 from .scoring import score_job
 from .storage import JobStore
 from .sources.nofluff import NoFluffSource
@@ -40,6 +40,8 @@ class SourceResult:
     error_type: str = ""
     expired: int = 0
     inserted_urls: list = field(default_factory=list)
+    # Offers kept although an aggregator's copy was there first (the aggregator's gets hidden).
+    superseded: int = 0
 
 
 class _SeenRecorder(set):
@@ -144,7 +146,14 @@ def collect_live_jobs(config_path="config/profile.yaml", on_source_fetched=None,
     # Aggregators (e.g. CzyJestEldorado) re-host postings that already exist
     # under a different URL on a direct board — URL-based known_urls can't
     # catch that, so seed a title+company dedup set from what's already stored.
-    seen_dedup_keys = {dedup_key(row.get("title"), row.get("company")) for row in existing_rows}
+    # Each key remembers whose copy it is: a direct copy (the company's ATS, a board) beats
+    # an aggregator's (Himalayas, CzyJestEldorado), so you apply at the source.
+    seen_dedup_keys = {}
+    for row in existing_rows:
+        key = dedup_key(row.get("title"), row.get("company"))
+        if seen_dedup_keys.get(key, "") in AGGREGATORS or key not in seen_dedup_keys:
+            seen_dedup_keys[key] = row.get("source") or ""
+    superseded_keys = set()
 
     # Sources are independent and network-bound; fetching them concurrently
     # keeps total wall-clock close to the slowest single source instead of
@@ -169,7 +178,7 @@ def collect_live_jobs(config_path="config/profile.yaml", on_source_fetched=None,
             source = futures[future]
             raw = future.result()
 
-            inserted = updated = rejected = duplicate = 0
+            inserted = updated = rejected = duplicate = superseded = 0
             rejected_by_reason = {}
             inserted_urls = []
             new_jobs = []
@@ -187,9 +196,12 @@ def collect_live_jobs(config_path="config/profile.yaml", on_source_fetched=None,
 
                 key = dedup_key(scored.title, scored.company)
                 if key in seen_dedup_keys:
-                    duplicate += 1
-                    continue
-                seen_dedup_keys.add(key)
+                    if not (seen_dedup_keys[key] in AGGREGATORS and source.name not in AGGREGATORS):
+                        duplicate += 1
+                        continue
+                    superseded += 1
+                    superseded_keys.add(key)
+                seen_dedup_keys[key] = source.name
 
                 to_store.append(scored)
                 if scored.external_id in known_ids:
@@ -228,6 +240,7 @@ def collect_live_jobs(config_path="config/profile.yaml", on_source_fetched=None,
                 error_type=raw["error_type"],
                 expired=expired,
                 inserted_urls=inserted_urls,
+                superseded=superseded,
             )
             results.append(result)
 
@@ -237,6 +250,12 @@ def collect_live_jobs(config_path="config/profile.yaml", on_source_fetched=None,
             if on_source_fetched:
                 on_source_fetched(raw, result, new_jobs)
 
+    if superseded_keys:
+        # Hide the aggregator's copy of each offer a direct source brought too — unless
+        # you already acted on it (hide_duplicates keeps that one).
+        rows = [row for row in store.list(0) if dedup_key(row.get("title"), row.get("company")) in superseded_keys]
+        jobs = hide_duplicates([score_job(row_to_job(row), cfg) for row in rows], rows)
+        store.upsert_many([job for job in jobs if job.reject_reason == "Duplicate"], touch_last_seen=False)
     return results, cfg
 
 

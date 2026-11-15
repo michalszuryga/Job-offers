@@ -79,3 +79,11 @@ def test_the_store_returns_recent_runs_newest_first(tmp_path, monkeypatch):
         store.record_fetch_run(started, started, "test", [{"name": f"S{hours}", "candidates": 1}])
     runs = store.fetch_runs(days=2)
     assert [r["results"][0]["name"] for r in runs] == ["S1", "S30"]
+
+
+def test_an_aggregator_offer_in_the_e_mail_says_apply_at_the_source():
+    rows = [{"title": "Senior QA Engineer", "company": "SwingDev", "source": "Himalayas", "score": 54,
+             "url": "https://himalayas.app/companies/swingdev/jobs/senior-qa-engineer"},
+            {"title": "QA", "company": "Acme", "source": "Lever", "score": 50, "url": "https://jobs.lever.co/acme/1"}]
+    _, text, html = build_summary(rows, None)
+    assert text.count("Pośrednik (Himalayas)") == 1 and "Pośrednik (Himalayas)" in html

@@ -94,21 +94,18 @@ def test_collect_live_jobs_dedups_cross_source_by_title_and_company(monkeypatch,
     results, _ = collector_mod.collect_live_jobs()
     by_name = {r.name: r for r in results}
 
-    # Which of JustJoin/Eldorado "wins" the cross-source duplicate depends on
-    # thread completion order (not asserted here — see the code comment in
-    # collector.py), but exactly one of their two same-posting copies must be
-    # kept: total inserted across both is 2 (one Acme QA job + one unrelated
-    # Eldorado-only job) and total duplicate is exactly 1.
-    total_inserted = by_name["JustJoin.IT"].inserted + by_name["CzyJestEldorado"].inserted
-    total_duplicate = by_name["JustJoin.IT"].duplicate + by_name["CzyJestEldorado"].duplicate
-    assert total_inserted == 2
-    assert total_duplicate == 1
+    # The direct board's copy wins whichever finishes first: if the aggregator's came first,
+    # the direct one is stored too (superseded) and the aggregator's is hidden as a Duplicate.
+    jj, eld = by_name["JustJoin.IT"], by_name["CzyJestEldorado"]
+    assert jj.inserted == 1 and jj.duplicate == 0
+    assert (eld.duplicate, jj.superseded) in ((1, 0), (0, 1))
 
     store = JobStore(db_path)
     stored = store.list(0, remote_only=True)
     companies = {row["company"] for row in stored}
     assert "Other Co" in companies
-    assert len(stored) == 2  # the Acme posting is stored exactly once, not twice
+    assert {row["source"] for row in stored if "Acme" in row["company"]} == {"JustJoin.IT"}
+    assert len(stored) == 2  # the Acme posting is visible exactly once, not twice
 
 
 def test_collect_live_jobs_seeds_dedup_from_existing_rows(monkeypatch, tmp_path):
@@ -302,3 +299,26 @@ def test_collect_live_jobs_can_leave_out_a_source_by_name(monkeypatch, tmp_path)
     results, _ = collector_mod.collect_live_jobs(store=store, skip_names=["eldoradosource"])
     assert "EldoradoSource" not in {r.name for r in results}
     assert len(results) == 18
+
+
+def test_a_direct_ats_copy_replaces_an_aggregators_stored_earlier(monkeypatch, tmp_path):
+    from job_finder.config import load_config
+    from job_finder.scoring import score_job
+    description = "Manual testing of an insurance platform, API testing with Postman, SQL. " * 3
+    db_path = str(tmp_path / "test_jobs.db")
+    store = JobStore(db_path)
+    himalayas = Job("Senior QA Engineer", "SwingDev", "https://himalayas.app/companies/swingdev/jobs/senior-qa-engineer",
+                    "Himalayas", description=description, location="Poland · Remote", remote=True, contract="B2B")
+    store.upsert_many([score_job(himalayas, load_config())])
+    lever = Job("Senior QA Engineer", "SwingDev", "https://jobs.lever.co/swingdev/a77f0c0f",
+                "Lever", description=description, location="Remote in Poland · Remote", remote=True, contract="B2B")
+    for attr in ("NoFluffSource", "PracujSource", "JustJoinSource", "RemoteOKSource", "WeWorkRemotelySource",
+                 "BulldogJobSource", "TestDevJobsSource", "EldoradoSource"):
+        monkeypatch.setattr(collector_mod, attr, lambda attr=attr: _fake_source(attr, []))
+    monkeypatch.setattr(collector_mod, "LeverSource", lambda: _fake_source("Lever", [lever]))
+    monkeypatch.setattr(collector_mod, "JobStore", lambda: JobStore(db_path))
+
+    results, _ = collector_mod.collect_live_jobs()
+    assert {r.name: r for r in results}["Lever"].superseded == 1
+    visible = JobStore(db_path).list(0)
+    assert [row["url"] for row in visible] == ["https://jobs.lever.co/swingdev/a77f0c0f"]
