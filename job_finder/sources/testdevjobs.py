@@ -7,7 +7,7 @@ from bs4 import BeautifulSoup
 from dateutil import parser as date_parser
 
 from .base import JobSource
-from .web_utils import HEADERS, clean, absolute, extract_salary, infer_seniority
+from .web_utils import HEADERS, clean, absolute, extract_salary, infer_seniority, with_work_mode
 from ..models import Job, canonical_job_url
 
 LISTING_URL = "https://testdevjobs.com/location/remote-europe/"
@@ -86,7 +86,9 @@ def _parse_detail(url, source_name):
 
     return Job(
         title=title, company=company, url=url, source=source_name,
-        description=description, location=location or "Europe", remote=remote,
+        description=description,
+        location=with_work_mode(location or "Europe", {True: "remote", False: "hybrid" if "hybrid" in remote_line else "office"}.get(remote)),
+        remote=remote,
         contract="", salary_min=salary_min, salary_max=salary_max,
         salary_currency=salary_currency, salary_period=salary_period,
         published_at=published, seniority=infer_seniority(title + " " + description),

@@ -89,7 +89,7 @@ def test_workable_search_entry_becomes_a_remote_job():
     }
     job = WorkableSearchSource()._job(entry)
     assert (job.title, job.company, job.remote, job.contract) == ("QA Engineer", "ITRex Group", True, "employment")
-    assert job.location == "Remote · Poland" and "Postman" in job.description
+    assert job.location == "Poland · Remote" and "Postman" in job.description
     assert job.published_at.isoformat().startswith("2026-11-11T09:08")
     assert WorkableSearchSource()._job({**entry, "title": "Physician - AI Test"}) is None
 
@@ -103,3 +103,44 @@ def test_workable_search_fails_only_when_every_query_fails(monkeypatch):
     monkeypatch.setattr(requests, "get", boom)
     with pytest.raises(RuntimeError):
         WorkableSearchSource(queries=["QA", "tester"]).fetch()
+
+
+@pytest.mark.parametrize("location, remote", [
+    ("Warszawa · Remote", True), ("Warszawa · Hybrid", False), ("Kraków · Office", False),
+    ("Warszawa · praca zdalna", True), ("Warszawa · praca zdalna, praca hybrydowa", False),
+    ("Kraków · home office work", True), ("Kraków · home office work, hybrid work", False),
+    ("Thessaloniki, Greece (remote)", True), ("Remote · Poland", True),
+    ("Warszawa", None), ("Remote", None), ("Hybrid Park, Kraków", None),
+])
+def test_the_work_mode_kept_in_the_location(location, remote):
+    from job_finder.sources.web_utils import location_work_mode
+    assert location_work_mode(location) is remote
+
+
+def test_the_page_work_mode_beats_a_hybrid_in_the_text():
+    from job_finder.rescore import row_to_job
+    from job_finder.sources.web_utils import page_work_mode, with_work_mode
+    assert page_work_mode('{\\"workplaceType\\":\\"remote\\"}') == "remote"
+    assert page_work_mode('"workplaceType":"hybrid"') == "hybrid"
+    row = {"title": "QA", "description": "We work fully remote. Benefits: hybrid office in Wrocław if you like.",
+           "location": with_work_mode("Wrocław", "remote"), "remote": 0}
+    assert row_to_job(row).remote is True
+
+
+@pytest.mark.parametrize("location, outside", [
+    ("USA Only", "USA"), ("Remote · United States", "United States"), ("Montréal, QC, Canada", "Canada"),
+    ("LATAM", "LATAM"), ("Remote - US", "US"), ("Bengaluru, India", "India"),
+    ("USA, Europe", ""), ("Worldwide", ""), ("Poland · Remote", ""), ("Athens, Greece (remote)", ""),
+    ("United Kingdom", ""), ("Warszawa · Hybrid", ""), ("EMEA", ""), ("", ""),
+])
+def test_region_outside_europe_comes_from_the_location_only(location, outside):
+    from job_finder.sources.web_utils import region_outside
+    assert region_outside(location) == outside
+
+
+def test_a_remote_offer_limited_to_the_us_is_rejected_but_not_for_its_description():
+    cfg = load_config()
+    us = score_job(_job(location="USA Only", remote=True), cfg)
+    assert (us.rejected, us.reject_reason) == (True, "Region outside Europe")
+    told = score_job(_job(location="Remote", remote=True, description="Playwright. Must be US-based."), cfg)
+    assert told.rejected is False

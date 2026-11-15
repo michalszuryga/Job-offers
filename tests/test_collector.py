@@ -20,7 +20,8 @@ def _fake_source(name, jobs, sensitive=False, tier="full"):
 
 
 ATS_SOURCES = {"WorkableSource": "Workable", "SmartRecruitersSource": "SmartRecruiters",
-               "TalentClueSource": "TalentClue", "WorkableSearchSource": "Workable (search)"}
+               "TalentClueSource": "TalentClue", "WorkableSearchSource": "Workable (search)",
+               "HimalayasSource": "Himalayas", "SolidJobsSource": "Solid.jobs"}
 
 
 @pytest.fixture(autouse=True)
@@ -47,7 +48,7 @@ def test_skip_sensitive_excludes_only_flagged_sources(monkeypatch, tmp_path):
                      *ATS_SOURCES.values()}
 
     results_all, _ = collector_mod.collect_live_jobs(skip_sensitive=False)
-    assert len(results_all) == collector_mod.SOURCE_COUNT == 12
+    assert len(results_all) == collector_mod.SOURCE_COUNT == 14
 
 
 def test_collect_live_jobs_dedups_cross_source_by_title_and_company(monkeypatch, tmp_path):
@@ -298,4 +299,4 @@ def test_collect_live_jobs_can_leave_out_a_source_by_name(monkeypatch, tmp_path)
         monkeypatch.setattr(collector_mod, attr, lambda attr=attr: _fake_source(attr, []))
     results, _ = collector_mod.collect_live_jobs(store=store, skip_names=["eldoradosource"])
     assert "EldoradoSource" not in {r.name for r in results}
-    assert len(results) == 11
+    assert len(results) == 13

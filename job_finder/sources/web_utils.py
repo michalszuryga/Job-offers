@@ -294,6 +294,66 @@ def infer_remote(text: str):
     return None
 
 
+# A board's own work mode, kept in the stored location as a " · Remote" / " · Hybrid" /
+# " · Office" segment (Pracuj.pl: its own labels). The rescore rebuilds offers from stored
+# rows, so this is how the structured mode survives instead of being guessed from the text
+# again, where any "hybrid" (a benefit list, "remote or hybrid") used to mean not remote.
+_WORK_MODE_LABELS = {"remote": "Remote", "hybrid": "Hybrid", "office": "Office"}
+_MODE_REMOTE = re.compile(r"(?<![a-ząćęłńóśźż])(?:remote|praca\s+zdalna)(?![a-ząćęłńóśźż])")
+_MODE_NOT_REMOTE = re.compile(r"(?<![a-ząćęłńóśźż])(?:hybrid|hybrydowa|office|stacjonarna)(?![a-ząćęłńóśźż])")
+
+
+def with_work_mode(location: str, mode: str | None) -> str:
+    """The location with the board's work mode ("remote", "hybrid", "office") appended."""
+    label = _WORK_MODE_LABELS.get((mode or "").lower())
+    if not label:
+        return location or ""
+    return f"{location} · {label}" if location else label
+
+
+def location_work_mode(location: str):
+    """True / False from a work-mode segment of the location (see with_work_mode), None
+    when it has none. Several modes ("praca zdalna, praca hybrydowa") mean not plainly remote."""
+    if (location or "").strip().lower().endswith("(remote)"):
+        return True  # the ATS adapters' "Thessaloniki, Greece (remote)"
+    parts = [p.strip().lower() for p in (location or "").split(" · ")]
+    if len(parts) < 2:
+        return None
+    modes = " ".join(p.replace("home office work", "remote") for p in parts
+                     if _MODE_REMOTE.search(p.replace("home office work", "remote")) or _MODE_NOT_REMOTE.search(p))
+    if not modes:
+        return None
+    return not _MODE_NOT_REMOTE.search(modes)
+
+
+def page_work_mode(html: str) -> str | None:
+    """JustJoin.IT (and others built on it) embed the offer's workplaceType in the page."""
+    match = re.search(r'workplaceType\\?"\s*:\s*\\?"(remote|hybrid|office)', html or "", re.I)
+    return match.group(1).lower() if match else None
+
+
+# Region eligibility, read from the board's location field only (owner's decision,
+# 2026-11-15): a remote offer limited to a region you can't work from is rejected; one
+# that only says so in the description is kept. Any European signal wins, and a single
+# European country stays (EU-institution contractors post "Athens, Greece (remote)").
+_REGION_OK = re.compile(
+    r"\b(?:poland|polska|europe|european|eu|eea|emea|cet|cest|worldwide|world|anywhere|global|globally)\b", re.I)
+_REGION_OUTSIDE = re.compile(
+    r"\b(?:united\s+states|usa|u\.s\.a?\.?|us|canada|north\s+america|americas|latam|latin\s+america|"
+    r"south\s+america|brazil|mexico|argentina|colombia|chile|peru|apac|asia|india|pakistan|philippines|"
+    r"vietnam|indonesia|malaysia|singapore|japan|china|australia|new\s+zealand|africa|nigeria|kenya|"
+    r"egypt|tunisia|morocco|israel|uae|dubai|saudi\s+arabia)\b", re.I)
+
+
+def region_outside(location: str) -> str:
+    """The non-European region the location limits the offer to ("USA Only" → "USA"), or ""."""
+    text = (location or "").replace("·", " ")
+    if _REGION_OK.search(text):
+        return ""
+    match = _REGION_OUTSIDE.search(text)
+    return match.group(0) if match else ""
+
+
 # "Potentially remote": an offer that isn't plainly remote (hybrid, a city, or no mode at all)
 # but whose text says working fully remotely is possible — "hybrid in Gdańsk or Warsaw, fully
 # remote work also possible", "100% zdalnie dla osób spoza Krakowa", Pracuj.pl's "praca
@@ -309,7 +369,8 @@ _REMOTE_HINTS = re.compile(
     r"|praca\s+zdalna\s+(?:jest\s+)?(?:te[zż]\s+)?mo[zż]liwa|zdalnie\s+dla\s+os[oó]b|os[oó]b\s+spoza\s+[a-ząćęłńóśźż]+"
     r"|hybrydowo\s+lub\s+(?:w\s+pe[lł]ni\s+)?zdalnie|zdalnie\s+lub\s+hybrydowo"
     r"|praca\s+zdalna[\s,;•|/]+praca\s+hybrydowa|praca\s+hybrydowa[\s,;•|/]+praca\s+zdalna"
-    r"|home\s+office\s+work[\s,;•|/]+hybrid\s+work|hybrid\s+work[\s,;•|/]+home\s+office\s+work",
+    r"|home\s+office\s+work[\s,;•|/]+hybrid\s+work|hybrid\s+work[\s,;•|/]+home\s+office\s+work"
+    r"|·\s*remote\s*·\s*hybrid|·\s*hybrid\s*·\s*remote",  # with_work_mode: both modes offered
     re.I,
 )
 _NEGATION_BEFORE = re.compile(r"(?:\bnot|\bno|n't|\bnie(?:\s+jest)?|\bbrak)\s*(?:\w+\s+)?$", re.I)
@@ -468,6 +529,8 @@ def parse_offer(url: str, source_name: str, listing_title: str = "", timeout: in
     work_modes = work_modes_parser(soup) if work_modes_parser else ""
     if work_modes:
         location = f"{location} · {work_modes}" if location else work_modes
+    else:
+        location = with_work_mode(location, page_work_mode(str(soup)))
     description = clean((posting or {}).get("description") or "")
     if description and "<" in description:
         description = clean(BeautifulSoup(description, "html.parser").get_text(" ", strip=True))
@@ -479,7 +542,9 @@ def parse_offer(url: str, source_name: str, listing_title: str = "", timeout: in
     # A list card snippet is not a valid individual job description.
     if not title or len(description) < 80:
         return None
-    remote = infer_remote(" ".join((title, description, location, nested_text((posting or {}).get("jobLocationType")))))
+    remote = location_work_mode(location)
+    if remote is None:
+        remote = infer_remote(" ".join((title, description, location, nested_text((posting or {}).get("jobLocationType")))))
     contract = nested_text((posting or {}).get("employmentType"))
     if re.search(r"(?<![a-z0-9])b2b(?![a-z0-9])", clean(description).lower()):
         contract = "B2B"

@@ -171,7 +171,7 @@ def test_testdevjobs_parses_emoji_tagged_detail_page(monkeypatch):
     assert job.title == "QA Engineer"
     assert job.company == "Acme"
     assert job.remote is True
-    assert job.location == "Poland"
+    assert job.location == "Poland · Remote"
 
 
 def test_eldorado_skips_non_detail_links_and_parses_jobposting(monkeypatch):
@@ -234,7 +234,7 @@ def _testdevjobs_job(monkeypatch, detail_html):
 def test_testdevjobs_undisclosed_salary_does_not_take_a_similar_jobs_card(monkeypatch):
     job = _testdevjobs_job(monkeypatch, _testdevjobs_detail(""))
     assert (job.salary_min, job.salary_max, job.salary_currency, job.salary_period) == (None, None, "", "")
-    assert job.location == "Germany" and job.remote is True
+    assert job.location == "Germany · Remote" and job.remote is True
 
 
 def test_testdevjobs_header_salary_units(monkeypatch):

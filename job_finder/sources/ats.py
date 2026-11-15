@@ -16,7 +16,7 @@ import yaml
 from bs4 import BeautifulSoup
 
 from .base import JobSource
-from .web_utils import HEADERS, clean, infer_seniority, looks_like_qa_role
+from .web_utils import HEADERS, clean, infer_seniority, looks_like_qa_role, location_work_mode, with_work_mode
 from ..models import Job, canonical_job_url
 
 COMPANIES_PATH = "config/companies.yaml"
@@ -87,6 +87,10 @@ class _ATSSource(JobSource):
             except Exception as exc:  # one company down must not hide the others
                 self.errors.append(f"{company.get('name')}: {type(exc).__name__}: {exc}")
         self.parsed = len(jobs)
+        for job in jobs:
+            # The ATS's own remote verdict, kept for the rescore (web_utils.with_work_mode).
+            if job.remote is True and location_work_mode(job.location) is None:
+                job.location = with_work_mode(job.location, "remote")
         return _remote_first(jobs)
 
     def fetch_company(self, company, known_urls):
@@ -252,7 +256,9 @@ _SOFTWARE_QA_TITLE = re.compile(
     r"\b(?:qa|tester|sdet|quality\s+(?:assurance|engineer)|test(?:ing)?\s+(?:engineer|analyst|automation|lead|manager|specialist))\b",
     re.I,
 )
-_NOT_SOFTWARE_QA = re.compile(r"physician|doctor|nurse|study\s+tester|usability|data\s+quality|annotat|reviewer|trainer", re.I)
+_NOT_SOFTWARE_QA = re.compile(
+    r"physician|doctor|nurse|study\s+tester|usability|data\s+quality|annotat|reviewer|trainer|penetration|pentest"
+    r"|\blqa\b|game\s+tester|locali[sz]ation|assembly|manufactur|mechanical|welding|food", re.I)
 
 
 def software_qa_title(title):
@@ -314,7 +320,7 @@ class WorkableSearchSource(JobSource):
             url=entry.get("url") or "",
             source=self.name,
             description=description,
-            location=("Remote · " if workplace == "remote" else f"{workplace.replace('_', ' ').title()} · " if workplace else "") + city,
+            location=with_work_mode(city, {"remote": "remote", "hybrid": "hybrid", "on_site": "office"}.get(workplace)),
             remote=ats_remote(title, workplace == "remote"),
             contract=_contract(entry.get("employmentType")),
             published_at=published,

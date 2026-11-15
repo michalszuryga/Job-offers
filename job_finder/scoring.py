@@ -1,10 +1,10 @@
 import re
 from datetime import datetime, timezone
 from .salary import monthly_salary_pln, normalize_job_salary
-from .sources.web_utils import remote_hint
+from .sources.web_utils import region_outside, remote_hint
 
 # Bump when scoring logic changes so stored scores get recomputed on next load.
-SCORING_VERSION = 5
+SCORING_VERSION = 6
 
 
 def _text(job):
@@ -127,6 +127,12 @@ def score_job(job, cfg, now=None):
     if not tech_exclusions and _java_is_role_requirement(job):
         job.rejected, job.reject_reason, job.score = True, "Java", 0
         job.score_breakdown = {"hard_reject": "Java"}
+        return job
+    # A board's location field naming only a region outside Europe ("USA Only", "LATAM").
+    region = region_outside(job.location)
+    if region:
+        job.rejected, job.reject_reason, job.score = True, "Region outside Europe", 0
+        job.score_breakdown = {"hard_reject": "Region outside Europe", "region": region}
         return job
     # Not plainly remote, but the text says full remote is possible: kept as "potentially
     # remote" (its own section in the app and the e-mail) instead of rejected; no remote points.

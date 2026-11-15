@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 
 from .models import Job, dedup_key
 from .scoring import SCORING_VERSION, score_job
-from .sources.web_utils import infer_remote
+from .sources.web_utils import infer_remote, location_work_mode
 
 
 def scoring_inputs(cfg):
@@ -32,8 +32,11 @@ def row_to_job(row):
     # The current remote inference overrides the stored flag (older parsers set
     # it differently), so remote-only filtering stays consistent across rows.
     remote = None if row.get("remote") is None else bool(row["remote"])
-    inferred_remote = infer_remote(" ".join((row.get("title") or "", row.get("description") or "",
-                                             row.get("location") or "")))
+    # The board's own work mode, kept in the location (web_utils.with_work_mode), wins.
+    inferred_remote = location_work_mode(row.get("location") or "")
+    if inferred_remote is None:
+        inferred_remote = infer_remote(" ".join((row.get("title") or "", row.get("description") or "",
+                                                 row.get("location") or "")))
     if inferred_remote is not None:
         remote = inferred_remote
     # Job.__post_init__ runs salary.normalize_salary, so a stored row with an

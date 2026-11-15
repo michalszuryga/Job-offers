@@ -9,9 +9,10 @@ new offers after each fetch that found some.
 
 ## What it does
 
-- **12 sources:** No Fluff Jobs, Pracuj.pl, JustJoin.IT, Bulldogjob, TestDevJobs,
+- **14 sources:** No Fluff Jobs, Pracuj.pl, JustJoin.IT, Bulldogjob, TestDevJobs,
   CzyJestEldorado (aggregator), RemoteOK, We Work Remotely, Workable's public job
-  search (every company on Workable), plus companies' own
+  search (every company on Workable), Himalayas and Solid.jobs (public APIs; full
+  fetches only; Himalayas offers link back to Himalayas, as its terms ask), plus companies' own
   ATS job boards (Workable, SmartRecruiters, TalentClue) listed in
   `config/companies.yaml` — mainly IT contractors staffing EU institutions.
 - **Potentially remote:** a hybrid or office offer whose text says full remote is
@@ -23,7 +24,13 @@ new offers after each fetch that found some.
 - **Scoring:** deterministic, explainable 0–100 match score from the profile in
   `config/profile.yaml` (roles, technologies, domains, contract, seniority,
   salary, freshness) plus hard exclusions (e.g. Java-as-a-requirement, junior-only).
-- **Deduplication** across boards by normalized title + company.
+- **Deduplication** across boards by normalized title + company; the rescore also
+  keeps one visible copy per title + company.
+- **Work mode and region:** a board's own work mode (JustJoin.IT's `workplaceType`,
+  Pracuj.pl's badges, the ATS remote fields, Solid.jobs flags) is kept in the location
+  as " · Remote" / " · Hybrid" / " · Office" and wins over guessing from the text.
+  A location naming only a region outside Europe ("USA Only", "LATAM", "Canada")
+  is rejected as *Region outside Europe*; a description saying so is not.
 - **Lifecycle:** offers you haven't acted on (`TO_REVIEW`, or `REVIEW`, which the
   web app sets when you merely open one) and offers marked Not for me
   (`DISMISSED`) are removed after 14 days without appearing

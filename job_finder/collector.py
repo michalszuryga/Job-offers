@@ -17,6 +17,8 @@ from .sources.weworkremotely import WeWorkRemotelySource
 from .sources.bulldogjob import BulldogJobSource
 from .sources.testdevjobs import TestDevJobsSource
 from .sources.eldorado import EldoradoSource
+from .sources.himalayas import HimalayasSource
+from .sources.solidjobs import SolidJobsSource
 from .sources.ats import SmartRecruitersSource, TalentClueSource, WorkableSearchSource, WorkableSource
 
 
@@ -89,7 +91,7 @@ def _fetch_and_score(source, cfg, known_urls):
 # which is what lets tests monkeypatch e.g. `collector.JustJoinSource` and have
 # it take effect. A list captured once at import time would freeze in the
 # original classes and silently ignore any later monkeypatching.
-SOURCE_COUNT = 12
+SOURCE_COUNT = 14
 SENSITIVE_SOURCE_COUNT = 3  # Pracuj.pl, No Fluff Jobs, CzyJestEldorado
 
 
@@ -108,6 +110,8 @@ def collect_live_jobs(config_path="config/profile.yaml", on_source_fetched=None,
         WorkableSource(), SmartRecruitersSource(), TalentClueSource(),
         # Workable's own search across every company on it.
         WorkableSearchSource(),
+        # Remote board (Himalayas) and a Polish board's aggregator API (Solid.jobs).
+        HimalayasSource(), SolidJobsSource(),
     ]
     if tier == "fast":
         # The every-30-minutes workday run: light sources only (JobSource.tier).
