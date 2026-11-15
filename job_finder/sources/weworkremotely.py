@@ -24,6 +24,7 @@ FEEDS = [
 
 class WeWorkRemotelySource(JobSource):
     name = "We Work Remotely"
+    tier = "fast"
 
     def __init__(self, feeds=None):
         self.feeds = feeds or FEEDS

@@ -7,7 +7,7 @@ from job_finder.models import Job
 from job_finder.storage import JobStore
 
 
-def _fake_source(name, jobs, sensitive=False):
+def _fake_source(name, jobs, sensitive=False, tier="full"):
     class _Fake:
         def fetch(self, known_urls=None):
             return jobs
@@ -15,11 +15,12 @@ def _fake_source(name, jobs, sensitive=False):
     fake = _Fake()
     fake.name = name
     fake.sensitive = sensitive
+    fake.tier = tier
     return fake
 
 
 ATS_SOURCES = {"WorkableSource": "Workable", "SmartRecruitersSource": "SmartRecruiters",
-               "TalentClueSource": "TalentClue"}
+               "TalentClueSource": "TalentClue", "WorkableSearchSource": "Workable (search)"}
 
 
 @pytest.fixture(autouse=True)
@@ -46,7 +47,7 @@ def test_skip_sensitive_excludes_only_flagged_sources(monkeypatch, tmp_path):
                      *ATS_SOURCES.values()}
 
     results_all, _ = collector_mod.collect_live_jobs(skip_sensitive=False)
-    assert len(results_all) == collector_mod.SOURCE_COUNT == 11
+    assert len(results_all) == collector_mod.SOURCE_COUNT == 12
 
 
 def test_collect_live_jobs_dedups_cross_source_by_title_and_company(monkeypatch, tmp_path):
@@ -199,10 +200,32 @@ def test_run_fetch_records_last_fetch_state(monkeypatch, tmp_path):
     collector_mod.run_fetch(store, "scheduled")
     meta = store.get_all_meta()
     assert json.loads(meta["last_fetch_new_ids"]) == [job.external_id]
-    assert meta["last_fetch_at"]
+    assert json.loads(meta["last_run_new_ids"]) == [job.external_id]
+    assert meta["last_fetch_at"] and meta["last_full_fetch_at"] == meta["last_fetch_at"]
     run = store.last_fetch_run()
     assert run["trigger"] == "scheduled"
     assert next(r for r in run["results"] if r["name"] == "RemoteOK")["inserted"] == 1
+
+
+def test_a_fast_run_reads_only_fast_sources_and_keeps_the_slot_open(monkeypatch, tmp_path):
+    store = JobStore(str(tmp_path / "jobs.db"))
+    earlier = Job("QA Earlier", "Beta", "https://justjoin.it/offers/0", "JustJoin.IT", description="Remote QA",
+                  location="Remote", remote=True)
+    store.upsert_many([earlier])
+    job = Job("QA Engineer", "Acme", "https://justjoin.it/offers/1", "JustJoin.IT",
+              description="Remote QA role", location="Remote", remote=True, contract="B2B")
+    for attr in _SOURCE_ATTRS:
+        monkeypatch.setattr(collector_mod, attr, lambda attr=attr: _fake_source(attr, []))
+    monkeypatch.setattr(collector_mod, "JustJoinSource", lambda: _fake_source("JustJoin.IT", [job], tier="fast"))
+
+    results = collector_mod.run_fetch(store, "workflow_dispatch", tier="fast")
+    assert [r.name for r in results] == ["JustJoin.IT"]
+    meta = store.get_all_meta()
+    # The e-mail lists this run's offer only; the web "New" view keeps the last 24 hours.
+    assert json.loads(meta["last_run_new_ids"]) == [job.external_id]
+    assert set(json.loads(meta["last_fetch_new_ids"])) == {job.external_id, earlier.external_id}
+    assert "last_full_fetch_at" not in meta
+    assert store.last_fetch_run()["trigger"] == "workflow_dispatch (fast)"
 
 
 _SOURCE_ATTRS = ("NoFluffSource", "PracujSource", "JustJoinSource", "RemoteOKSource",
@@ -275,4 +298,4 @@ def test_collect_live_jobs_can_leave_out_a_source_by_name(monkeypatch, tmp_path)
         monkeypatch.setattr(collector_mod, attr, lambda attr=attr: _fake_source(attr, []))
     results, _ = collector_mod.collect_live_jobs(store=store, skip_names=["eldoradosource"])
     assert "EldoradoSource" not in {r.name for r in results}
-    assert len(results) == 10
+    assert len(results) == 11

@@ -72,6 +72,7 @@ def _remote_first(jobs):
 
 class _ATSSource(JobSource):
     ats = ""
+    tier = "fast"
 
     def __init__(self, companies=None, companies_path=COMPANIES_PATH):
         self.companies = companies if companies is not None else load_companies(self.ats, companies_path)
@@ -243,3 +244,79 @@ class TalentClueSource(_ATSSource):
         soup = BeautifulSoup(response.text, "html.parser")
         body = soup.select_one(".job-page__content--left") or soup.select_one(".job-description") or soup.body
         return clean(body.get_text(" ", strip=True)) if body else ""
+
+
+# The search spans every trade on Workable, so the loose looks_like_qa_role() lets in
+# "Physician - Put Medical AI to the Test" and "Data Quality Reviewer": software QA only.
+_SOFTWARE_QA_TITLE = re.compile(
+    r"\b(?:qa|tester|sdet|quality\s+(?:assurance|engineer)|test(?:ing)?\s+(?:engineer|analyst|automation|lead|manager|specialist))\b",
+    re.I,
+)
+_NOT_SOFTWARE_QA = re.compile(r"physician|doctor|nurse|study\s+tester|usability|data\s+quality|annotat|reviewer|trainer", re.I)
+
+
+def software_qa_title(title):
+    return bool(_SOFTWARE_QA_TITLE.search(title or "")) and not _NOT_SOFTWARE_QA.search(title or "")
+
+
+class WorkableSearchSource(JobSource):
+    """Workable's public job search (jobs.workable.com): every company on Workable at once,
+    not only the ones in companies.yaml. Remote QA offers open to Poland, newest first."""
+    name = "Workable (search)"
+    tier = "fast"
+    url = "https://jobs.workable.com/api/v1/jobs"
+    queries = ("QA", "tester", "test engineer", "quality assurance")
+
+    def __init__(self, queries=None, location="Poland"):
+        self.queries = tuple(queries or self.queries)
+        self.location = location
+
+    def fetch(self, known_urls=None):
+        self.errors, self.candidates = [], 0
+        jobs, seen = [], set()
+        for query in self.queries:
+            try:
+                response = requests.get(self.url, headers=JSON_HEADERS, timeout=30, params={
+                    "query": query, "location": self.location, "workplace": "remote"})
+                response.raise_for_status()
+                entries = response.json().get("jobs") or []
+            except Exception as exc:  # one query down must not hide the others
+                self.errors.append(f"{query}: {type(exc).__name__}: {exc}")
+                continue
+            self.candidates += len(entries)
+            for entry in entries:
+                job = self._job(entry)
+                if job and job.url not in seen:
+                    seen.add(job.url)
+                    jobs.append(job)
+        if len(self.errors) == len(self.queries):
+            raise RuntimeError(self.errors[0])
+        self.skipped_known = 0
+        self.parsed = len(jobs)
+        return jobs
+
+    def _job(self, entry):
+        title = clean(entry.get("title") or "")
+        if not software_qa_title(title) or entry.get("state", "published") != "published":
+            return None
+        workplace = (entry.get("workplace") or "").lower()
+        place = entry.get("location") or {}
+        city = _location(place.get("city"), place.get("countryName"))
+        try:
+            published = datetime.fromisoformat(str(entry.get("created")).replace("Z", "+00:00"))
+        except ValueError:
+            published = None
+        description = " ".join(filter(None, (_html_text(entry.get(key)) for key in
+                                             ("description", "requirementsSection", "benefitsSection"))))
+        return Job(
+            title=title,
+            company=clean((entry.get("company") or {}).get("title") or ""),
+            url=entry.get("url") or "",
+            source=self.name,
+            description=description,
+            location=("Remote · " if workplace == "remote" else f"{workplace.replace('_', ' ').title()} · " if workplace else "") + city,
+            remote=ats_remote(title, workplace == "remote"),
+            contract=_contract(entry.get("employmentType")),
+            published_at=published,
+            seniority=infer_seniority(title + " " + description),
+        )

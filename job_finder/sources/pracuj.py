@@ -5,15 +5,38 @@ from .web_utils import get_soup, clean, absolute, parse_offer_batch
 from ..models import canonical_job_url
 
 
+def work_modes(soup):
+    """The offer's work modes as Pracuj labels them, e.g. "praca zdalna, praca hybrydowa".
+    Not in the JSON-LD description, so before this every Pracuj offer looked non-remote."""
+    labels = []
+    for item in soup.select('[data-test^="sections-benefit-work-modes"]'):
+        badge = item.select_one('[data-test="offer-badge-title"]')
+        text = clean((badge or item).get_text(" ", strip=True))
+        if text and text not in labels:
+            labels.append(text)
+    return ", ".join(labels)
+
+
 class PracujSource(JobSource):
     name = "Pracuj.pl"
     sensitive = True
 
+    # wm=home-office: only offers with "praca zdalna" among their work modes (Pracuj's own
+    # filter). Without it the listing was mostly office/hybrid offers, every one rejected.
+    # A few listing pages each; known offers cost nothing, only new ones get a detail request.
+    pages = 3
+
     def __init__(self, queries=None):
         self.queries = queries or [
-            "https://www.pracuj.pl/praca/tester%20-%20qa%20engineer%3Bkw",
-            "https://www.pracuj.pl/praca/qa%20tester%3Bkw",
+            "https://www.pracuj.pl/praca/tester%20-%20qa%20engineer%3Bkw?wm=home-office",
+            "https://www.pracuj.pl/praca/qa%20tester%3Bkw?wm=home-office",
         ]
+
+    def _listing_urls(self):
+        for url in self.queries:
+            yield url
+            for page in range(2, self.pages + 1):
+                yield f"{url}{'&' if '?' in url else '?'}pn={page}"
 
     def fetch(self, known_urls=None):
         known_urls = known_urls or set()
@@ -21,8 +44,15 @@ class PracujSource(JobSource):
         offers, seen = [], set()
         skipped_known = 0
 
-        for url in self.queries:
-            soup = get_soup(url)
+        for url in self._listing_urls():
+            try:
+                soup = get_soup(url)
+            except Exception as exc:
+                # A missing later page must not throw away the first page's offers.
+                if url in self.queries:
+                    raise
+                self.errors.append(f"{url}: {type(exc).__name__}")
+                break
             for a in soup.find_all("a", href=True):
                 href = absolute(url, a["href"])
                 href_l = href.lower()
@@ -52,9 +82,10 @@ class PracujSource(JobSource):
                 offers.append((href, title, clean(card.get_text(" ", strip=True))))
         # Pracuj.pl rate-limits parallel detail-page requests. Keep this source
         # deliberately serial and paced; other sources stay concurrent.
-        jobs, self.errors = parse_offer_batch(
-            offers, self.name, max_workers=1, request_interval=0.75,
+        jobs, errors = parse_offer_batch(
+            offers, self.name, max_workers=1, request_interval=0.75, work_modes_parser=work_modes,
         )
+        self.errors += errors
         self.candidates = len(offers) + skipped_known
         self.skipped_known = skipped_known
         self.parsed = len(jobs)

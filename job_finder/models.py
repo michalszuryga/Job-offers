@@ -62,6 +62,8 @@ class Job:
     matched_keywords: list[str] = field(default_factory=list)
     penalties: list[str] = field(default_factory=list)
     application_status: str = "TO_REVIEW"
+    # Set by scoring: the phrase that makes a not-plainly-remote offer "potentially remote".
+    remote_hint: str = ""
 
     def __post_init__(self):
         # Every Job (fresh from a source, or rebuilt from a stored row by

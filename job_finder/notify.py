@@ -82,13 +82,12 @@ def fetch_is_current(store, now=None):
 
 
 def summary_rows(store, fallback_hours=24, now=None):
-    """Returns (rows, hours). The summary covers exactly the last fetch's new
-    offers that are still visible — the same set the web app calls "new" — so
-    the count matches what you see when you open it. The hours window is the
-    fallback when that fetch isn't today's (it failed before recording its new
-    ids) or the database predates the last_fetch_new_ids meta key."""
+    """Returns (rows, hours). The e-mail covers exactly the last fetch's own new
+    offers that are still visible (meta last_run_new_ids), so a fetch every 30 minutes
+    never lists an offer twice. The hours window is the fallback when that fetch isn't
+    today's (it failed before recording its new ids) or the meta key is missing."""
     try:
-        new_ids = json.loads(store.get_meta("last_fetch_new_ids") or "null")
+        new_ids = json.loads(store.get_meta("last_run_new_ids") or "null")
     except json.JSONDecodeError:
         new_ids = None
     if not isinstance(new_ids, list) or not fetch_is_current(store, now):
@@ -96,11 +95,17 @@ def summary_rows(store, fallback_hours=24, now=None):
     return store.visible_by_ids(new_ids), None
 
 
+def _offer_id(row):
+    return row.get("external_id") or row.get("url") or ""
+
+
 def build_summary(new_rows, last_run, hours=None):
     """Returns (subject, plain_text, html). `hours` set means the rows come from
-    the time-window fallback, which the subject then says."""
-    # Stable sort: EU-institution offers first, the store's order kept within each group.
-    new_rows = sorted(new_rows, key=lambda row: not is_eu_institution(row))
+    the time-window fallback, which the subject then says. Offers that are only
+    potentially remote (remote_hint, see web_utils.remote_hint) get a section of
+    their own below the rest, each with the phrase that put it there."""
+    # Stable sort: plainly remote first, then EU-institution offers first, the store's order kept.
+    new_rows = sorted(new_rows, key=lambda row: (bool(row.get("remote_hint")), not is_eu_institution(row)))
     count = len(new_rows)
     eu_count = sum(is_eu_institution(row) for row in new_rows)
     window = f" ({hours} h)" if hours else ""
@@ -108,6 +113,9 @@ def build_summary(new_rows, last_run, hours=None):
         subject = f"JOffers: {count} {_plural(count, 'nowa oferta', 'nowe oferty', 'nowych ofert')}{window}"
         if eu_count:
             subject += f" · {EU_FLAG} {eu_count} UE"
+        # The phone shows the subject: the best offer in it is often enough to decide.
+        best = max(new_rows, key=lambda row: row.get("score") or 0)
+        subject += f" · {best.get('score') or 0:.0f} pkt {best.get('title') or ''} — {best.get('company') or '?'}"
     else:
         subject = f"JOffers: brak nowych ofert{window}"
     # Every new offer is listed — the owner reads them all — up to a safety cap for an
@@ -115,14 +123,31 @@ def build_summary(new_rows, last_run, hours=None):
     shown = new_rows[:MAX_LISTED]
     more = count - len(shown)
     failed = _failed_sources(last_run)
-
-    lines = []
+    app_url = os.environ.get("APP_URL")
     # Numbered in the text itself ("1." … "12."), not with <ol>: Gmail clipped two-digit list
     # numbers. The score follows as "70 pkt" so the two numbers can't be confused.
-    for number, row in enumerate(shown, 1):
-        salary = _salary(row)
-        lines.append(f"{number}. {row.get('score') or 0:.0f} pkt · {_title(row)} — {row.get('company') or '?'}"
-                     + (f" · {salary}" if salary else "") + f"\n   {row.get('url')}")
+    numbered = list(enumerate(shown, 1))
+    sections = [(None, [(n, r) for n, r in numbered if not r.get("remote_hint")]),
+                ("Potencjalnie zdalne", [(n, r) for n, r in numbered if r.get("remote_hint")])]
+
+    def applied_link(row):
+        # Opens the offer in the app and marks it Applied (web ?mark=applied), one tap.
+        return app_link(app_url, offer=_offer_id(row), mark="applied") if app_url else ""
+
+    lines = []
+    for heading, rows in sections:
+        if not rows:
+            continue
+        if heading:
+            lines.extend(["", f"— {heading} (hybryda, ale ogłoszenie wspomina o pracy zdalnej) —"])
+        for number, row in rows:
+            salary = _salary(row)
+            lines.append(f"{number}. {row.get('score') or 0:.0f} pkt · {_title(row)} — {row.get('company') or '?'}"
+                         + (f" · {salary}" if salary else "") + f"\n   {row.get('url')}")
+            if row.get("remote_hint"):
+                lines.append(f"   „{row['remote_hint']}”")
+            if app_url:
+                lines.append(f"   Aplikowałem: {applied_link(row)}")
     more_line = f"… i jeszcze {more} {_plural(more, 'oferta', 'oferty', 'ofert')}"
     if more > 0:
         lines.append(more_line)
@@ -133,31 +158,42 @@ def build_summary(new_rows, last_run, hours=None):
         lines.extend(f"⚠️ {f}" for f in failed)
     text = "\n".join(lines)
 
-    items = "".join(
-        f'<li style="margin:0 0 10px"><span style="color:#665C50">{number}.</span> '
-        f'<strong>{row.get("score") or 0:.0f} pkt</strong> · '
-        f'<a href="{escape(row.get("url") or "", quote=True)}">{escape(_title(row))}</a>'
-        f' — {escape(row.get("company") or "?")}'
-        + (f' <span style="color:#586074">· {escape(_salary(row))}</span>' if _salary(row) else "")
-        + "</li>"
-        for number, row in enumerate(shown, 1)
-    )
+    def item(number, row):
+        extra = ""
+        if row.get("remote_hint"):
+            extra += f'<br><span style="color:#586074;font-style:italic">„{escape(row["remote_hint"])}”</span>'
+        if app_url:
+            extra += (f'<br><a href="{escape(applied_link(row), quote=True)}" '
+                      f'style="font-size:13px;color:#2F5D50">✓ Aplikowałem</a>')
+        return (f'<li style="margin:0 0 10px"><span style="color:#665C50">{number}.</span> '
+                f'<strong>{row.get("score") or 0:.0f} pkt</strong> · '
+                f'<a href="{escape(row.get("url") or "", quote=True)}">{escape(_title(row))}</a>'
+                f' — {escape(row.get("company") or "?")}'
+                + (f' <span style="color:#586074">· {escape(_salary(row))}</span>' if _salary(row) else "")
+                + extra + "</li>")
+
     html = '<div style="font-family:system-ui,sans-serif;font-size:15px;line-height:1.45;color:#0E1120">'
-    # Unordered list with the numbers written in each item (see above).
-    html += (f'<ul style="list-style:none;padding-left:0;margin:0 0 12px">{items}</ul>' if shown
-             else "<p>Ostatni fetch nie dodał nowych ofert.</p>")
+    for heading, rows in sections:
+        if not rows:
+            continue
+        if heading:
+            html += (f'<h3 style="font-size:15px;margin:16px 0 4px">{heading}</h3>'
+                     '<p style="margin:0 0 8px;color:#586074;font-size:13px">'
+                     'Hybryda lub biuro, ale ogłoszenie wspomina o pracy w pełni zdalnej — warto dopytać.</p>')
+        # Unordered list with the numbers written in each item (see above).
+        html += f'<ul style="list-style:none;padding-left:0;margin:0 0 12px">{"".join(item(n, r) for n, r in rows)}</ul>'
+    if not shown:
+        html += "<p>Ostatni fetch nie dodał nowych ofert.</p>"
     if more > 0:
         html += f"<p>{more_line}</p>"
     if failed:
         html += "<p style=\"color:#9A5B00\">" + "<br>".join(f"⚠️ {escape(f)}" for f in failed) + "</p>"
-    app_url = os.environ.get("APP_URL")
     if app_url:
         # The app opens on the New view: the same offers this e-mail lists (web ?view=new).
         links = [("Otwórz JOffers", app_link(app_url, view="new"))]
         if new_rows:
             best = max(new_rows, key=lambda row: row.get("score") or 0)
-            offer_id = best.get("external_id") or best.get("url") or ""
-            links.append(("Otwórz najlepszą ofertę", app_link(app_url, offer=offer_id)))
+            links.append(("Otwórz najlepszą ofertę", app_link(app_url, offer=_offer_id(best))))
         html += "<p>" + " · ".join(
             f'<a href="{escape(url, quote=True)}">{label}</a>' for label, url in links
         ) + "</p>"

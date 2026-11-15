@@ -3,15 +3,23 @@
 [![Tests](https://github.com/michalszuryga/Job-offers/actions/workflows/tests.yml/badge.svg)](https://github.com/michalszuryga/Job-offers/actions/workflows/tests.yml)
 
 Collects QA job offers from Polish and international job boards, scores them
-against a candidate profile, and tracks applications. Runs a scheduled fetch
-twice a day (11:00 and 18:00 Europe/Warsaw) and e-mails a summary of new offers.
+against a candidate profile, and tracks applications. Runs a full fetch at 11:00
+and 18:00 Europe/Warsaw, a light one every 30 minutes on workdays, and e-mails the
+new offers after each fetch that found some.
 
 ## What it does
 
-- **11 sources:** No Fluff Jobs, Pracuj.pl, JustJoin.IT, Bulldogjob, TestDevJobs,
-  CzyJestEldorado (aggregator), RemoteOK, We Work Remotely, plus companies' own
+- **12 sources:** No Fluff Jobs, Pracuj.pl, JustJoin.IT, Bulldogjob, TestDevJobs,
+  CzyJestEldorado (aggregator), RemoteOK, We Work Remotely, Workable's public job
+  search (every company on Workable), plus companies' own
   ATS job boards (Workable, SmartRecruiters, TalentClue) listed in
   `config/companies.yaml` — mainly IT contractors staffing EU institutions.
+- **Potentially remote:** a hybrid or office offer whose text says full remote is
+  possible ("hybrid in Gdańsk, fully remote work also possible", Pracuj.pl's
+  "praca zdalna, praca hybrydowa") is kept instead of rejected, without remote
+  points, with the phrase in `remote_hint`. The web app hides these behind the
+  *Work mode* filter (and a "+N potentially remote" link); the e-mail lists them
+  in a section of their own.
 - **Scoring:** deterministic, explainable 0–100 match score from the profile in
   `config/profile.yaml` (roles, technologies, domains, contract, seniority,
   salary, freshness) plus hard exclusions (e.g. Java-as-a-requirement, junior-only).
@@ -27,10 +35,12 @@ twice a day (11:00 and 18:00 Europe/Warsaw) and e-mails a summary of new offers.
   back, or undoing the change, keeps the original date. **Not for me**
   (`DISMISSED`, button or `x` in the web app's details) sets the status and
   moves straight on to the next offer; Undo puts the status back.
-- **Summary e-mail** after each fetch, at about 11:00 and 18:00 Europe/Warsaw (fetch triggered by
+- **Summary e-mail** after each fetch (fetch triggered by
   cron-job.org, GitHub's cron as a fallback; sent with Gmail SMTP), listing the
-  offers that fetch added; every fetch also rescores stored offers, so freshness
-  and the stale-offer penalty stay current. If the fetch fails before it records
+  offers that fetch added, best one in the subject, each with a one-tap
+  *Aplikowałem* link (`?offer=…&mark=applied`, sets Applied with Undo). The 11:00
+  and 18:00 e-mails always go out; a fast run's only when it found something. The
+  full fetches rescore stored offers, so freshness and the stale-offer penalty stay current. If the fetch fails before it records
   anything, the e-mail lists offers first seen in the last 24 h instead and says
   "(24 h)" in the subject.
 - **Web app** (`web/`, React + TypeScript) with magic-link sign-in, built for
@@ -181,6 +191,13 @@ trigger is external. The owner's [cron-job.org](https://cron-job.org) account
   new token and paste it into the cron-job.org job's `Authorization` header.
 - Check it works: cron-job.org's job history should show HTTP 204, and
   *Actions → Daily fetch* gets a `workflow_dispatch` run at 11:00 and 18:00.
+
+A third job runs the **fast tier** on workdays: same URL, method and headers, body
+`{"ref":"main","inputs":{"tier":"fast"}}`, custom schedule minutes 15 and 45, hours
+7–21, Monday–Friday (Europe/Warsaw) — so it never lands on 11:00 / 18:00. It reads
+only the sources with `tier = "fast"` (APIs and light listings; not Pracuj.pl or
+CzyJestEldorado), never skips, and sends an e-mail only when it found new offers.
+Only full fetches count for a slot (meta `last_full_fetch_at`).
 
 Scheduled runs (external or cron) skip when the current slot's fetch already happened — a slot runs
 from 11:00 or 18:00 to the next one

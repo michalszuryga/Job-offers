@@ -17,7 +17,7 @@ from .sources.weworkremotely import WeWorkRemotelySource
 from .sources.bulldogjob import BulldogJobSource
 from .sources.testdevjobs import TestDevJobsSource
 from .sources.eldorado import EldoradoSource
-from .sources.ats import SmartRecruitersSource, TalentClueSource, WorkableSource
+from .sources.ats import SmartRecruitersSource, TalentClueSource, WorkableSearchSource, WorkableSource
 
 
 @dataclass
@@ -89,12 +89,12 @@ def _fetch_and_score(source, cfg, known_urls):
 # which is what lets tests monkeypatch e.g. `collector.JustJoinSource` and have
 # it take effect. A list captured once at import time would freeze in the
 # original classes and silently ignore any later monkeypatching.
-SOURCE_COUNT = 11
+SOURCE_COUNT = 12
 SENSITIVE_SOURCE_COUNT = 3  # Pracuj.pl, No Fluff Jobs, CzyJestEldorado
 
 
 def collect_live_jobs(config_path="config/profile.yaml", on_source_fetched=None, skip_sensitive=False,
-                      store=None, expire_after_days=14, skip_names=()):
+                      store=None, expire_after_days=14, skip_names=(), tier="full"):
     """Returns (results, cfg): cfg is the effective config (profile + DB
     overrides) every offer was scored with, so callers can record and reuse it
     instead of reloading a possibly different one."""
@@ -106,7 +106,12 @@ def collect_live_jobs(config_path="config/profile.yaml", on_source_fetched=None,
         EldoradoSource(),
         # Companies' own ATS job boards (EU-institution contractors), from config/companies.yaml.
         WorkableSource(), SmartRecruitersSource(), TalentClueSource(),
+        # Workable's own search across every company on it.
+        WorkableSearchSource(),
     ]
+    if tier == "fast":
+        # The every-30-minutes workday run: light sources only (JobSource.tier).
+        sources = [source for source in sources if getattr(source, "tier", "full") == "fast"]
     if skip_sensitive:
         # Skip sources that have shown rate-limiting/blocking under load
         # (Pracuj.pl, No Fluff Jobs, CzyJestEldorado) — for a fast run, or to
@@ -232,18 +237,31 @@ def result_to_dict(result):
     }
 
 
-def run_fetch(store, trigger, skip_sensitive=False, on_source_fetched=None, skip_names=()):
+# The web app's "New" view: offers first seen this long ago or less. With a fetch every
+# 30 minutes, "the last fetch" alone would be a handful of offers.
+NEW_VIEW_HOURS = 24
+
+
+def run_fetch(store, trigger, skip_sensitive=False, on_source_fetched=None, skip_names=(), tier="full"):
     """One fetch end to end — shared by the dashboard button and the scheduled
-    GitHub Actions run so both record the same "last fetch" state."""
+    GitHub Actions run so both record the same "last fetch" state. tier="fast" is the
+    light every-30-minutes run (JobSource.tier); "full" reads every source."""
     started_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
     results, cfg = collect_live_jobs(on_source_fetched=on_source_fetched, skip_sensitive=skip_sensitive,
-                                     store=store, skip_names=skip_names)
+                                     store=store, skip_names=skip_names, tier=tier)
     finished_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
     store.set_meta("last_fetch_at", finished_at)
-    store.set_meta("last_fetch_new_ids", json.dumps(sorted({url for r in results for url in r.inserted_urls})))
-    store.record_fetch_run(started_at, finished_at, trigger, [result_to_dict(r) for r in results])
+    if tier == "full":
+        # The 11:00 / 18:00 slots are done only by a full fetch (cli daily-due).
+        store.set_meta("last_full_fetch_at", finished_at)
+    # This run's own new offers: what its e-mail lists (notify.summary_rows).
+    store.set_meta("last_run_new_ids", json.dumps(sorted({url for r in results for url in r.inserted_urls})))
+    store.set_meta("last_fetch_new_ids", json.dumps(sorted(row["external_id"] for row in store.new_since(NEW_VIEW_HOURS))))
+    store.record_fetch_run(started_at, finished_at, trigger if tier == "full" else f"{trigger} ({tier})",
+                           [result_to_dict(r) for r in results])
     # Known offers are skipped by the sources, so without this their freshness
     # and stale penalty would only move when someone opened the dashboard. It also
     # writes meta 'scoring_profile', which the web app reads category maxima from.
-    rescore(store, cfg, store.get_all_meta(), store.list(0), force=True)
+    # The fast runs rescore only on a new day or a config change (rescore() decides).
+    rescore(store, cfg, store.get_all_meta(), store.list(0), force=tier == "full")
     return results

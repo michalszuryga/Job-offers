@@ -5,6 +5,7 @@ from ..models import canonical_job_url
 
 class BulldogJobSource(JobSource):
     name = "Bulldogjob"
+    tier = "fast"
 
     def __init__(self, queries=None):
         self.queries = queries or [

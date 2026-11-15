@@ -1,9 +1,10 @@
 import re
 from datetime import datetime, timezone
 from .salary import monthly_salary_pln, normalize_job_salary
+from .sources.web_utils import remote_hint
 
 # Bump when scoring logic changes so stored scores get recomputed on next load.
-SCORING_VERSION = 4
+SCORING_VERSION = 5
 
 
 def _text(job):
@@ -127,7 +128,10 @@ def score_job(job, cfg, now=None):
         job.rejected, job.reject_reason, job.score = True, "Java", 0
         job.score_breakdown = {"hard_reject": "Java"}
         return job
-    if cfg.get("filters", {}).get("remote_only") and job.remote is not True:
+    # Not plainly remote, but the text says full remote is possible: kept as "potentially
+    # remote" (its own section in the app and the e-mail) instead of rejected; no remote points.
+    job.remote_hint = "" if job.remote is True else remote_hint(" ".join((job.title or "", job.location or "", job.description or "")))
+    if cfg.get("filters", {}).get("remote_only") and job.remote is not True and not job.remote_hint:
         job.rejected, job.reject_reason, job.score = True, "Remote-only preference", 0
         job.score_breakdown = {"hard_reject": "Remote-only preference"}
         return job

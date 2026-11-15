@@ -150,6 +150,6 @@ def test_summary_puts_eu_institution_offers_first_with_a_flag():
     ]
     assert is_eu_institution(rows[1]) and not is_eu_institution(rows[0])
     subject, text, html = build_summary(rows, None)
-    assert subject == "JOffers: 2 nowe oferty · 🇪🇺 1 UE"
+    assert subject == "JOffers: 2 nowe oferty · 🇪🇺 1 UE · 80 pkt QA Engineer — Acme"
     assert text.splitlines()[0].startswith("1. 60 pkt · 🇪🇺 IS Tester - Far site — SEIDOR")
     assert "🇪🇺 IS Tester" in html

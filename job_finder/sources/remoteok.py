@@ -12,6 +12,7 @@ API_URL = "https://remoteok.com/api"
 
 class RemoteOKSource(JobSource):
     name = "RemoteOK"
+    tier = "fast"
 
     def __init__(self, api_url=API_URL):
         self.api_url = api_url

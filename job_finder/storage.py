@@ -107,6 +107,7 @@ class JobStore:
                 "applied_rate": "TEXT DEFAULT ''",
                 "notice_period": "TEXT DEFAULT ''",
                 "applied_at": "TEXT",
+                "remote_hint": "TEXT DEFAULT ''",
             }
             for column, definition in migrations.items():
                 if column not in existing:
@@ -189,7 +190,7 @@ class JobStore:
 
     _UPSERT_COLUMNS = ("external_id,title,company,url,source,description,location,remote,contract,"
                        "salary_min,salary_max,salary_currency,salary_period,seniority,published_at,score,recency_score,"
-                       "matched_keywords,penalties,application_status,first_seen_at,last_seen_at,rejected,reject_reason,score_breakdown")
+                       "matched_keywords,penalties,application_status,first_seen_at,last_seen_at,rejected,reject_reason,score_breakdown,remote_hint")
 
     _CONFLICT_SET = """title=excluded.title, company=excluded.company, description=excluded.description,
                 location=excluded.location, remote=excluded.remote, contract=excluded.contract,
@@ -198,7 +199,8 @@ class JobStore:
                 seniority=excluded.seniority, published_at=excluded.published_at, score=excluded.score,
                 recency_score=excluded.recency_score, matched_keywords=excluded.matched_keywords,
                 penalties=excluded.penalties, rejected=excluded.rejected,
-                reject_reason=excluded.reject_reason, score_breakdown=excluded.score_breakdown"""
+                reject_reason=excluded.reject_reason, score_breakdown=excluded.score_breakdown,
+                remote_hint=excluded.remote_hint"""
 
     # last_seen_at drives expiry, so only a real fetch may bump it — a rescore
     # after a config change must not make every stored offer look freshly seen.
@@ -206,8 +208,8 @@ class JobStore:
     _RESCORE_CONFLICT_CLAUSE = f"ON CONFLICT(external_id) DO UPDATE SET {_CONFLICT_SET}"
 
     # 20 values supplied per row, then the two server-side NOW() timestamps,
-    # then 3 more supplied values — see _upsert_params()'s 23-item tuple.
-    _UPSERT_ROW_TEMPLATE = "(" + ",".join(["?"] * 20) + f",{_NOW},{_NOW}," + ",".join(["?"] * 3) + ")"
+    # then 4 more supplied values — see _upsert_params()'s 24-item tuple.
+    _UPSERT_ROW_TEMPLATE = "(" + ",".join(["?"] * 20) + f",{_NOW},{_NOW}," + ",".join(["?"] * 4) + ")"
 
     _UPSERT_SQL = f"INSERT INTO jobs ({_UPSERT_COLUMNS}) VALUES {_UPSERT_ROW_TEMPLATE} {_UPSERT_CONFLICT_CLAUSE}"
 
@@ -221,6 +223,7 @@ class JobStore:
             job.score, job.recency_score, json.dumps(job.matched_keywords), json.dumps(job.penalties),
             job.application_status, int(getattr(job, "rejected", False)), getattr(job, "reject_reason", ""),
             json.dumps(getattr(job, "score_breakdown", {}), ensure_ascii=False),
+            getattr(job, "remote_hint", "") or "",
         )
 
     def upsert(self, job: Job) -> bool:

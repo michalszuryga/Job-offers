@@ -96,6 +96,7 @@ def _parse_detail(url, source_name):
 class TestDevJobsSource(JobSource):
     __test__ = False  # pytest would otherwise try to collect this as a test class.
     name = "TestDevJobs"
+    tier = "fast"
 
     def __init__(self, listing_url=LISTING_URL):
         self.listing_url = listing_url

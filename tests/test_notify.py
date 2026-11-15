@@ -21,7 +21,7 @@ def test_summary_lists_top_offers_with_links_and_failed_sources(monkeypatch):
         {"name": "JustJoin.IT", "error": "1 page failed", "error_type": "OfferParseError"},
     ]}
     subject, text, html = notify.build_summary(rows, run)
-    assert subject == "JOffers: 12 nowych ofert"
+    assert subject == "JOffers: 12 nowych ofert · 90 pkt QA 0 — Acme"
     assert text.splitlines()[0] == "1. 90 pkt · QA 0 — Acme · 20 000–25 000 PLN/mies."
     # All 12 are listed, with no "… and N more" line.
     assert "https://board.test/90" in text and "QA 11" in text and "jeszcze" not in text
@@ -45,7 +45,7 @@ def test_summary_with_nothing_new():
 
 def test_hours_fallback_is_named_in_the_subject():
     assert notify.build_summary([], None, hours=72)[0] == "JOffers: brak nowych ofert (72 h)"
-    assert notify.build_summary([_row(80, "QA")], None, hours=24)[0] == "JOffers: 1 nowa oferta (24 h)"
+    assert notify.build_summary([_row(80, "QA")], None, hours=24)[0] == "JOffers: 1 nowa oferta (24 h) · 80 pkt QA — Acme"
 
 
 @pytest.mark.parametrize("count, words", [
@@ -54,7 +54,7 @@ def test_hours_fallback_is_named_in_the_subject():
 ])
 def test_subject_uses_polish_plurals(count, words):
     rows = [_row(99 - i, f"QA {i}") for i in range(count)]
-    assert notify.build_summary(rows, None)[0] == f"JOffers: {count} {words}"
+    assert notify.build_summary(rows, None)[0] == f"JOffers: {count} {words} · 99 pkt QA 0 — Acme"
 
 
 def test_every_offer_is_listed_and_numbered_in_the_text():
@@ -80,14 +80,14 @@ def test_summary_counts_the_visible_new_ids_of_the_last_fetch(tmp_path):
     older = Job("QA Older", "D", "https://board.test/older", "src", score=95)
     store = _store_with(tmp_path, new_best, new_ok, new_rejected, older)
     new_ids = [new_ok.external_id, new_rejected.external_id, new_best.external_id]
-    store.set_meta("last_fetch_new_ids", json.dumps(new_ids))
+    store.set_meta("last_run_new_ids", json.dumps(new_ids))
 
     rows, hours = notify.summary_rows(store)
     visible_new = [r for r in store.list(0) if r["external_id"] in new_ids]
     assert hours is None
     assert len(rows) == len(visible_new) == 2
     assert [r["title"] for r in rows] == ["QA Best", "QA Ok"]
-    assert notify.build_summary(rows, None)[0] == "JOffers: 2 nowe oferty"
+    assert notify.build_summary(rows, None)[0] == "JOffers: 2 nowe oferty · 90 pkt QA Best — A"
 
 
 def test_summary_falls_back_to_the_hours_window_without_new_ids(tmp_path):
@@ -101,7 +101,7 @@ def test_a_fetch_that_is_not_todays_falls_back_to_the_window(tmp_path, hours_ago
     # Today's fetch failed before run_fetch recorded anything: the ids are yesterday's.
     stale = Job("QA Yesterday", "A", "https://board.test/old", "src", score=90)
     store = _store_with(tmp_path, stale, fetched_hours_ago=hours_ago)
-    store.set_meta("last_fetch_new_ids", json.dumps([stale.external_id]))
+    store.set_meta("last_run_new_ids", json.dumps([stale.external_id]))
     rows, hours = notify.summary_rows(store, fallback_hours=6)
     assert hours == 6
     assert notify.fetch_is_current(store) is False
@@ -118,7 +118,7 @@ def test_a_missing_or_broken_fetch_time_is_not_current(tmp_path):
 
 def test_an_empty_last_fetch_is_not_a_fallback(tmp_path):
     store = _store_with(tmp_path, Job("QA Fresh", "A", "https://board.test/fresh", "src", score=70))
-    store.set_meta("last_fetch_new_ids", "[]")
+    store.set_meta("last_run_new_ids", "[]")
     assert notify.summary_rows(store) == ([], None)
 
 
@@ -189,3 +189,23 @@ def test_a_huge_fetch_is_capped_at_100_with_a_more_line():
     text, html = notify.build_summary(rows, None)[1:]
     assert html.count("<li") == 100 and "100. 50 pkt · QA 99" in text
     assert "… i jeszcze 2 oferty" in text and "<p>… i jeszcze 2 oferty</p>" in html
+
+
+def test_potentially_remote_offers_get_their_own_section_with_the_phrase(monkeypatch):
+    monkeypatch.delenv("APP_URL", raising=False)
+    maybe = _row(70, "QA Hybrid", remote_hint="Hybrid in Gdańsk, fully remote work also possible")
+    rows = [maybe, _row(60, "QA Remote")]
+    subject, text, html = notify.build_summary(rows, None)
+    # The plainly remote offer comes first even with a lower score; numbering runs on.
+    assert text.index("1. 60 pkt · QA Remote") < text.index("Potencjalnie zdalne") < text.index("2. 70 pkt · QA Hybrid")
+    assert "„Hybrid in Gdańsk, fully remote work also possible”" in text
+    assert "<h3" in html and "Potencjalnie zdalne" in html and "fully remote work also possible" in html
+    assert subject.endswith("70 pkt QA Hybrid — Acme")
+
+
+def test_each_offer_has_a_one_tap_applied_link(monkeypatch):
+    monkeypatch.setenv("APP_URL", "https://app.test/")
+    _, text, html = notify.build_summary([_row(80, "QA", external_id="https://board.test/a")], None)
+    link = "https://app.test/?offer=https%3A%2F%2Fboard.test%2Fa&mark=applied"
+    assert f"Aplikowałem: {link}" in text
+    assert f'href="{link.replace("&", "&amp;")}"' in html and "✓ Aplikowałem" in html

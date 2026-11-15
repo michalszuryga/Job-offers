@@ -33,11 +33,15 @@ def main():
     fetch_cmd = sub.add_parser("fetch", help="Fetch every source and store the results")
     fetch_cmd.add_argument("--skip-sensitive", action="store_true")
     fetch_cmd.add_argument("--trigger", default="cli")
+    fetch_cmd.add_argument("--tier", choices=("full", "fast"), default="full",
+                           help="fast: only the light sources, for the every-30-minutes workday run")
     fetch_cmd.add_argument("--skip-source", action="append", default=[], metavar="NAME",
                            help="Leave out a source by its name, e.g. CzyJestEldorado (repeatable)")
     summary_cmd = sub.add_parser("notify-summary", help="E-mail a summary of the offers new in the last fetch")
     summary_cmd.add_argument("--hours", type=int, default=24,
                              help="Fallback window when the last fetch's new ids aren't recorded")
+    summary_cmd.add_argument("--only-if-new", action="store_true",
+                             help="Send nothing when the last fetch found no new offers (the fast runs)")
     tailor_cmd = sub.add_parser("tailor-cv", help="Tailor ../CV/cv.html to one offer with the Claude Code CLI")
     tailor_cmd.add_argument("offer", help="The offer's URL (as stored in JOffers, or any offer page)")
     tailor_cmd.add_argument("--model", default=None, help="Claude model for `claude -p` (default: the CLI's)")
@@ -52,7 +56,8 @@ def main():
     if args.cmd == "init-db":
         print("Database initialized.")
     elif args.cmd == "daily-due":
-        print("no" if daily_fetch_done(store.get_meta("last_fetch_at")) else "yes")
+        # Only a full fetch counts: the fast runs in between leave out some sources.
+        print("no" if daily_fetch_done(store.get_meta("last_full_fetch_at")) else "yes")
     elif args.cmd == "demo":
         cfg = load_config(overrides=overrides_from_meta(store.get_all_meta()))
         created = 0
@@ -61,7 +66,8 @@ def main():
                 created += 1
         print(f"Processed {created} new demo jobs.")
     elif args.cmd == "fetch":
-        results = run_fetch(store, args.trigger, skip_sensitive=args.skip_sensitive, skip_names=args.skip_source)
+        results = run_fetch(store, args.trigger, skip_sensitive=args.skip_sensitive, skip_names=args.skip_source,
+                            tier=args.tier)
         for r in results:
             status = f"{r.error_type}: {r.error}" if r.error else "ok"
             print(f"{r.name:<18} candidates={r.candidates:<4} inserted={r.inserted:<4} "
@@ -83,6 +89,10 @@ def main():
             print("\nStatus set to CV generated.")
     elif args.cmd == "notify-summary":
         rows, hours = summary_rows(store, args.hours)
+        if args.only_if_new and (not rows or hours):
+            # Nothing new, or this run failed before recording its new ids: no e-mail.
+            print("No new offers - nothing sent.")
+            return
         # A fetch that never finished records no run; yesterday's failed sources would mislead.
         last_run = store.last_fetch_run() if fetch_is_current(store) else None
         subject, text, html = build_summary(rows, last_run, hours=hours)

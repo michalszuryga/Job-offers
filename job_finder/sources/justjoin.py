@@ -59,6 +59,7 @@ def _with_page(url, page):
 
 class JustJoinSource(JobSource):
     name = "JustJoin.IT"
+    tier = "fast"
 
     def __init__(self, queries=None, max_pages=MAX_PAGES):
         self.queries = queries or [

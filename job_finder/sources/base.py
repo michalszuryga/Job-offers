@@ -9,6 +9,9 @@ class JobSource(ABC):
     # caller offer a "skip sensitive sources" fetch that avoids poking a site
     # that's already blocking this IP, or just wants a faster, lighter run.
     sensitive = False
+    # "fast": light JSON/listing requests, safe to run every 30 minutes on workdays.
+    # "full": only in the 11:00 / 18:00 runs (heavy scrapers, Cloudflare-protected boards).
+    tier = "full"
 
     @abstractmethod
     def fetch(self, known_urls: set | None = None) -> list[Job]:

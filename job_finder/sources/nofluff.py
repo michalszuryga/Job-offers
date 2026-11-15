@@ -83,6 +83,7 @@ def _extract_candidates(base_url, soup):
 
 class NoFluffSource(JobSource):
     name = "No Fluff Jobs"
+    tier = "fast"
     sensitive = True
 
     def __init__(self, queries=None, max_pages=MAX_PAGES):

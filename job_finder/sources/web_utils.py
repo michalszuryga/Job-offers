@@ -288,9 +288,44 @@ def infer_remote(text: str):
     t = clean(text).lower()
     if any(x in t for x in ["hybryd", "hybrid", "onsite", "on-site", "stacjonarn"]):
         return False
-    if any(x in t for x in ["100% zdalna", "100% remote", "praca zdalna", "zdalnie", "fully remote", "telecommute", "remote"]):
+    if any(x in t for x in ["100% zdalna", "100% remote", "praca zdalna", "zdalnie", "fully remote", "telecommute", "remote",
+                                "home office work"]):
         return True
     return None
+
+
+# "Potentially remote": an offer that isn't plainly remote (hybrid, a city, or no mode at all)
+# but whose text says working fully remotely is possible — "hybrid in Gdańsk or Warsaw, fully
+# remote work also possible", "100% zdalnie dla osób spoza Krakowa", Pracuj.pl's "praca
+# zdalna, praca hybrydowa" (both modes ticked). The bare benefit-list "możliwość pracy zdalnej"
+# usually means occasional home office, so it does not count on its own.
+_REMOTE_HINTS = re.compile(
+    r"(?:fully|100\s*%|completely|entirely)[\s-]*remote(?:ly)?"
+    r"|remote(?:\s+work(?:ing)?)?\s+(?:is\s+)?(?:also\s+)?(?:possible|available|an\s+option)"
+    r"|(?:possibility|option|opportunity)\s+(?:to|of)\s+work(?:ing)?\s+(?:fully\s+|100\s*%\s+)?remote"
+    r"|remote\s+or\s+hybrid|hybrid\s+or\s+(?:fully\s+)?remote|work\s+from\s+anywhere|remote[\s-]first"
+    r"|remote(?:ly)?\s+for\s+(?:candidates|people|those)|(?:candidates|people)\s+(?:based\s+|living\s+)?outside\s+(?:of\s+)?[a-ząćęłńóśźż]+"
+    r"|w\s+pe[lł]ni\s+zdaln\w*|100\s*%\s*zdaln\w*|ca[lł]kowicie\s+zdaln\w*"
+    r"|praca\s+zdalna\s+(?:jest\s+)?(?:te[zż]\s+)?mo[zż]liwa|zdalnie\s+dla\s+os[oó]b|os[oó]b\s+spoza\s+[a-ząćęłńóśźż]+"
+    r"|hybrydowo\s+lub\s+(?:w\s+pe[lł]ni\s+)?zdalnie|zdalnie\s+lub\s+hybrydowo"
+    r"|praca\s+zdalna[\s,;•|/]+praca\s+hybrydowa|praca\s+hybrydowa[\s,;•|/]+praca\s+zdalna"
+    r"|home\s+office\s+work[\s,;•|/]+hybrid\s+work|hybrid\s+work[\s,;•|/]+home\s+office\s+work",
+    re.I,
+)
+_NEGATION_BEFORE = re.compile(r"(?:\bnot|\bno|n't|\bnie(?:\s+jest)?|\bbrak)\s*(?:\w+\s+)?$", re.I)
+
+
+def remote_hint(text: str) -> str:
+    """The phrase that suggests full remote is possible, with a little context, or ""."""
+    t = clean(text)
+    for match in _REMOTE_HINTS.finditer(t):
+        if _NEGATION_BEFORE.search(t[max(0, match.start() - 20):match.start()]):
+            continue
+        start = t.rfind(" ", 0, max(0, match.start() - 50)) + 1
+        end = t.find(" ", min(len(t), match.end() + 50))
+        snippet = t[start:end if end != -1 else len(t)].strip(" ,.;•|")
+        return ("… " if start > 0 else "") + snippet + (" …" if end != -1 else "")
+    return ""
 
 
 _QA_TITLE = re.compile(
@@ -386,7 +421,8 @@ def embedded_json_value(text, key, kind=dict):
 
 
 def parse_offer(url: str, source_name: str, listing_title: str = "", timeout: int = 10,
-                listing_text: str = "", salary_parser=None, default_period: str = "") -> Job | None:
+                listing_text: str = "", salary_parser=None, default_period: str = "",
+                work_modes_parser=None) -> Job | None:
     """Fetch one offer page and normalize structured data or page-level metadata.
 
     salary_parser(soup) reads a board's own salary data (with its own unit):
@@ -394,7 +430,9 @@ def parse_offer(url: str, source_name: str, listing_title: str = "", timeout: in
     board says the salary is undisclosed, so nothing is guessed from the text;
     None means the board data wasn't found and the generic chain runs.
     default_period is the board's display convention for a figure printed
-    without a unit (Bulldogjob and CzyJestEldorado list monthly amounts)."""
+    without a unit (Bulldogjob and CzyJestEldorado list monthly amounts).
+    work_modes_parser(soup) returns the board's own work-mode labels ("praca zdalna, praca
+    hybrydowa"), appended to the location so the remote inference and the app both see them."""
     soup = get_soup(url, timeout=timeout)
     posting = None
     for tag in soup.find_all("script", type="application/ld+json"):
@@ -427,6 +465,9 @@ def parse_offer(url: str, source_name: str, listing_title: str = "", timeout: in
     location = nested_text((posting or {}).get("jobLocation"))
     if not location:
         location = _meta(soup, "job:location", "og:locality")
+    work_modes = work_modes_parser(soup) if work_modes_parser else ""
+    if work_modes:
+        location = f"{location} · {work_modes}" if location else work_modes
     description = clean((posting or {}).get("description") or "")
     if description and "<" in description:
         description = clean(BeautifulSoup(description, "html.parser").get_text(" ", strip=True))
@@ -462,12 +503,13 @@ def parse_offer(url: str, source_name: str, listing_title: str = "", timeout: in
 
 
 def parse_offer_batch(offers, source_name: str, max_workers: int = 5, request_interval: float = 0,
-                      salary_parser=None, default_period: str = ""):
+                      salary_parser=None, default_period: str = "", work_modes_parser=None):
     """Fetch detail pages concurrently while preserving partial successes and errors."""
     results = [None] * len(offers)
     errors = []
     salary_kwargs = {key: value for key, value in (("salary_parser", salary_parser),
-                                                   ("default_period", default_period)) if value}
+                                                   ("default_period", default_period),
+                                                   ("work_modes_parser", work_modes_parser)) if value}
 
     def load_offer(offer):
         if request_interval:
