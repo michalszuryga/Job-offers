@@ -55,6 +55,23 @@ export function clearMark() {
   if (markFrom(location.search) != null) navigate(withParam(location.href, MARK, null), { replace: true, state: history.state })
 }
 
+// ?company=greenhouse/fluxon&decision=approve|skip, the Monday e-mail's links (discover-ats).
+export function companyDecisionFrom(search: string): { ats: string; slug: string; approve: boolean } | null {
+  const params = new URLSearchParams(search)
+  const [ats, slug] = (params.get('company') ?? '').split('/')
+  const decision = params.get('decision')
+  if (!ats || !slug || (decision !== 'approve' && decision !== 'skip')) return null
+  return { ats, slug, approve: decision === 'approve' }
+}
+
+export function clearCompanyDecision() {
+  if (companyDecisionFrom(location.search) == null) return
+  const url = new URL(location.href)
+  url.searchParams.delete('company')
+  url.searchParams.delete('decision')
+  navigate(url.pathname + url.search, { replace: true, state: history.state })
+}
+
 export function isPushedOffer(state: unknown): boolean {
   return typeof state === 'object' && state !== null && (state as Record<string, unknown>)[FLAG] === true
 }

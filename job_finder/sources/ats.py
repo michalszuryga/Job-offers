@@ -326,3 +326,186 @@ class WorkableSearchSource(JobSource):
             published_at=published,
             seniority=infer_seniority(title + " " + description),
         )
+
+
+# Greenhouse, Lever, Ashby and Recruitee: public job-board APIs, one request per company,
+# companies from config/companies.yaml plus the ones you approved (discover-ats). These
+# companies hire everywhere, so only software QA titles are kept, the ATS's own work mode
+# goes into the location (web_utils.with_work_mode) and the region filter reads the location.
+_REMOTE_LOCATION = re.compile(r"remote|home[\s-]?based|anywhere|work\s+from\s+home|telecommut", re.I)
+
+
+def _when(value):
+    """An ISO date or epoch milliseconds, as an aware datetime."""
+    if value in (None, ""):
+        return None
+    try:
+        if isinstance(value, (int, float)):
+            return datetime.fromtimestamp(value / 1000, tz=timezone.utc)
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00").replace(" UTC", "+00:00"))
+        return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+    except (TypeError, ValueError, OSError):
+        return None
+
+
+def _mode_from_location(location):
+    if _REMOTE_LOCATION.search(location or ""):
+        return "remote"
+    return "hybrid" if re.search(r"hybrid", location or "", re.I) else "office"
+
+
+class GreenhouseSource(_ATSSource):
+    name = "Greenhouse"
+    ats = "greenhouse"
+    list_url = "https://boards-api.greenhouse.io/v1/boards/{slug}/jobs"
+    detail_url = "https://boards-api.greenhouse.io/v1/boards/{slug}/jobs/{id}"
+
+    def fetch_company(self, company, known_urls):
+        # The list without content is small; the description is read only for new QA offers.
+        response = requests.get(self.list_url.format(slug=company["slug"]), headers=JSON_HEADERS, timeout=30)
+        response.raise_for_status()
+        entries = response.json().get("jobs") or []
+        self.candidates += len(entries)
+        jobs = []
+        for entry in entries:
+            title = clean(entry.get("title") or "")
+            url = entry.get("absolute_url") or ""
+            if not software_qa_title(title):
+                continue
+            if canonical_job_url(url) in known_urls:
+                self.skipped_known += 1
+                continue
+            location = clean((entry.get("location") or {}).get("name") or "")
+            detail = requests.get(self.detail_url.format(slug=company["slug"], id=entry.get("id")),
+                                  headers=JSON_HEADERS, timeout=30)
+            detail.raise_for_status()
+            # Greenhouse sends the description HTML entity-escaped.
+            description = _html_text(BeautifulSoup(detail.json().get("content") or "", "html.parser").get_text())
+            mode = _mode_from_location(location)
+            jobs.append(Job(
+                title=title, company=company["name"], url=url, source=self.name, description=description,
+                location=with_work_mode(location, mode), remote=mode == "remote",
+                published_at=_when(entry.get("first_published") or entry.get("updated_at")),
+                seniority=infer_seniority(title + " " + description),
+            ))
+        return jobs
+
+
+class LeverSource(_ATSSource):
+    name = "Lever"
+    ats = "lever"
+    url = "https://api.lever.co/v0/postings/{slug}?mode=json"
+    _MODES = {"remote": "remote", "hybrid": "hybrid", "onsite": "office", "on-site": "office"}
+
+    def fetch_company(self, company, known_urls):
+        response = requests.get(self.url.format(slug=company["slug"]), headers=JSON_HEADERS, timeout=30)
+        response.raise_for_status()
+        entries = response.json() or []
+        self.candidates += len(entries)
+        jobs = []
+        for entry in entries:
+            title = clean(entry.get("text") or "")
+            url = entry.get("hostedUrl") or ""
+            if not software_qa_title(title):
+                continue
+            if canonical_job_url(url) in known_urls:
+                self.skipped_known += 1
+                continue
+            categories = entry.get("categories") or {}
+            location = clean(", ".join(categories.get("allLocations") or []) or categories.get("location") or "")
+            mode = self._MODES.get((entry.get("workplaceType") or "").lower()) or _mode_from_location(location)
+            lists = " ".join(f"{clean(item.get('text') or '')} {_html_text(item.get('content'))}"
+                             for item in entry.get("lists") or [] if isinstance(item, dict))
+            description = " ".join(filter(None, (clean(entry.get("descriptionPlain") or ""), lists,
+                                                 clean(entry.get("additionalPlain") or ""))))
+            salary = entry.get("salaryRange") or {}
+            jobs.append(Job(
+                title=title, company=company["name"], url=url, source=self.name, description=description,
+                location=with_work_mode(location, mode), remote=mode == "remote",
+                contract=_contract(categories.get("commitment")),
+                salary_min=salary.get("min"), salary_max=salary.get("max"),
+                salary_currency=salary.get("currency") or "",
+                salary_period={"per-year-salary": "year", "per-month-salary": "month",
+                               "per-hour-wage": "hour"}.get(salary.get("interval") or "", ""),
+                published_at=_when(entry.get("createdAt")),
+                seniority=infer_seniority(title + " " + description),
+            ))
+        return jobs
+
+
+class AshbySource(_ATSSource):
+    name = "Ashby"
+    ats = "ashby"
+    url = "https://api.ashbyhq.com/posting-api/job-board/{slug}"
+    _MODES = {"remote": "remote", "hybrid": "hybrid", "onsite": "office"}
+
+    def fetch_company(self, company, known_urls):
+        response = requests.get(self.url.format(slug=company["slug"]), headers=JSON_HEADERS, timeout=30)
+        response.raise_for_status()
+        entries = response.json().get("jobs") or []
+        self.candidates += len(entries)
+        jobs = []
+        for entry in entries:
+            title = clean(entry.get("title") or "")
+            url = entry.get("jobUrl") or ""
+            if not software_qa_title(title) or entry.get("isListed") is False:
+                continue
+            if canonical_job_url(url) in known_urls:
+                self.skipped_known += 1
+                continue
+            places = [entry.get("location")] + [s.get("location") for s in entry.get("secondaryLocations") or []
+                                                if isinstance(s, dict)]
+            country = ((entry.get("address") or {}).get("postalAddress") or {}).get("addressCountry")
+            location = clean(", ".join(dict.fromkeys(p for p in places + [country] if p)))
+            mode = self._MODES.get((entry.get("workplaceType") or "").lower()) or (
+                "remote" if entry.get("isRemote") else _mode_from_location(location))
+            description = clean(entry.get("descriptionPlain") or "") or _html_text(entry.get("descriptionHtml"))
+            jobs.append(Job(
+                title=title, company=company["name"], url=url, source=self.name, description=description,
+                location=with_work_mode(location, mode), remote=mode == "remote",
+                contract=_contract({"FullTime": "full-time", "PartTime": "part-time",
+                                    "Contract": "contract"}.get(entry.get("employmentType") or "", "")),
+                published_at=_when(entry.get("publishedAt")),
+                seniority=infer_seniority(title + " " + description),
+            ))
+        return jobs
+
+
+class RecruiteeSource(_ATSSource):
+    name = "Recruitee"
+    ats = "recruitee"
+    url = "https://{slug}.recruitee.com/api/offers/"
+
+    def fetch_company(self, company, known_urls):
+        response = requests.get(self.url.format(slug=company["slug"]), headers=JSON_HEADERS, timeout=30)
+        response.raise_for_status()
+        entries = response.json().get("offers") or []
+        self.candidates += len(entries)
+        jobs = []
+        for entry in entries:
+            title = clean(entry.get("title") or "")
+            url = entry.get("careers_url") or ""
+            if not software_qa_title(title) or entry.get("status", "published") != "published":
+                continue
+            if canonical_job_url(url) in known_urls:
+                self.skipped_known += 1
+                continue
+            mode = "remote" if entry.get("remote") else "hybrid" if entry.get("hybrid") else "office"
+            if entry.get("remote") and entry.get("hybrid"):
+                mode = None  # both offered: the text decides (potentially remote)
+            location = _location(entry.get("city"), entry.get("country"))
+            if mode is None:
+                location = with_work_mode(with_work_mode(location, "remote"), "hybrid")
+            description = " ".join(filter(None, (_html_text(entry.get("description")),
+                                                 _html_text(entry.get("requirements")))))
+            salary = entry.get("salary") or {}
+            jobs.append(Job(
+                title=title, company=company["name"], url=url, source=self.name, description=description,
+                location=with_work_mode(location, mode) if mode else location, remote=mode == "remote",
+                contract=_contract(entry.get("employment_type_code")),
+                salary_min=salary.get("min"), salary_max=salary.get("max"),
+                salary_currency=salary.get("currency") or "", salary_period=salary.get("period") or "",
+                published_at=_when(entry.get("published_at")),
+                seniority=infer_seniority(title + " " + description),
+            ))
+        return jobs

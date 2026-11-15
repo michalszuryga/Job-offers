@@ -308,7 +308,9 @@ def with_work_mode(location: str, mode: str | None) -> str:
     label = _WORK_MODE_LABELS.get((mode or "").lower())
     if not label:
         return location or ""
-    return f"{location} · {label}" if location else label
+    if not location or location.strip().lower() == label.lower():
+        return label
+    return f"{location} · {label}"
 
 
 def location_work_mode(location: str):
@@ -318,7 +320,8 @@ def location_work_mode(location: str):
         return True  # the ATS adapters' "Thessaloniki, Greece (remote)"
     parts = [p.strip().lower() for p in (location or "").split(" · ")]
     if len(parts) < 2:
-        return None
+        # A bare mode is the whole location ("Remote": with_work_mode with no place).
+        return {"remote": True, "hybrid": False, "office": False}.get(parts[0])
     modes = " ".join(p.replace("home office work", "remote") for p in parts
                      if _MODE_REMOTE.search(p.replace("home office work", "remote")) or _MODE_NOT_REMOTE.search(p))
     if not modes:

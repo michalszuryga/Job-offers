@@ -168,3 +168,12 @@ test("the e-mail's Applied link marks the offer Applied, with Undo", async ({ pa
   )
   await expect(page).not.toHaveURL(/mark=/)
 })
+
+test("the Monday e-mail's Add link approves the company and says so", async ({ page }) => {
+  const supabase = await mockSupabase(page, { now: FIXED_NOW })
+  await page.goto('./?company=ashby%2Fkyotu&decision=approve')
+
+  await expect(page.locator('.ui-toast__message')).toHaveText('Added Kyotu Technology: its QA offers are read from now on')
+  expect(supabase.rpcCalls).toContainEqual({ p_ats: 'ashby', p_slug: 'kyotu', p_approve: true })
+  await expect(page).not.toHaveURL(/decision=/)
+})

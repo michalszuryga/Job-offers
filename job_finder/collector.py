@@ -19,7 +19,8 @@ from .sources.testdevjobs import TestDevJobsSource
 from .sources.eldorado import EldoradoSource
 from .sources.himalayas import HimalayasSource
 from .sources.solidjobs import SolidJobsSource
-from .sources.ats import SmartRecruitersSource, TalentClueSource, WorkableSearchSource, WorkableSource
+from .sources.ats import (AshbySource, GreenhouseSource, LeverSource, RecruiteeSource, SmartRecruitersSource,
+                          TalentClueSource, WorkableSearchSource, WorkableSource)
 
 
 @dataclass
@@ -91,7 +92,7 @@ def _fetch_and_score(source, cfg, known_urls):
 # which is what lets tests monkeypatch e.g. `collector.JustJoinSource` and have
 # it take effect. A list captured once at import time would freeze in the
 # original classes and silently ignore any later monkeypatching.
-SOURCE_COUNT = 14
+SOURCE_COUNT = 18
 SENSITIVE_SOURCE_COUNT = 3  # Pracuj.pl, No Fluff Jobs, CzyJestEldorado
 
 
@@ -108,11 +109,19 @@ def collect_live_jobs(config_path="config/profile.yaml", on_source_fetched=None,
         EldoradoSource(),
         # Companies' own ATS job boards (EU-institution contractors), from config/companies.yaml.
         WorkableSource(), SmartRecruitersSource(), TalentClueSource(),
+        # Product companies' public ATS boards (companies.yaml + approved discoveries).
+        GreenhouseSource(), LeverSource(), AshbySource(), RecruiteeSource(),
         # Workable's own search across every company on it.
         WorkableSearchSource(),
         # Remote board (Himalayas) and a Polish board's aggregator API (Solid.jobs).
         HimalayasSource(), SolidJobsSource(),
     ]
+    for source in sources:
+        # Companies you approved from discover-ats join the ones in companies.yaml.
+        ats = getattr(source, "ats", "")
+        if ats and isinstance(getattr(source, "companies", None), list):
+            configured = {str(c.get("slug")) for c in source.companies}
+            source.companies = source.companies + [c for c in store.approved_ats(ats) if c["slug"] not in configured]
     if tier == "fast":
         # The every-30-minutes workday run: light sources only (JobSource.tier).
         sources = [source for source in sources if getattr(source, "tier", "full") == "fast"]

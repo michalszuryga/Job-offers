@@ -248,6 +248,11 @@ export async function mockSupabase(page: Page, options: MockOptions = {}): Promi
       state.rpcCalls.push(call)
       return route.fulfill({ status: 204 })
     }
+    if (path === '/rest/v1/rpc/decide_ats_company') {
+      const call = request.postDataJSON()
+      state.rpcCalls.push(call)
+      return json(route, call.p_slug === 'kyotu' ? 'Kyotu Technology' : null, call.p_slug === 'kyotu' ? 200 : 400)
+    }
     return json(route, { message: `unmocked ${request.method()} ${path}` }, 500)
   })
   return state

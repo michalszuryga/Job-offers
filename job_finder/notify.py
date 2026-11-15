@@ -218,3 +218,32 @@ def send_email(subject, text, html):
         smtp.login(user, password)
         smtp.send_message(message)
     return True
+
+
+def build_ats_candidates(candidates, app_url=""):
+    """Returns (subject, text, html): the companies discover-ats found, each with its board
+    and one-tap links that approve or skip it in the web app (?company=ats/slug&decision=…)."""
+    from .discover import BOARD_URLS
+    count = len(candidates)
+    subject = f"JOffers: {count} {_plural(count, 'nowa firma', 'nowe firmy', 'nowych firm')} do akceptacji"
+    lines, items = [], []
+    for number, c in enumerate(candidates, 1):
+        board = BOARD_URLS.get(c["ats"], "").format(slug=c["slug"])
+        what = (f"{c['name']} — {c['ats'].title()} · {c.get('jobs') or 0} ofert, w tym QA: {c.get('qa_jobs') or 0}"
+                + (f" · tablica: „{c['board_name']}”" if c.get("board_name") else ""))
+        decide = {d: app_link(app_url, company=f"{c['ats']}/{c['slug']}", decision=d) for d in ("approve", "skip")} \
+            if app_url else {}
+        lines.append(f"{number}. {what}\n   {board}"
+                     + (f"\n   Dodaj: {decide['approve']}\n   Pomiń: {decide['skip']}" if decide else ""))
+        items.append(
+            f'<li style="margin:0 0 12px"><span style="color:#665C50">{number}.</span> '
+            f'<a href="{escape(board, quote=True)}">{escape(c["name"])}</a> — {escape(what.split(" — ", 1)[1])}'
+            + (f'<br><a href="{escape(decide["approve"], quote=True)}" style="color:#2F5D50">✓ Dodaj</a> · '
+               f'<a href="{escape(decide["skip"], quote=True)}" style="color:#9A5B00">✗ Pomiń</a>' if decide else "")
+            + "</li>")
+    intro = ("Firmy, które ostatnio szukały testerów i mają publiczną tablicę ogłoszeń. "
+             "Po dodaniu ich oferty QA będą pobierane co 30 minut prosto z ATS-u.")
+    text = intro + "\n\n" + "\n".join(lines)
+    html = ('<div style="font-family:system-ui,sans-serif;font-size:15px;line-height:1.45;color:#0E1120">'
+            f'<p>{intro}</p><ul style="list-style:none;padding-left:0">{"".join(items)}</ul></div>')
+    return subject, text, html

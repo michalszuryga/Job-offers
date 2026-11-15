@@ -11,6 +11,9 @@ export interface DataSource {
   loadOfferDetails(externalId: string): Promise<OfferDetails>
   // rpc save_offer_tracking for members: overwrites status, rate and notice together.
   saveTracking: SaveTracking
+  // rpc decide_ats_company: the Monday e-mail's "add / skip this company" links. Members
+  // only; the demo has none. Resolves to the company's name.
+  decideCompany?: (ats: string, slug: string, approve: boolean) => Promise<string>
   // Whether the screens remember filters and locally seen offers in localStorage. The demo
   // doesn't, so trying it never changes what a member's own list shows.
   persistent: boolean

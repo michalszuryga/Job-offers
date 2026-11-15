@@ -472,6 +472,9 @@ export const en = {
   toast: {
     status: (label: string) => `Status: ${label}`,
     statusFailed: "Couldn't save the status",
+    companyAdded: (name: string) => `Added ${name}: its QA offers are read from now on`,
+    companySkipped: (name: string) => `Skipped ${name}`,
+    companyFailed: "Couldn't save the decision about that company",
   },
   time: {
     justNow: 'just now',

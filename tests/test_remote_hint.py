@@ -110,7 +110,7 @@ def test_workable_search_fails_only_when_every_query_fails(monkeypatch):
     ("Warszawa · praca zdalna", True), ("Warszawa · praca zdalna, praca hybrydowa", False),
     ("Kraków · home office work", True), ("Kraków · home office work, hybrid work", False),
     ("Thessaloniki, Greece (remote)", True), ("Remote · Poland", True),
-    ("Warszawa", None), ("Remote", None), ("Hybrid Park, Kraków", None),
+    ("Warszawa", None), ("Remote", True), ("Hybrid", False), ("Hybrid Park, Kraków", None),
 ])
 def test_the_work_mode_kept_in_the_location(location, remote):
     from job_finder.sources.web_utils import location_work_mode

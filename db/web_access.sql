@@ -74,3 +74,33 @@ revoke execute on function public.is_member() from public, anon;
 grant execute on function public.is_member() to authenticated;
 revoke execute on function public.save_offer_tracking(text, text, text, text) from public, anon;
 grant execute on function public.save_offer_tracking(text, text, text, text) to authenticated;
+
+-- Companies found by discover-ats (job_finder/discover.py). Not readable through the
+-- API at all; the Monday e-mail's links decide one through this function only.
+alter table public.ats_companies enable row level security;
+alter table public.ats_probes enable row level security;
+revoke all on public.ats_companies, public.ats_probes from anon, authenticated;
+
+create or replace function public.decide_ats_company(p_ats text, p_slug text, p_approve boolean)
+returns text
+language plpgsql security definer set search_path = public as $$
+declare
+  v_name text;
+begin
+  if not public.is_member() then
+    raise exception 'not allowed';
+  end if;
+  update public.ats_companies
+     set status = case when p_approve then 'approved' else 'skipped' end,
+         decided_at = cast(current_timestamp as text)
+   where ats = p_ats and slug = p_slug
+  returning name into v_name;
+  if not found then
+    raise exception 'company not found';
+  end if;
+  return v_name;
+end
+$$;
+
+revoke execute on function public.decide_ats_company(text, text, boolean) from public, anon;
+grant execute on function public.decide_ats_company(text, text, boolean) to authenticated;

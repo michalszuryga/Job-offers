@@ -7,7 +7,9 @@ import { useDataSource } from '../../lib/dataSource'
 import { applyFilters, sortOffers } from '../../lib/format'
 import { DEFAULT_FILTERS, loadFilters, saveFilters, type Filters } from '../../lib/prefs'
 import {
+  clearCompanyDecision,
   clearMark,
+  companyDecisionFrom,
   clearView,
   closeOffer,
   markFrom,
@@ -29,6 +31,7 @@ import { listPosition } from './position'
 import { TodaySummary } from './TodaySummary'
 import { Toolbar } from './Toolbar'
 import { useDashboard } from './useDashboard'
+import { useToast } from '../../components/ui'
 import { useTracking } from './useTracking'
 import './OffersPage.css'
 
@@ -86,6 +89,20 @@ export function OffersPage() {
   useEscapeToClose(selectedId != null, closeOffer)
 
   useEffect(clearView, [])
+  // ?company=…&decision=… from the Monday e-mail: approve or skip a found company, once.
+  const { decideCompany } = useDataSource()
+  const toast = useToast()
+  useEffect(() => {
+    const decision = companyDecisionFrom(location.search)
+    if (!decision || !decideCompany) return
+    clearCompanyDecision()
+    decideCompany(decision.ats, decision.slug, decision.approve).then(
+      (name) => toast.show({ message: decision.approve ? t.toast.companyAdded(name) : t.toast.companySkipped(name) }),
+      () => toast.show({ message: t.toast.companyFailed }),
+    )
+    // Once per page load: the params are gone after the first run.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   useEffect(() => {
     if (persistent) saveFilters(filters)
   }, [filters, persistent])

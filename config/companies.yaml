@@ -5,12 +5,21 @@
 #   workable:        slug from apply.workable.com/<slug>
 #   smartrecruiters: company id from jobs.smartrecruiters.com/<id>
 #   talentclue:      data-client-id of the jobs widget on <company>.talentclue.com
+#   greenhouse:      board token from job-boards.greenhouse.io/<slug>
+#   lever:           site name from jobs.lever.co/<slug>
+#   ashby:           organisation from jobs.ashbyhq.com/<slug>
+#   recruitee:       subdomain from <slug>.recruitee.com
+#
+# Companies found by `python -m job_finder.cli discover-ats` are added after you approve
+# them (the Monday e-mail's links); those live in the database (ats_companies), not here.
 #
 # Only QA/test titles are kept; remote comes from the ATS's own remote field
 # and phrases like "far site" / "remotely from Europe" in the title.
 workable:
   - {name: European Dynamics, slug: european-dynamics}
   - {name: Sword Group, slug: sword-group}
+  - {name: Netguru, slug: netguru}
+  - {name: Monterail, slug: monterail}
 
 smartrecruiters:
   - {name: ARHS Group, slug: ARHS}
@@ -18,3 +27,57 @@ smartrecruiters:
 
 talentclue:
   - {name: SEIDOR, client_id: 0dd7d2a37394fe074e5a4ac26c42ab4f}
+
+# Product companies hiring remote QA in Europe, checked 2026-10-14 and 2026-11-15.
+greenhouse:
+  - {name: Canonical, slug: canonical}
+  - {name: Sporty Group, slug: sportygroup}
+  - {name: Storyblok, slug: storyblok}
+  - {name: Fluxon, slug: fluxon}
+  - {name: GitLab, slug: gitlab}
+  - {name: Elastic, slug: elastic}
+  - {name: Grafana Labs, slug: grafanalabs}
+  - {name: Mozilla, slug: mozilla}
+  - {name: Vercel, slug: vercel}
+  - {name: N26, slug: n26}
+  - {name: Backbase, slug: workatbackbase}
+  - {name: Intercom, slug: intercom}
+  - {name: Contentful, slug: contentful}
+  - {name: Bitpanda, slug: bitpanda}
+  - {name: Appfire, slug: appfire}
+  - {name: GetYourGuide, slug: getyourguide}
+  - {name: Smartly, slug: smartlyio}
+  - {name: Wrike, slug: wrike}
+  - {name: Mews, slug: mewssystems}
+  - {name: PandaDoc, slug: pandadoc}
+  - {name: Mattermost, slug: mattermost}
+  - {name: Nebius, slug: nebius}
+  - {name: Sword Health, slug: swordhealth}
+
+lever:
+  - {name: Toptal, slug: toptal}
+  - {name: SwingDev, slug: swingdev}
+  - {name: Pipedrive, slug: pipedrive}
+  - {name: Superside, slug: superside}
+  - {name: Xsolla, slug: xsolla}
+
+ashby:
+  - {name: Docplanner, slug: docplanner}
+  - {name: n8n, slug: n8n}
+  - {name: Supabase, slug: supabase}
+  - {name: PostHog, slug: posthog}
+  - {name: Sentry, slug: sentry}
+  - {name: Pleo, slug: pleo}
+  - {name: Mollie, slug: mollie}
+  - {name: Preply, slug: preply}
+  - {name: Docker, slug: docker}
+  - {name: Hostinger, slug: hostinger}
+  - {name: Linear, slug: linear}
+  - {name: Paddle, slug: paddle}
+  - {name: DataSnipper, slug: datasnipper}
+  - {name: Zapier, slug: zapier}
+
+recruitee:
+  - {name: Espeo Software, slug: espeo}
+  - {name: Softgames, slug: softgames}
+  - {name: Ten Square Games, slug: tensquaregames}

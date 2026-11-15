@@ -91,5 +91,11 @@ async function saveTracking(externalId: string, { status, rate, notice }: Tracki
   if (error) throw error
 }
 
+async function decideCompany(ats: string, slug: string, approve: boolean): Promise<string> {
+  const { data, error } = await supabase.rpc('decide_ats_company', { p_ats: ats, p_slug: slug, p_approve: approve })
+  if (error) throw error
+  return typeof data === 'string' ? data : slug
+}
+
 // The members' data, provided by AppRoot.
-export const supabaseSource: DataSource = { loadDashboard, loadOfferDetails, saveTracking, persistent: true }
+export const supabaseSource: DataSource = { loadDashboard, loadOfferDetails, saveTracking, decideCompany, persistent: true }

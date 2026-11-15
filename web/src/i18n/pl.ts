@@ -412,6 +412,9 @@ export const pl: Messages = {
   toast: {
     status: (label) => `Status: ${label}`,
     statusFailed: 'Nie udało się zapisać statusu',
+    companyAdded: (name) => `Dodano ${name}: od teraz pobieramy jej oferty QA`,
+    companySkipped: (name) => `Pominięto ${name}`,
+    companyFailed: 'Nie udało się zapisać decyzji o firmie',
   },
   time: {
     justNow: 'przed chwilą',

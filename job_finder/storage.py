@@ -120,6 +120,61 @@ class JobStore:
             self._exec(conn, "CREATE TABLE IF NOT EXISTS meta (meta_key TEXT PRIMARY KEY, meta_value TEXT)")
             self._exec(conn, "CREATE TABLE IF NOT EXISTS fetch_runs ("
                              "started_at TEXT PRIMARY KEY, finished_at TEXT, trigger TEXT, results TEXT)")
+            # Companies' ATS boards found by discover-ats: pending until you approve or skip
+            # them (Monday e-mail → web app → rpc decide_ats_company, db/web_access.sql).
+            self._exec(conn, "CREATE TABLE IF NOT EXISTS ats_companies ("
+                             "ats TEXT NOT NULL, slug TEXT NOT NULL, name TEXT, status TEXT DEFAULT 'pending', "
+                             "jobs INTEGER DEFAULT 0, qa_jobs INTEGER DEFAULT 0, board_name TEXT DEFAULT '', "
+                             f"found_at TEXT DEFAULT ({_NOW}), decided_at TEXT, PRIMARY KEY (ats, slug))")
+            # Company names already looked up, so each is probed once.
+            self._exec(conn, "CREATE TABLE IF NOT EXISTS ats_probes ("
+                             f"company_key TEXT PRIMARY KEY, probed_at TEXT DEFAULT ({_NOW}))")
+
+    def approved_ats(self, ats):
+        with self._connect() as conn:
+            rows = self._query_dicts(conn, "SELECT slug, name FROM ats_companies WHERE ats=? AND status='approved'", (ats,))
+        return [{"slug": r["slug"], "name": r["name"] or r["slug"]} for r in rows]
+
+    def ats_companies(self, status=None):
+        sql = "SELECT * FROM ats_companies" + (" WHERE status=?" if status else "") + " ORDER BY qa_jobs DESC, jobs DESC"
+        with self._connect() as conn:
+            return self._query_dicts(conn, sql, (status,) if status else ())
+
+    def add_ats_candidate(self, ats, slug, name, jobs, qa_jobs, board_name=""):
+        """A new candidate only: a company already approved or skipped keeps its decision."""
+        with self._connect() as conn:
+            self._exec(conn, "INSERT INTO ats_companies (ats, slug, name, jobs, qa_jobs, board_name) "
+                             "VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(ats, slug) DO NOTHING",
+                       (ats, slug, name, jobs, qa_jobs, board_name))
+
+    def decide_ats(self, ats, slug, approve):
+        with self._connect() as conn:
+            self._exec(conn, f"UPDATE ats_companies SET status=?, decided_at={_NOW} WHERE ats=? AND slug=?",
+                       ("approved" if approve else "skipped", ats, slug))
+
+    def unprobed_companies(self, days=90, limit=40):
+        """Company names from recent offers (rejected ones too: they still hire testers)
+        that discover-ats hasn't looked up yet, most frequent first."""
+        with self._connect() as conn:
+            rows = self._query_dicts(
+                conn,
+                "SELECT company, COUNT(*) AS n FROM jobs WHERE company IS NOT NULL AND company <> '' "
+                f"AND first_seen_at >= {self._ago(days, 'days')} GROUP BY company ORDER BY n DESC")
+            probed = {r["company_key"] for r in self._query_dicts(conn, "SELECT company_key FROM ats_probes")}
+        from .models import _normalize_for_dedup
+        seen, names = set(probed), []
+        for row in rows:
+            key = _normalize_for_dedup(row["company"])
+            if key and key not in seen:
+                seen.add(key)
+                names.append((key, row["company"]))
+        return names[:limit]
+
+    def mark_probed(self, keys):
+        with self._connect() as conn:
+            for key in keys:
+                self._exec(conn, "INSERT INTO ats_probes (company_key) VALUES (?) ON CONFLICT(company_key) DO NOTHING",
+                           (key,))
 
     def _ago(self, amount, unit):
         """SQL expression for "now minus N units", in the same text format the

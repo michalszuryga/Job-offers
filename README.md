@@ -9,12 +9,19 @@ new offers after each fetch that found some.
 
 ## What it does
 
-- **14 sources:** No Fluff Jobs, Pracuj.pl, JustJoin.IT, Bulldogjob, TestDevJobs,
+- **18 sources:** No Fluff Jobs, Pracuj.pl, JustJoin.IT, Bulldogjob, TestDevJobs,
   CzyJestEldorado (aggregator), RemoteOK, We Work Remotely, Workable's public job
   search (every company on Workable), Himalayas and Solid.jobs (public APIs; full
   fetches only; Himalayas offers link back to Himalayas, as its terms ask), plus companies' own
-  ATS job boards (Workable, SmartRecruiters, TalentClue) listed in
-  `config/companies.yaml` — mainly IT contractors staffing EU institutions.
+  ATS job boards (Greenhouse, Lever, Ashby, Recruitee, Workable, SmartRecruiters,
+  TalentClue) listed in `config/companies.yaml` — product companies hiring remote QA
+  in Europe and IT contractors staffing EU institutions.
+- **Company discovery:** after each full fetch `discover-ats` looks up the companies
+  of recent offers on Greenhouse, Lever, Ashby and Recruitee (80 names a run, each
+  once). Boards it finds wait as *pending* in `ats_companies`; on Monday at 11:00
+  an e-mail lists them with *Dodaj / Pomiń* links (web app `?company=ats/slug&decision=…`,
+  rpc `decide_ats_company`). Approved boards are read like the configured ones.
+  Locally: `python -m job_finder.cli decide-ats greenhouse/fluxon approve`.
 - **Potentially remote:** a hybrid or office offer whose text says full remote is
   possible ("hybrid in Gdańsk, fully remote work also possible", Pracuj.pl's
   "praca zdalna, praca hybrydowa") is kept instead of rejected, without remote

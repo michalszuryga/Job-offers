@@ -47,9 +47,15 @@ def main():
     tailor_cmd.add_argument("--model", default=None, help="Claude model for `claude -p` (default: the CLI's)")
     tailor_cmd.add_argument("--keep-status", action="store_true", help="Don't set the offer's status to CV generated")
     sub.add_parser("daily-due", help="Print 'yes' unless this slot's (11:00 / 18:00) fetch already ran")
+    discover_cmd = sub.add_parser("discover-ats", help="Look up recent offers' companies on Greenhouse/Lever/Ashby/Recruitee")
+    discover_cmd.add_argument("--limit", type=int, default=40, help="Company names to look up in this run")
+    sub.add_parser("notify-ats-candidates", help="E-mail the pending companies with approve / skip links")
+    decide_cmd = sub.add_parser("decide-ats", help="Approve or skip a pending company, e.g. greenhouse/fluxon")
+    decide_cmd.add_argument("company", help="ats/slug")
+    decide_cmd.add_argument("decision", choices=("approve", "skip"))
     args = parser.parse_args()
 
-    if args.cmd == "tailor-cv":
+    if args.cmd in ("tailor-cv", "decide-ats"):
         _local_database_url()
     store = JobStore()
 
@@ -58,6 +64,25 @@ def main():
     elif args.cmd == "daily-due":
         # Only a full fetch counts: the fast runs in between leave out some sources.
         print("no" if daily_fetch_done(store.get_meta("last_full_fetch_at")) else "yes")
+    elif args.cmd == "discover-ats":
+        from .discover import discover
+        found = discover(store, limit=args.limit)
+        print(f"{len(found)} new candidate(s)")
+        for c in found:
+            print(f"  {c['ats']}/{c['slug']:<24} {c['name']}  jobs={c['jobs']} qa={c['qa_jobs']}")
+    elif args.cmd == "notify-ats-candidates":
+        import os
+        from .notify import build_ats_candidates
+        pending = store.ats_companies("pending")
+        if not pending:
+            print("No pending companies - nothing sent.")
+            return
+        subject, text, html = build_ats_candidates(pending[:40], os.environ.get("APP_URL", ""))
+        print(f"Sent: {subject}" if send_email(subject, text, html) else f"Not sent (no SMTP):\n{subject}\n{text}")
+    elif args.cmd == "decide-ats":
+        ats, _, slug = args.company.partition("/")
+        store.decide_ats(ats, slug, args.decision == "approve")
+        print(f"{args.company}: {args.decision}")
     elif args.cmd == "demo":
         cfg = load_config(overrides=overrides_from_meta(store.get_all_meta()))
         created = 0
